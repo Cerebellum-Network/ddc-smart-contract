@@ -1,7 +1,7 @@
 # CERE01 Smart Contract 
 
 ## Current Smart Contract
-[Smart Contract Standard](https://docs.google.com/document/d/1AyCkGj0l19PtiTmdx2Ozy9Pgk8Jn6xzMhf5C3tEsP1g/edit#heading=h.pp2wmzgzoebc)
+[Smart Contract Standard](https://docs.google.com/document/d/1AyCkGj0l19PtiTmdx2Ozy9Pgk8Jn6xzMhf5C3tEsP1g/edit?usp=sharing)
 ```bash
 cere01
 ```
