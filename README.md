@@ -1,25 +1,23 @@
 # CERE01: A Standard For Real-world App Assets On Ink!
 
-### How to create Smart Contract Artificats
-```bash
-cere01
-```
+## How to create Smart Contract Artificats
 
-#### Test Smart Contract Source Code
+### Test Smart Contract Source Code
 ```bash
 cargo +nightly test
 ```
 
-#### Build Smart Contract
+### Build Smart Contract
 ```bash
 cargo +nightly contract build
 ```
 
-#### Generage Contract Metadata
+### Generage Contract Metadata
 ```bash
 cargo +nightly contract generate-metadata
 ```
 
+## Specification
 ### Table Of Contents
 [Abstract](#abstract)
 
@@ -124,10 +122,6 @@ pub fn transfer (&mut self, to: AccountId, value: Balance) -> bool
 
 ```
 
-
-
-
-
 **addDistributionAccount**
 
 Transfer function adds the ability to transfer tokens between User accounts and Application and vice versa. To add more distribution wallets to enable application to user account transfers, this function will allow us to have multiple distribution wallets that we can use.
@@ -195,9 +189,6 @@ Test to check if the new instance of the Smart Contract successfully, the test r
 ```
 fn new_works()
 ```
-
-
-
 
 
  **balanceWorks**
