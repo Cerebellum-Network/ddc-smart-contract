@@ -1,4 +1,4 @@
-# CERE01 Smart Contract: A Standard For Real-world App Assets On Ink!
+# CERE01: A Standard For Real-world App Assets On Ink!
 
 ### How to create Smart Contract Artificats
 ```bash
