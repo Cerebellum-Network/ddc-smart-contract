@@ -3,13 +3,13 @@
 use ink_lang as ink;
 
 #[ink::contract]
-mod erc20 {
+mod derivativeAssets {
     #[cfg(not(feature = "ink-as-dependency"))]
     const DS_LIMIT: usize = 8;
 
     #[ink(storage)]
-    pub struct Erc20 {
-        /// The total supply.
+    pub struct DerivativeAssets {
+        /// Smart Contract Owner Account.
         sc_owner: AccountId,
         /// The total supply.
         total_supply: Balance,
@@ -44,7 +44,7 @@ mod erc20 {
     }
 
     #[ink(event)]
-    pub struct IssueVoucher {
+    pub struct IssueRestrctiveAsset {
         #[ink(topic)]
         from: Option<AccountId>,
         #[ink(topic)]
@@ -53,13 +53,7 @@ mod erc20 {
         time_limit: u64,
     }
 
-    // ACTION: Add an `Approval` event
-    //         It should emit the following:
-    //         * `owner` as an `AccountId`
-    //         * `spender` as an `AccountId`
-    //         * `value` as a `Balance`
-
-    impl Erc20 {
+    impl DerivativeAssets {
         #[ink(constructor)]
         pub fn new(initial_supply: Balance) -> Self {
             let caller = Self::env().caller();
@@ -124,7 +118,7 @@ mod erc20 {
         }
 
         #[ink(message)]
-        pub fn get_issue_voucher(&self, user_address: AccountId) -> u64 {
+        pub fn get_issue_restrictive_asset(&self, user_address: AccountId) -> u64 {
             *self.time_limit_list.get(&user_address).unwrap_or(&0)
         }
 
@@ -140,7 +134,7 @@ mod erc20 {
 
             if has_time_limit {
                 self.time_limit_list.insert(user_address, time_limit);
-                self.env().emit_event(IssueVoucher {
+                self.env().emit_event(IssueRestrctiveAsset {
                     from: Some(caller),
                     to: Some(user_address),
                     time_limit: time_limit,
@@ -200,13 +194,13 @@ mod erc20 {
 
         #[ink::test]
         fn new_works() {
-            let contract = Erc20::new(888);
+            let contract = DerivativeAssets::new(888);
             assert_eq!(contract.total_supply(), 888);
         }
 
         #[ink::test]
         fn balance_works() {
-            let contract = Erc20::new(888);
+            let contract = DerivativeAssets::new(888);
             assert_eq!(contract.total_supply(), 888);
             assert_eq!(contract.balance_of(AccountId::from([0x1; 32])), 888);
             assert_eq!(contract.balance_of(AccountId::from([0x0; 32])), 0);
@@ -214,7 +208,7 @@ mod erc20 {
 
         #[ink::test]
         fn transfer_works() {
-            let mut contract = Erc20::new(888);
+            let mut contract = DerivativeAssets::new(888);
             assert_eq!(contract.balance_of(AccountId::from([0x1; 32])), 888);
             assert!(contract.transfer(AccountId::from([0x0; 32]), 88), true);
             assert_eq!(contract.balance_of(AccountId::from([0x0; 32])), 88);
@@ -225,17 +219,17 @@ mod erc20 {
         fn get_distribution_accounts_works() {
             let accounts = ink_env::test::default_accounts::<ink_env::DefaultEnvironment>()
                 .expect("Cannot get accounts");
-            let contract = Erc20::new(888);
+            let contract = DerivativeAssets::new(888);
             let ds_account_list = contract.get_distribution_accounts();
             assert_eq!(ds_account_list.len(), DS_LIMIT);
             assert_eq!(ds_account_list[0], accounts.alice);
         }
 
         #[ink::test]
-        pub fn add_distribution_account_not_owner_works() {
+        pub fn add_distribution_account_works() {
             let accounts = ink_env::test::default_accounts::<ink_env::DefaultEnvironment>()
                 .expect("Cannot get accounts");
-            let mut contract = Erc20::new(888);
+            let mut contract = DerivativeAssets::new(888);
             let ds_account_list = contract.get_distribution_accounts();
 
             assert!(contract.add_distribution_account(accounts.bob), true);
@@ -244,22 +238,22 @@ mod erc20 {
         }
 
         #[ink::test]
-        fn get_issue_voucher_works() {
+        fn get_restrictive_asset_works() {
             let accounts = ink_env::test::default_accounts::<ink_env::DefaultEnvironment>()
                 .expect("Cannot get accounts");
-            let contract = Erc20::new(888);
-            let time_limit = contract.get_issue_voucher(accounts.alice);
+            let contract = DerivativeAssets::new(888);
+            let time_limit = contract.get_issue_restrictive_asset(accounts.alice);
             assert_eq!(time_limit, 0);
         }
 
         #[ink::test]
-        pub fn issue_voucher_works() {
+        pub fn issue_restrictive_asset_works() {
             let accounts = ink_env::test::default_accounts::<ink_env::DefaultEnvironment>()
                 .expect("Cannot get accounts");
-            let mut contract = Erc20::new(888);
+            let mut contract = DerivativeAssets::new(888);
            
             assert!(contract.issue_restricted_asset(accounts.bob, 100, true, 1000), true);
-            assert_eq!(contract.get_issue_voucher(accounts.bob), 1000);
+            assert_eq!(contract.get_issue_restrictive_asset(accounts.bob), 1000);
             assert_eq!(contract.balance_of(accounts.bob), 100);
         }
     }
