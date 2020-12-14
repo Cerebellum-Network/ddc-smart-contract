@@ -1,26 +1,22 @@
-# ------------------- CERE Substrate smart contract
+# CERE01 Smart Contract 
 
-# Current smart contract
+## Current Smart Contract
+[Smart Contract Standard](https://docs.google.com/document/d/1AyCkGj0l19PtiTmdx2Ozy9Pgk8Jn6xzMhf5C3tEsP1g/edit#heading=h.pp2wmzgzoebc)
 ```bash
-ext20
+cere01
 ```
 
-# Test smart contract source
+## Test Smart Contract Source Code
 ```bash
 cargo +nightly test
 ```
 
-# Build smart contract
+## Build Smart Contract
 ```bash
 cargo +nightly contract build
 ```
 
-# Generage Contract Metadata
+## Generage Contract Metadata
 ```bash
 cargo +nightly contract generate-metadata
-```
-
-# Creating an ink! Project
-```bash
-cargo contract new flipper
 ```

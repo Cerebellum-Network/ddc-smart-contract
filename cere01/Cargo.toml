@@ -1,8 +1,8 @@
 [package]
-name = "ext20"
+name = "cere01"
 version = "0.1.0"
-authors = ["[your_name] <[your_email]>"]
-edition = "2018"
+authors = ["shivam@cere.io"]
+edition = "2020"
 
 [dependencies]
 ink_primitives = { version = "3.0.0-rc1", default-features = false }
@@ -15,7 +15,7 @@ scale = { package = "parity-scale-codec", version = "1.3", default-features = fa
 scale-info = { version = "0.4", default-features = false, features = ["derive"], optional = true }
 
 [lib]
-name = "ext20"
+name = "cere01"
 path = "lib.rs"
 crate-type = [
 	# Used for normal contract Wasm blobs.
