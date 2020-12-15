@@ -3,12 +3,12 @@
 use ink_lang as ink;
 
 #[ink::contract]
-mod derivativeAssets {
+mod enterpriseAssets {
     #[cfg(not(feature = "ink-as-dependency"))]
     const DS_LIMIT: usize = 8;
 
     #[ink(storage)]
-    pub struct DerivativeAssets {
+    pub struct EnterpriseAssets {
         /// Smart Contract Owner Account.
         sc_owner: AccountId,
         /// The total supply.
@@ -53,7 +53,7 @@ mod derivativeAssets {
         time_limit: u64,
     }
 
-    impl DerivativeAssets {
+    impl EnterpriseAssets {
         #[ink(constructor)]
         pub fn new(initial_supply: Balance) -> Self {
             let caller = Self::env().caller();
@@ -194,13 +194,13 @@ mod derivativeAssets {
 
         #[ink::test]
         fn new_works() {
-            let contract = DerivativeAssets::new(888);
+            let contract = EnterpriseAssets::new(888);
             assert_eq!(contract.total_supply(), 888);
         }
 
         #[ink::test]
         fn balance_works() {
-            let contract = DerivativeAssets::new(888);
+            let contract = EnterpriseAssets::new(888);
             assert_eq!(contract.total_supply(), 888);
             assert_eq!(contract.balance_of(AccountId::from([0x1; 32])), 888);
             assert_eq!(contract.balance_of(AccountId::from([0x0; 32])), 0);
@@ -208,7 +208,7 @@ mod derivativeAssets {
 
         #[ink::test]
         fn transfer_works() {
-            let mut contract = DerivativeAssets::new(888);
+            let mut contract = EnterpriseAssets::new(888);
             assert_eq!(contract.balance_of(AccountId::from([0x1; 32])), 888);
             assert!(contract.transfer(AccountId::from([0x0; 32]), 88), true);
             assert_eq!(contract.balance_of(AccountId::from([0x0; 32])), 88);
@@ -219,7 +219,7 @@ mod derivativeAssets {
         fn get_distribution_accounts_works() {
             let accounts = ink_env::test::default_accounts::<ink_env::DefaultEnvironment>()
                 .expect("Cannot get accounts");
-            let contract = DerivativeAssets::new(888);
+            let contract = EnterpriseAssets::new(888);
             let ds_account_list = contract.get_distribution_accounts();
             assert_eq!(ds_account_list.len(), DS_LIMIT);
             assert_eq!(ds_account_list[0], accounts.alice);
@@ -229,7 +229,7 @@ mod derivativeAssets {
         pub fn add_distribution_account_works() {
             let accounts = ink_env::test::default_accounts::<ink_env::DefaultEnvironment>()
                 .expect("Cannot get accounts");
-            let mut contract = DerivativeAssets::new(888);
+            let mut contract = EnterpriseAssets::new(888);
             let ds_account_list = contract.get_distribution_accounts();
 
             assert!(contract.add_distribution_account(accounts.bob), true);
@@ -241,7 +241,7 @@ mod derivativeAssets {
         fn get_restrictive_asset_works() {
             let accounts = ink_env::test::default_accounts::<ink_env::DefaultEnvironment>()
                 .expect("Cannot get accounts");
-            let contract = DerivativeAssets::new(888);
+            let contract = EnterpriseAssets::new(888);
             let time_limit = contract.get_issue_restrictive_asset(accounts.alice);
             assert_eq!(time_limit, 0);
         }
@@ -250,7 +250,7 @@ mod derivativeAssets {
         pub fn issue_restrictive_asset_works() {
             let accounts = ink_env::test::default_accounts::<ink_env::DefaultEnvironment>()
                 .expect("Cannot get accounts");
-            let mut contract = DerivativeAssets::new(888);
+            let mut contract = EnterpriseAssets::new(888);
            
             assert!(contract.issue_restricted_asset(accounts.bob, 100, true, 1000), true);
             assert_eq!(contract.get_issue_restrictive_asset(accounts.bob), 1000);

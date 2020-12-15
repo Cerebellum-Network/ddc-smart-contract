@@ -25,9 +25,9 @@ cargo +nightly contract generate-metadata
 
 [Specification](#specification)
 
-[Asset Creation](#asset-creation)
+[How to create Asset](#asset-creation)
 
-[Asset Distribution](#asset-distribution)
+[How to distribute Asset](#asset-distribution)
 
 * [transfer]()
 
@@ -80,7 +80,9 @@ Following are the key features:
 
 ### Specification
 
-#### Asset Creation
+#### How to create Asset
+In order to create Asset you need to specify the following properties.
+
  **token_name**
  
 Name of the derivative asset.
@@ -98,9 +100,6 @@ The deployment constructor information for this contract, as provided in the ABI
 total_supply
 Total supply of the asset that we mention during the Asset Creation (deployment).
 
-Instructions for the deployment can be found here.
-
-
 
  **endowment**
  
@@ -112,7 +111,9 @@ The allotted endowment for this contract, i.e. the amount transferred to the con
 The maximum amount of gas that can be used by this deployment, if the code requires more, the deployment will fail.
 
 
-#### Asset Distribution
+#### How to distribute Asset
+In order to distribute Asset you can use the following functions.
+
  **transfer**
  
 Transfers _value amount of tokens to address _to. The function SHOULD throw if the message caller’s account balance does not have enough tokens to spend. This adds the ability to transfer tokens between User accounts and Application and vice versa. This overrides the default behaviour of transfer function. This will be used for derivative asset use cases where we have Rewards, Discounts and Vouchers.
