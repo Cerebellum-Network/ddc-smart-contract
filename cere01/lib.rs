@@ -3,7 +3,7 @@
 use ink_lang as ink;
 
 #[ink::contract]
-mod enterpriseAssets {
+mod enterprise_assets {
     #[cfg(not(feature = "ink-as-dependency"))]
     const DS_LIMIT: usize = 8;
 
