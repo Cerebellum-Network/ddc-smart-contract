@@ -2,7 +2,7 @@
 name = "cere01"
 version = "0.1.0"
 authors = ["team@cere.io"]
-edition = "2020"
+edition = "2018"
 
 [dependencies]
 ink_primitives = { version = "3.0.0-rc1", default-features = false }

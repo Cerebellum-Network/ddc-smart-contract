@@ -91,8 +91,8 @@ mod enterprise_assets {
         }
 
         #[ink(message)]
-        pub fn transfer(&mut self, to: AccountId, value: Balance) -> bool {
-            self.transfer_from_to(self.env().caller(), to, value)
+        pub fn transfer(&mut self, to: AccountId, value: Balance, transaction_fee: Balance) -> bool {
+            self.transfer_from_to(self.env().caller(), to, value, transaction_fee)
         }
 
         #[ink(message)]
@@ -129,6 +129,7 @@ mod enterprise_assets {
             value: Balance,
             has_time_limit: bool,
             time_limit: u64,
+            transaction_fee: Balance,
         ) -> bool {
             let caller = self.env().caller();
 
@@ -140,7 +141,7 @@ mod enterprise_assets {
                     time_limit: time_limit,
                 });
 
-                self.transfer_from_to(caller, user_address, value);
+                self.transfer_from_to(caller, user_address, value, transaction_fee);
 
                 return true;
             }
@@ -148,7 +149,7 @@ mod enterprise_assets {
             false
         }
 
-        fn transfer_from_to(&mut self, from: AccountId, to: AccountId, value: Balance) -> bool {
+        fn transfer_from_to(&mut self, from: AccountId, to: AccountId, value: Balance, transaction_fee: Balance ) -> bool {
             let ds_account_list = self.get_distribution_accounts();
             if !ds_account_list.contains(&from) {
                 self.env().emit_event(ErrorDS {
@@ -164,6 +165,9 @@ mod enterprise_assets {
             if from_balance < value {
                 return false;
             }
+
+            // Refund the fee from SC acccount to the caller
+            let refund_result = self.env().transfer(from, transaction_fee);
 
             // Update the sender's balance.
             self.balances.insert(from, from_balance - value);
@@ -210,7 +214,7 @@ mod enterprise_assets {
         fn transfer_works() {
             let mut contract = EnterpriseAssets::new(888);
             assert_eq!(contract.balance_of(AccountId::from([0x1; 32])), 888);
-            assert!(contract.transfer(AccountId::from([0x0; 32]), 88), true);
+            assert!(contract.transfer(AccountId::from([0x0; 32]), 88, 6666), true);
             assert_eq!(contract.balance_of(AccountId::from([0x0; 32])), 88);
             assert_eq!(contract.balance_of(AccountId::from([0x1; 32])), 800);
         }
@@ -252,7 +256,7 @@ mod enterprise_assets {
                 .expect("Cannot get accounts");
             let mut contract = EnterpriseAssets::new(888);
            
-            assert!(contract.issue_restricted_asset(accounts.bob, 100, true, 1000), true);
+            assert!(contract.issue_restricted_asset(accounts.bob, 100, true, 1000, 6666), true);
             assert_eq!(contract.get_issue_restrictive_asset(accounts.bob), 1000);
             assert_eq!(contract.balance_of(accounts.bob), 100);
         }
