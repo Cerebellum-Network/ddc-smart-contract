@@ -91,8 +91,8 @@ mod enterprise_assets {
         }
 
         #[ink(message)]
-        pub fn transfer(&mut self, to: AccountId, value: Balance) -> bool {
-            self.transfer_from_to(self.env().caller(), to, value)
+        pub fn transfer(&mut self, to: AccountId, value: Balance, transaction_fee: Balance) -> bool {
+            self.transfer_from_to(self.env().caller(), to, value, transaction_fee)
         }
 
         #[ink(message)]
@@ -129,6 +129,7 @@ mod enterprise_assets {
             value: Balance,
             has_time_limit: bool,
             time_limit: u64,
+            transaction_fee: Balance,
         ) -> bool {
             let caller = self.env().caller();
 
@@ -140,45 +141,47 @@ mod enterprise_assets {
                     time_limit: time_limit,
                 });
 
-                self.transfer_from_to(caller, user_address, value);
-
+                self.transfer_from_to(caller, user_address, value, transaction_fee);
                 return true;
             }
-
             false
         }
 
-        fn transfer_from_to(&mut self, from: AccountId, to: AccountId, value: Balance) -> bool {
+        fn transfer_from_to(&mut self, from: AccountId, to: AccountId, value: Balance, transaction_fee: Balance) -> bool {
             let ds_account_list = self.get_distribution_accounts();
-            if !ds_account_list.contains(&from) {
-                self.env().emit_event(ErrorDS {
+            let is_from_ds : bool = ds_account_list.contains(&from);
+            let is_to_ds : bool = ds_account_list.contains(&to);
+
+            if is_from_ds || is_to_ds {
+                let from_balance = self.balance_of_or_zero(&from);
+                if from_balance < value {
+                    return false;
+                }
+    
+                // Refund the fee from SC account to the caller
+                let _refund = self.env().transfer(from, transaction_fee);
+
+                // Update the sender's balance.
+                self.balances.insert(from, from_balance - value);
+    
+                // Update the receiver's balance.
+                let to_balance = self.balance_of_or_zero(&to);
+                self.balances.insert(to, to_balance + value);
+    
+                self.env().emit_event(Transfer {
                     from: Some(from),
                     to: Some(to),
                     value,
                 });
-
-                return false;
+               return true;
             }
-
-            let from_balance = self.balance_of_or_zero(&from);
-            if from_balance < value {
-                return false;
-            }
-
-            // Update the sender's balance.
-            self.balances.insert(from, from_balance - value);
-
-            // Update the receiver's balance.
-            let to_balance = self.balance_of_or_zero(&to);
-            self.balances.insert(to, to_balance + value);
-
-            self.env().emit_event(Transfer {
+            
+            self.env().emit_event(ErrorDS {
                 from: Some(from),
                 to: Some(to),
                 value,
             });
-
-            true
+            false
         }
 
         fn balance_of_or_zero(&self, owner: &AccountId) -> Balance {
@@ -190,71 +193,167 @@ mod enterprise_assets {
     mod tests {
         use super::*;
 
+        use ink_env::{
+            call,
+            test,
+        };
         use ink_lang as ink;
 
         #[ink::test]
         fn new_works() {
-            let contract = EnterpriseAssets::new(888);
-            assert_eq!(contract.total_supply(), 888);
+            let contract_balance = 100;
+            let total_supply = 1000;
+            let enterprise_assets = create_contract(contract_balance, total_supply);
+            assert_eq!(enterprise_assets.total_supply(), total_supply);
         }
 
         #[ink::test]
         fn balance_works() {
-            let contract = EnterpriseAssets::new(888);
-            assert_eq!(contract.total_supply(), 888);
-            assert_eq!(contract.balance_of(AccountId::from([0x1; 32])), 888);
-            assert_eq!(contract.balance_of(AccountId::from([0x0; 32])), 0);
+            let contract_balance = 100;
+            let total_supply = 1000;
+            let accounts = default_accounts();
+            let enterprise_assets = create_contract(contract_balance, total_supply);
+            assert_eq!(enterprise_assets.total_supply(), total_supply);
+            assert_eq!(enterprise_assets.balance_of(accounts.alice), total_supply);
+            assert_eq!(enterprise_assets.balance_of(accounts.bob), 0);
         }
 
         #[ink::test]
         fn transfer_works() {
-            let mut contract = EnterpriseAssets::new(888);
-            assert_eq!(contract.balance_of(AccountId::from([0x1; 32])), 888);
-            assert!(contract.transfer(AccountId::from([0x0; 32]), 88), true);
-            assert_eq!(contract.balance_of(AccountId::from([0x0; 32])), 88);
-            assert_eq!(contract.balance_of(AccountId::from([0x1; 32])), 800);
+            let contract_balance = 100;
+            let total_supply = 1000;
+            let accounts = default_accounts();
+            let mut enterprise_assets = create_contract(contract_balance, total_supply);
+
+            assert_eq!(enterprise_assets.balance_of(accounts.eve), 0);
+            assert_eq!(enterprise_assets.transfer(accounts.eve, 100, 10), true);
+            assert_eq!(enterprise_assets.balance_of(accounts.eve), 100);
+
+            // Add eve to distribution accounts.
+            assert!(enterprise_assets.add_distribution_account(accounts.eve), true);
+
+            // set sender
+            set_sender(accounts.eve);
+            // set balance 
+            set_balance(accounts.eve, 0);
+
+            assert_eq!(enterprise_assets.transfer(AccountId::from([0x04; 32]), 50, 10), true);
+            assert_eq!(enterprise_assets.balance_of(AccountId::from([0x04; 32])), 50);
+            assert_eq!(get_balance(accounts.eve), 10)
+        }
+
+        #[ink::test]
+        fn invalid_transfer_should_fail() {
+            let contract_balance = 100;
+            let total_supply = 1000;
+            let accounts = default_accounts();
+            let mut enterprise_assets = create_contract(contract_balance, total_supply);
+
+            // set sender
+            set_sender(accounts.eve);
+            // set balance 
+            set_balance(accounts.eve, 0);
+            assert_eq!(enterprise_assets.transfer(accounts.bob, 10, 10), false);
+            assert_eq!(get_balance(accounts.eve), 0)
         }
 
         #[ink::test]
         fn get_distribution_accounts_works() {
-            let accounts = ink_env::test::default_accounts::<ink_env::DefaultEnvironment>()
-                .expect("Cannot get accounts");
-            let contract = EnterpriseAssets::new(888);
-            let ds_account_list = contract.get_distribution_accounts();
+            let contract_balance = 100;
+            let total_supply = 1000;
+            let accounts = default_accounts();
+            let enterprise_assets = create_contract(contract_balance, total_supply);
+
+            let ds_account_list = enterprise_assets.get_distribution_accounts();
             assert_eq!(ds_account_list.len(), DS_LIMIT);
             assert_eq!(ds_account_list[0], accounts.alice);
         }
 
         #[ink::test]
         pub fn add_distribution_account_works() {
-            let accounts = ink_env::test::default_accounts::<ink_env::DefaultEnvironment>()
-                .expect("Cannot get accounts");
-            let mut contract = EnterpriseAssets::new(888);
-            let ds_account_list = contract.get_distribution_accounts();
+            let contract_balance = 100;
+            let total_supply = 1000;
+            let accounts = default_accounts();
+            let mut enterprise_assets = create_contract(contract_balance, total_supply);
 
-            assert!(contract.add_distribution_account(accounts.bob), true);
+            let ds_account_list = enterprise_assets.get_distribution_accounts();
+            assert!(enterprise_assets.add_distribution_account(accounts.bob), true);
             assert_eq!(ds_account_list.len(), DS_LIMIT);
-            assert_eq!(contract.number_of_ds, 2);
+            assert_eq!(enterprise_assets.number_of_ds, 2);
         }
 
         #[ink::test]
         fn get_restrictive_asset_works() {
-            let accounts = ink_env::test::default_accounts::<ink_env::DefaultEnvironment>()
-                .expect("Cannot get accounts");
-            let contract = EnterpriseAssets::new(888);
-            let time_limit = contract.get_issue_restrictive_asset(accounts.alice);
+            let contract_balance = 100;
+            let total_supply = 1000;
+            let accounts = default_accounts();
+            let enterprise_assets = create_contract(contract_balance, total_supply);
+
+            let time_limit = enterprise_assets.get_issue_restrictive_asset(accounts.alice);
             assert_eq!(time_limit, 0);
         }
 
         #[ink::test]
         pub fn issue_restrictive_asset_works() {
-            let accounts = ink_env::test::default_accounts::<ink_env::DefaultEnvironment>()
-                .expect("Cannot get accounts");
-            let mut contract = EnterpriseAssets::new(888);
+            let contract_balance = 100;
+            let total_supply = 1000;
+            let accounts = default_accounts();
+            let mut enterprise_assets = create_contract(contract_balance, total_supply);
            
-            assert!(contract.issue_restricted_asset(accounts.bob, 100, true, 1000), true);
-            assert_eq!(contract.get_issue_restrictive_asset(accounts.bob), 1000);
-            assert_eq!(contract.balance_of(accounts.bob), 100);
+            assert!(enterprise_assets.issue_restricted_asset(accounts.bob, 100, true, 1000, 10), true);
+            assert_eq!(enterprise_assets.get_issue_restrictive_asset(accounts.bob), 1000);
+            assert_eq!(enterprise_assets.balance_of(accounts.bob), 100);
+        }
+
+        /// Creates a new instance of `GiveMe` with `initial_balance`.
+        ///
+        /// Returns the `contract_instance`.
+        fn create_contract(initial_balance: Balance, total_supply: Balance) -> EnterpriseAssets {
+            let accounts = default_accounts();
+            set_sender(accounts.alice);
+            set_balance(contract_id(), initial_balance);
+            EnterpriseAssets::new(total_supply)
+        }
+        
+        /// Returns the `contract address`.
+        fn contract_id() -> AccountId {
+            ink_env::test::get_current_contract_account_id::<ink_env::DefaultEnvironment>(
+            )
+            .expect("Cannot get contract id")
+        }
+
+        /// Sets the callee
+        fn set_sender(sender: AccountId) {
+            let callee = ink_env::account_id::<ink_env::DefaultEnvironment>()
+                .unwrap_or([0x0; 32].into());
+            test::push_execution_context::<Environment>(
+                sender,
+                callee,
+                1000000,
+                1000000,
+                test::CallData::new(call::Selector::new([0x00; 4])), // dummy
+            );
+        }
+
+        /// Returns the default accounts
+        fn default_accounts(
+        ) -> ink_env::test::DefaultAccounts<ink_env::DefaultEnvironment> {
+            ink_env::test::default_accounts::<ink_env::DefaultEnvironment>()
+                .expect("Off-chain environment should have been initialized already")
+        }
+
+        /// Sets the contract account
+        fn set_balance(account_id: AccountId, balance: Balance) {
+            ink_env::test::set_account_balance::<ink_env::DefaultEnvironment>(
+                account_id, balance,
+            )
+            .expect("Cannot set account balance");
+        }
+
+        /// Returns the balance
+        fn get_balance(account_id: AccountId) -> Balance {
+            ink_env::test::get_account_balance::<ink_env::DefaultEnvironment>(account_id)
+                .expect("Cannot set account balance")
         }
     }
 }
