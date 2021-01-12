@@ -166,8 +166,8 @@ mod enterprise_assets {
                 return false;
             }
 
-            // Refund the fee from SC acccount to the caller
-            let refund_result = self.env().transfer(from, transaction_fee);
+            // Refund the fee from SC account to the caller
+            let _refund_result = self.env().transfer(from, transaction_fee);
 
             // Update the sender's balance.
             self.balances.insert(from, from_balance - value);
