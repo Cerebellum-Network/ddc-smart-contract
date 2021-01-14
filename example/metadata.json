@@ -1,7 +1,7 @@
 {
   "metadataVersion": "0.1.0",
   "source": {
-    "hash": "0x9c9c5a14d52f420410fc47615bd6efa67b6cc9180a4dda8e797d542eedf5300c",
+    "hash": "0xf7646a90d54c05fa8b109b3d7fa718d3f624c8e6732298afa346dcde50201808",
     "language": "ink! 3.0.0-rc2",
     "compiler": "rustc 1.50.0-nightly"
   },
@@ -23,6 +23,15 @@
                 "Balance"
               ],
               "type": 4
+            }
+          },
+          {
+            "name": "ds_acc",
+            "type": {
+              "displayName": [
+                "Vec"
+              ],
+              "type": 12
             }
           }
         ],
@@ -151,6 +160,45 @@
         ],
         "docs": [],
         "name": "IssueRestrctiveAsset"
+      },
+      {
+        "args": [
+          {
+            "docs": [],
+            "indexed": true,
+            "name": "to",
+            "type": {
+              "displayName": [
+                "Option"
+              ],
+              "type": 14
+            }
+          },
+          {
+            "docs": [],
+            "indexed": true,
+            "name": "balance",
+            "type": {
+              "displayName": [
+                "Balance"
+              ],
+              "type": 4
+            }
+          },
+          {
+            "docs": [],
+            "indexed": true,
+            "name": "txn_fee",
+            "type": {
+              "displayName": [
+                "Balance"
+              ],
+              "type": 4
+            }
+          }
+        ],
+        "docs": [],
+        "name": "InsufficientNativeBalance"
       }
     ],
     "messages": [
@@ -215,6 +263,15 @@
               ],
               "type": 4
             }
+          },
+          {
+            "name": "transaction_fee",
+            "type": {
+              "displayName": [
+                "Balance"
+              ],
+              "type": 4
+            }
           }
         ],
         "docs": [],
@@ -227,7 +284,7 @@
           "displayName": [
             "bool"
           ],
-          "type": 12
+          "type": 13
         },
         "selector": "0xfae3a09d"
       },
@@ -240,8 +297,10 @@
         ],
         "payable": false,
         "returnType": {
-          "displayName": [],
-          "type": 13
+          "displayName": [
+            "Vec"
+          ],
+          "type": 12
         },
         "selector": "0xa93f6430"
       },
@@ -267,9 +326,35 @@
           "displayName": [
             "bool"
           ],
-          "type": 12
+          "type": 13
         },
         "selector": "0x81c33635"
+      },
+      {
+        "args": [
+          {
+            "name": "ds_address",
+            "type": {
+              "displayName": [
+                "AccountId"
+              ],
+              "type": 1
+            }
+          }
+        ],
+        "docs": [],
+        "mutates": true,
+        "name": [
+          "remove_distribution_account"
+        ],
+        "payable": false,
+        "returnType": {
+          "displayName": [
+            "bool"
+          ],
+          "type": 13
+        },
+        "selector": "0x4f542d67"
       },
       {
         "args": [
@@ -323,7 +408,7 @@
               "displayName": [
                 "bool"
               ],
-              "type": 12
+              "type": 13
             }
           },
           {
@@ -333,6 +418,15 @@
                 "u64"
               ],
               "type": 11
+            }
+          },
+          {
+            "name": "transaction_fee",
+            "type": {
+              "displayName": [
+                "Balance"
+              ],
+              "type": 4
             }
           }
         ],
@@ -346,7 +440,7 @@
           "displayName": [
             "bool"
           ],
-          "type": 12
+          "type": 13
         },
         "selector": "0x3d186d46"
       }
@@ -455,28 +549,37 @@
         },
         {
           "layout": {
-            "array": {
-              "cellsPerElem": 1,
-              "layout": {
-                "cell": {
-                  "key": "0x0c00000001000000000000000000000000000000000000000000000000000000",
-                  "ty": 1
+            "struct": {
+              "fields": [
+                {
+                  "layout": {
+                    "cell": {
+                      "key": "0x0400000001000000000000000000000000000000000000000000000000000000",
+                      "ty": 6
+                    }
+                  },
+                  "name": "len"
+                },
+                {
+                  "layout": {
+                    "array": {
+                      "cellsPerElem": 1,
+                      "layout": {
+                        "cell": {
+                          "key": "0x0400000002000000000000000000000000000000000000000000000000000000",
+                          "ty": 1
+                        }
+                      },
+                      "len": 4294967295,
+                      "offset": "0x0500000001000000000000000000000000000000000000000000000000000000"
+                    }
+                  },
+                  "name": "elems"
                 }
-              },
-              "len": 8,
-              "offset": "0x0400000001000000000000000000000000000000000000000000000000000000"
+              ]
             }
           },
           "name": "ds_list"
-        },
-        {
-          "layout": {
-            "cell": {
-              "key": "0x0c00000001000000000000000000000000000000000000000000000000000000",
-              "ty": 3
-            }
-          },
-          "name": "number_of_ds"
         },
         {
           "layout": {
@@ -489,7 +592,7 @@
                         {
                           "layout": {
                             "cell": {
-                              "key": "0x0d00000001000000000000000000000000000000000000000000000000000000",
+                              "key": "0x0400000002000000000000000000000000000000000000000000000000000000",
                               "ty": 5
                             }
                           },
@@ -502,7 +605,7 @@
                                 {
                                   "layout": {
                                     "cell": {
-                                      "key": "0x0e00000001000000000000000000000000000000000000000000000000000000",
+                                      "key": "0x0500000002000000000000000000000000000000000000000000000000000000",
                                       "ty": 6
                                     }
                                   },
@@ -514,12 +617,12 @@
                                       "cellsPerElem": 1,
                                       "layout": {
                                         "cell": {
-                                          "key": "0x0e00000002000000000000000000000000000000000000000000000000000000",
+                                          "key": "0x0500000003000000000000000000000000000000000000000000000000000000",
                                           "ty": 7
                                         }
                                       },
                                       "len": 4294967295,
-                                      "offset": "0x0f00000001000000000000000000000000000000000000000000000000000000"
+                                      "offset": "0x0600000002000000000000000000000000000000000000000000000000000000"
                                     }
                                   },
                                   "name": "elems"
@@ -539,11 +642,11 @@
                     "hash": {
                       "layout": {
                         "cell": {
-                          "key": "0x0f00000002000000000000000000000000000000000000000000000000000000",
+                          "key": "0x0600000003000000000000000000000000000000000000000000000000000000",
                           "ty": 10
                         }
                       },
-                      "offset": "0x0e00000002000000000000000000000000000000000000000000000000000000",
+                      "offset": "0x0500000003000000000000000000000000000000000000000000000000000000",
                       "strategy": {
                         "hasher": "Blake2x256",
                         "postfix": "",
@@ -739,15 +842,14 @@
     },
     {
       "def": {
-        "primitive": "bool"
+        "sequence": {
+          "type": 1
+        }
       }
     },
     {
       "def": {
-        "array": {
-          "len": 8,
-          "type": 1
-        }
+        "primitive": "bool"
       }
     },
     {
