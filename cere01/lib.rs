@@ -62,6 +62,28 @@ mod enterprise_assets {
         txn_fee: Balance,
     }
 
+    /// The ERC-20 error types.
+    #[derive(Debug, PartialEq, Eq, scale::Encode)]
+    #[cfg_attr(feature = "std", derive(scale_info::TypeInfo))]
+    pub enum Error {
+        /// Returned if not enough balance to fulfill a request is available.
+        InsufficientBalance,
+        /// Returned if not enough allowance to fulfill a request is available.
+        InsufficientNativeBalance,
+        /// Not a distribution account
+        NotADistributionAccount,
+        /// Invalid Time limit
+        InValidTimelimit,
+        /// Invalid to address
+        InValidReceiver,
+        /// Invalid value
+        InValidValue,
+    }
+
+    /// The ERC-20 result type.
+    pub type Result<T> = core::result::Result<T, Error>;
+
+       
     impl EnterpriseAssets {
         #[ink(constructor)]
         pub fn new(initial_supply: Balance, ds_acc: Vec<AccountId>) -> Self {
@@ -103,8 +125,9 @@ mod enterprise_assets {
             to: AccountId,
             value: Balance,
             transaction_fee: Balance,
-        ) -> bool {
-            self.transfer_from_to(self.env().caller(), to, value, transaction_fee)
+        ) -> Result<()> {
+            let from = self.env().caller();
+            self.transfer_from_to(from, to, value, transaction_fee)
         }
 
         #[ink(message)]
@@ -151,7 +174,7 @@ mod enterprise_assets {
             has_time_limit: bool,
             time_limit: u64,
             transaction_fee: Balance,
-        ) -> bool {
+        ) -> Result<()> {
             let caller = self.env().caller();
 
             if has_time_limit {
@@ -162,10 +185,12 @@ mod enterprise_assets {
                     time_limit: time_limit,
                 });
 
-                self.transfer_from_to(caller, user_address, value, transaction_fee);
-                return true;
+                self.transfer_from_to(caller, user_address, value, transaction_fee)?;
+                Ok(())
+            } else {
+                return Err(Error:: InValidTimelimit)
             }
-            false
+            
         }
 
         fn transfer_from_to(
@@ -174,26 +199,30 @@ mod enterprise_assets {
             to: AccountId,
             value: Balance,
             transaction_fee: Balance,
-        ) -> bool {
+        ) -> Result<()>  {
+            if value <= 0 {
+                return Err(Error:: InValidValue)
+            }
             let ds_account_list = self.get_distribution_accounts();
             let is_from_ds: bool = ds_account_list.contains(&from);
             let is_to_ds: bool = ds_account_list.contains(&to);
 
             if is_from_ds || is_to_ds {
                 if transaction_fee > self.env().balance() {
+                   
                     self.env().emit_event(InsufficientNativeBalance {
                         to: Some(from),
                         balance: self.env().balance(),
                         txn_fee: transaction_fee
                     });
-                   return false
+                    return Err(Error:: InsufficientNativeBalance)
                 }
                 // Refund the fee from SC account to the caller
-               let _refund = self.env().transfer(from, transaction_fee);
+                let _refund = self.env().transfer(from, transaction_fee);
                     
                 let from_balance = self.balance_of_or_zero(&from);
                 if from_balance < value {
-                    return false;
+                    return Err(Error::InsufficientBalance)
                 }
 
                 // Update the sender's balance.
@@ -208,15 +237,16 @@ mod enterprise_assets {
                     to: Some(to),
                     value,
                 });
-                return true;
+                Ok(())
+            } else {
+                self.env().emit_event(ErrorDS {
+                    from: Some(from),
+                    to: Some(to),
+                    value,
+                });
+                return Err(Error::NotADistributionAccount)
             }
-
-            self.env().emit_event(ErrorDS {
-                from: Some(from),
-                to: Some(to),
-                value,
-            });
-            false
+            
         }
 
         fn balance_of_or_zero(&self, owner: &AccountId) -> Balance {
@@ -274,7 +304,7 @@ mod enterprise_assets {
                 create_contract(contract_balance, total_supply, vec![accounts.alice]);
 
             assert_eq!(enterprise_assets.balance_of(accounts.eve), 0);
-            assert_eq!(enterprise_assets.transfer(accounts.eve, 100, 10), true);
+            assert_eq!(enterprise_assets.transfer(accounts.eve, 100, 10), Ok(()));
             assert_eq!(enterprise_assets.balance_of(accounts.eve), 100);
 
             // Add eve to distribution accounts.
@@ -290,7 +320,7 @@ mod enterprise_assets {
 
             assert_eq!(
                 enterprise_assets.transfer(AccountId::from([0x04; 32]), 50, 10),
-                true
+                Ok(())
             );
             assert_eq!(
                 enterprise_assets.balance_of(AccountId::from([0x04; 32])),
@@ -307,13 +337,14 @@ mod enterprise_assets {
             let mut enterprise_assets =
                 create_contract(contract_balance, total_supply, vec![accounts.alice]);
 
+            assert_eq!(get_balance(accounts.eve), 0);
+            assert_eq!(enterprise_assets.transfer(accounts.bob, 10, 110), Err(Error::InsufficientNativeBalance));
+            assert_eq!(enterprise_assets.transfer(accounts.bob, 0, 110), Err(Error::InValidValue));
+            assert_eq!(enterprise_assets.transfer(accounts.eve, 10001, 10), Err(Error::InsufficientBalance));
+
             // set sender
             set_sender(accounts.eve);
-            // set balance
-            set_balance(accounts.eve, 0);
-            assert_eq!(enterprise_assets.transfer(accounts.bob, 10, 10), false);
-            assert_eq!(get_balance(accounts.eve), 0);
-            assert_eq!(enterprise_assets.transfer(accounts.bob, 10, 110), false);
+            assert_eq!(enterprise_assets.transfer(accounts.bob, 10, 10),  Err(Error::NotADistributionAccount));
         }
 
         #[ink::test]
@@ -387,10 +418,7 @@ mod enterprise_assets {
             let mut enterprise_assets =
                 create_contract(contract_balance, total_supply, vec![accounts.alice]);
 
-            assert!(
-                enterprise_assets.issue_restricted_asset(accounts.bob, 100, true, 1000, 10),
-                true
-            );
+            assert_eq!(enterprise_assets.issue_restricted_asset(accounts.bob, 100, true, 1000, 10), Ok(()));
             assert_eq!(
                 enterprise_assets.get_issue_restrictive_asset(accounts.bob),
                 1000
