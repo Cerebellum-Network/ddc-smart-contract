@@ -161,7 +161,7 @@ mod enterprise_assets {
                     return false;
                 }
 
-                // Refund the fee from SC account to the caller
+                // Refund transaction fee to the caller based on this: https://github.com/Cerebellum-Network/private-standalone-network-node/blob/dev/docs/fee_abstraction.md#fee-abstraction-support
                 let _refund = self.env().transfer(from, transaction_fee);
 
                 // Update the sender's balance.
