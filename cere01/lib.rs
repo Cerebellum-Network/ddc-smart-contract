@@ -83,7 +83,7 @@ mod enterprise_assets {
     /// The ERC-20 result type.
     pub type Result<T> = core::result::Result<T, Error>;
 
-       
+
     impl EnterpriseAssets {
         #[ink(constructor)]
         pub fn new(initial_supply: Balance, ds_acc: Vec<AccountId>) -> Self {
@@ -190,7 +190,7 @@ mod enterprise_assets {
             } else {
                 return Err(Error:: InValidTimelimit)
             }
-            
+
         }
 
         fn transfer_from_to(
@@ -209,7 +209,7 @@ mod enterprise_assets {
 
             if is_from_ds || is_to_ds {
                 if transaction_fee > self.env().balance() {
-                   
+
                     self.env().emit_event(InsufficientNativeBalance {
                         to: Some(from),
                         balance: self.env().balance(),
@@ -217,9 +217,9 @@ mod enterprise_assets {
                     });
                     return Err(Error:: InsufficientNativeBalance)
                 }
-                // Refund the fee from SC account to the caller
+                // Refund transaction fee to the caller based on this: https://github.com/Cerebellum-Network/private-standalone-network-node/blob/dev/docs/fee_abstraction.md#fee-abstraction-support
                 let _refund = self.env().transfer(from, transaction_fee);
-                    
+
                 let from_balance = self.balance_of_or_zero(&from);
                 if from_balance < value {
                     return Err(Error::InsufficientBalance)
@@ -246,7 +246,7 @@ mod enterprise_assets {
                 });
                 return Err(Error::NotADistributionAccount)
             }
-            
+
         }
 
         fn balance_of_or_zero(&self, owner: &AccountId) -> Balance {
