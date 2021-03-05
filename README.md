@@ -18,6 +18,10 @@ This doc will explain:
     ```bash
     cargo +nightly test
     ```
+    In case of any issues, try to specify version:
+    ```bash
+    cargo +nightly-2020-10-06 test
+    ```
     * Build Smart Contract
     ```bash
     cargo +nightly contract build
