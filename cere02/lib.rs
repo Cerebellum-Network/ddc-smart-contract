@@ -112,7 +112,6 @@ mod ddc {
             } else {
                 return 0 as Balance;
             }
-            
         }
 
         /// Returns the account balance for the specified `account`.
