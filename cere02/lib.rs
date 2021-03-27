@@ -4,12 +4,13 @@ use ink_lang as ink;
 
 #[ink::contract]
 mod ddc {
-
+    
     /// Defines the storage of your contract.
     /// Add new fields to the below struct in order
     /// to add new static storage fields to your contract.
 
     use ink_storage::{collections::HashMap as StorageHashMap, lazy::Lazy};
+
     use ink_prelude::string::String;
     use ink_prelude::vec::Vec;
 
@@ -23,36 +24,46 @@ mod ddc {
         TransferFailed,
         ZeroBalance,
         OverLimit,
+        TidOutOfBound,
         ContractPaused,
         ContractActive
     }
 
     pub type Result<T> = core::result::Result<T, Error>;
 
+    // #[derive(scale::Encode, scale::Decode, SpreadLayout, PackedLayout)]
+    // #[cfg_attr(feature = "std", derive(Debug, PartialEq, Eq, scale_info::TypeInfo, ink_storage::traits::StorageLayout))]
+    // pub struct ServiceTier{
+    //     tier_id: u128,
+    //     tier_fee: u128,
+    //     throughput_limit: u128,
+    //     storage_limit: u128,
+    // }
+
+    // impl ServiceTier {
+    //     pub fn new(tier_id: u128, tier_fee: u128, throughput_limit: u128, storage_limit: u128) -> ServiceTier {
+            
+    //         ServiceTier {
+    //             tier_id,
+    //             tier_fee,
+    //             throughput_limit,
+    //             storage_limit
+    //         }
+    //     }
+    // }
+
     
     #[ink(storage)]
     pub struct Ddc {
         ///Owner of Contract.
         owner: Lazy<AccountId>,
-        /// tier 3 fee in native coins
-        /// tier 3 is the minimum, tier 1 is the maximum
-        /// example tier 3 fee = 1, tier 2 fee = 10, tier 3 fee = 100
-        tier3_fee: Lazy<Balance>,
-        /// tier 3 limit, a number
-        tier3_limit: u64,
-        /// tier 2 fee
-        tier2_fee: Lazy<Balance>,
-        /// tier 2 limit
-        tier2_limit: u64,
-        /// tier 1 fee
-        tier1_fee: Lazy<Balance>,
-        /// tier 1 limit
-        tier1_limit: u64,
+        /// HashMap of tier_id: vector of [tier_id, tier_fee, tier_throughput_limit, tier_storage_limit]
+        service: StorageHashMap<u128, Vec<u128>>,
         /// Mapping from owner to number of owned coins.
         balances: StorageHashMap<AccountId, Balance>,
         /// Mapping from ddc wallet to metrics vector
         /// 1st tier; 2nd dataReceived; 3rd dataReplicated; 4th requestReceived; 5th requestReplicated
-        metrics: StorageHashMap<AccountId, Vec<u64>>,
+        metrics: StorageHashMap<AccountId, Vec<u128>>,
         /// contract symbol example: "DDC"
         symbol: String,
         /// contract status
@@ -73,19 +84,54 @@ mod ddc {
         /// Constructor that initializes the contract
         /// Give tier3fee, tier3limit, tier2fee, tier2limit, tier1fee, tier1 limit, and a symbol to initialize
         #[ink(constructor)]
-        pub fn new(tier3fee: Balance, tier3limit: u64, tier2fee: Balance, tier2limit: u64, tier1fee: Balance, tier1limit: u64, symbol: String) -> Self {
+        pub fn new(
+            tier3fee: Balance, 
+            tier3_throughput_limit: u128, 
+            tier3_storage_limit: u128,
+            tier2fee: Balance, 
+            tier2_throughput_limit: u128, 
+            tier2_storage_limit: u128, 
+            tier1fee: Balance, 
+            tier1_throughput_limit: u128, 
+            tier1_storage_limit: u128,
+            symbol: String) -> Self {
+
             let caller = Self::env().caller();
             let balances = StorageHashMap::new();
             let metrics = StorageHashMap::new();
 
+            let mut service_v = StorageHashMap::new();
+
+            let mut t1 = Vec::new();
+
+            t1.push(1);
+            t1.push(tier1fee);
+            t1.push(tier1_throughput_limit);
+            t1.push(tier1_storage_limit);
+
+            service_v.insert(1, t1);
+
+            let mut t2 = Vec::new();
+
+            t2.push(2);
+            t2.push(tier2fee);
+            t2.push(tier2_throughput_limit);
+            t2.push(tier2_storage_limit);
+
+            service_v.insert(2, t2);
+
+            let mut t3 = Vec::new();
+
+            t3.push(3);
+            t3.push(tier3fee);
+            t3.push(tier3_throughput_limit);
+            t3.push(tier3_storage_limit);
+
+            service_v.insert(3, t3);
+
             let instance = Self {
                 owner: Lazy::new(caller),
-                tier3_fee: Lazy::new(tier3fee),
-                tier3_limit: tier3limit,
-                tier2_fee: Lazy::new(tier2fee),
-                tier2_limit: tier2limit,
-                tier1_fee: Lazy::new(tier1fee),
-                tier1_limit: tier1limit,
+                service: service_v,
                 balances,
                 metrics,
                 symbol,
@@ -102,16 +148,36 @@ mod ddc {
         /// Given a tier id: 1, 2, 3
         /// return the fee required
         #[ink(message)]
-        pub fn tier_deposit(&self, tid: u64) -> Balance {
-            if tid == 1 {
-                return *self.tier1_fee;
-            } else if tid == 2 {
-                return *self.tier2_fee;
-            } else if tid == 3 {
-                return *self.tier3_fee;
-            } else {
+        pub fn tier_deposit(&self, tid: u128) -> Balance {
+            //self.tid_in_bound(tier_id)?;
+            if tid > 3 {
                 return 0 as Balance;
             }
+            let v = self.service.get(&tid).unwrap();
+            return v[1] as Balance;
+        }
+
+        #[ink(message)]
+        pub fn get_all_tiers(&self) -> Vec<u128> {
+            let mut v = Vec::new();
+            // v1 = [tier_id, tier_fee, tier_throughput_limit, tier_storage_limit]
+            let v1 = self.service.get(&1).unwrap();
+            
+            let v2 = self.service.get(&2).unwrap();
+            
+            let v3 = self.service.get(&3).unwrap();
+
+            for i in 0..4 {
+                v.push(v1[i]);
+            }
+            for j in 0..4 {
+                v.push(v2[j]);
+            }
+            for k in 0..4 {
+                v.push(v3[k]);
+            }
+
+            v       
         }
 
         /// Returns the account balance for the specified `account`.
@@ -122,7 +188,10 @@ mod ddc {
         }
 
 
+        // This seems to be the endowment you give to the contract upon initializing it
+        // Official recommendation is 1000
         /// Return the total balance held in this contract
+
         #[ink(message)]
         pub fn balance_of_contract(&self) -> Balance {
             self.env().balance()
@@ -135,14 +204,14 @@ mod ddc {
         }
 
         #[ink(message)]
-        pub fn metrics_of(&self, acct: AccountId) -> Vec<u64> {
+        pub fn metrics_of(&self, acct: AccountId) -> Vec<u128> {
             let v =self.get_metrics(&acct);
             return v.clone();
         }
 
         /// Return the tier id corresponding to the account
         #[ink(message)]
-        pub fn tier_id_of(&self, acct: AccountId) -> u64 {
+        pub fn tier_id_of(&self, acct: AccountId) -> u128 {
             let tid = self.get_tier_id(&acct);
             tid
         }
@@ -150,7 +219,7 @@ mod ddc {
 
         /// Return the tier limit corresponding the account
         #[ink(message)]
-        pub fn tier_limit_of(&self, acct: AccountId) -> u64 {
+        pub fn tier_limit_of(&self, acct: AccountId) -> Vec<u128> {
             let tid = self.get_tier_id(&acct);
             let tl = self.get_tier_limit(tid);
             tl.clone()
@@ -168,120 +237,80 @@ mod ddc {
         /// change the tier fee given the tier id and new fee 
         /// Must be the contract admin to call this function
         #[ink(message)]
-        pub fn change_tier_fee(&mut self, tier_id: u64, new_fee: Balance) -> Result<()> {
+        pub fn change_tier_fee(&mut self, tier_id: u128, new_fee: u128) -> Result<()> {
+            self.tid_in_bound(tier_id)?;
             self.only_active()?;
             let caller = self.env().caller();
             self.only_owner(caller)?;
+
             self.diff_deposit(tier_id, new_fee)?;
-            if tier_id == 1 {
-                self.tier1_fee = Lazy::new(new_fee);
-                return Ok(());
-            } else if tier_id == 2 {
-                self.tier2_fee = Lazy::new(new_fee);
-                return Ok(());
-            } else if tier_id == 3 {
-                self.tier3_fee = Lazy::new(new_fee);
-                return Ok(());
-            } else {
-                return Err(Error::NoPermission);
-            }
+
+            // v[0] index, v[1] fee, v[2] throughput_limit, v[3] storage_limit
+            let v = self.service.get(&tier_id).unwrap();
+            
+            let mut v2 = Vec::new();
+            v2.push(v[0]);
+            v2.push(new_fee);
+            v2.push(v[2]);
+            v2.push(v[3]);
+
+            self.service.insert(tier_id, v2);
+            Ok(())
         }
 
 
         /// Change tier limit given tier id and a new limit
         /// Must be contract admin to call this function
         #[ink(message)]
-        pub fn change_tier_limit(&mut self, tier_id: u64, new_limit: u64) -> Result<()> {
+        pub fn change_tier_limit(&mut self, tier_id: u128, new_throughput_limit: u128, new_storage_limit: u128) -> Result<()> {
+            self.tid_in_bound(tier_id)?;
             self.only_active()?;
             let caller = self.env().caller();
             self.only_owner(caller)?;
-            
-            if tier_id == 1 && self.tier1_limit != new_limit {
-                self.tier1_limit = new_limit;
-                return Ok(());
-            } else if tier_id == 2 && self.tier2_limit != new_limit {
-                self.tier2_limit = new_limit;
-                return Ok(());
-            } else if tier_id == 3 && self.tier3_limit != new_limit {
-                self.tier3_limit = new_limit;
-                return Ok(());
-            } else {
-                return Err(Error::NoPermission);
-            }
+            // v[0] index, v[1] fee, v[2] throughput_limit, v[3] storage_limit
+            let v = self.service.get(&tier_id).unwrap();
+            let mut v2 = Vec::new();
+            v2.push(v[0]);
+            v2.push(v[1]);
+            v2.push(new_throughput_limit);
+            v2.push(new_storage_limit);
+            self.service.insert(tier_id, v2);
+            Ok(())
         }
         
         /// Receive payment from the participating DDC node
         /// Store payment into users balance map
         /// Initialize user metrics map
         #[ink(message)]
-        pub fn create_payment(&mut self, value: Balance) -> Result<()> {
+        pub fn subscribe(&mut self, tier_id: u128, value: Balance) -> Result<()> {
+            self.tid_in_bound(tier_id)?;
             self.only_active()?;
             let payer = self.env().caller();
-            
-            if *self.tier3_fee == value {
-                self.balances.insert(payer, value);
-                let mut v = Vec::new();
-                v.push(3); // tier 3
-
-                for _i in 0..4 {
-                    v.push(0);
-                }
-
-                self.metrics.insert(payer, v);
-
-                self.env().emit_event(Deposit{
-                    from: Some(payer),
-                    value: value,
-                });
-
-                return Ok(());
-
-            } else if *self.tier2_fee == value {
-                self.balances.insert(payer, value);
-                let mut v = Vec::new();
-                v.push(2); // tier 2
-
-                for _i in 0..4 {
-                    v.push(0);
-                }
-
-                self.metrics.insert(payer, v);
-
-                self.env().emit_event(Deposit{
-                    from: Some(payer),
-                    value: value,
-                });
-                
-                return Ok(());
-
-            } else if *self.tier1_fee == value {
-                self.balances.insert(payer, value);
-                let mut v = Vec::new();
-                v.push(1); // tier 1
-
-                for _i in 0..4 {
-                    v.push(0);
-                }
-
-                self.metrics.insert(payer, v);
-
-                self.env().emit_event(Deposit{
-                    from: Some(payer),
-                    value: value,
-                });
-
-                return Ok(());
-
-            } else {
+            let fee_value = value as u128;
+            let service_v = self.service.get(&tier_id).unwrap();
+            if service_v[1] > fee_value {
                 return Err(Error::InsufficientDeposit);
             }
+            self.balances.insert(payer, value);
+            let mut v = Vec::new();
+            v.push(tier_id); // tier_id 1,2,3
+            for _i in 0..4 {
+                v.push(0);
+            }
+            self.metrics.insert(payer, v);
+            self.env().emit_event(Deposit{
+                from: Some(payer),
+                value: value,
+            });
+
+            return Ok(());
             
         }
 
         /// Take metrics reported by DDC nodes
         /// Insert metrics to the reporting node's map in the contract
         #[ink(message)]
-        pub fn report_metrics(&mut self, data_rec: u64, data_rep: u64, req_rec: u64, req_rep: u64) -> Result<()> {
+        pub fn report_metrics(&mut self, data_rec: u128, data_rep: u128, req_rec: u128, req_rep: u128) -> Result<()> {
             self.only_active()?;
             let reporter = self.env().caller();
             let reporter_balance = self.balance_of_or_zero(&reporter);
@@ -291,6 +320,9 @@ mod ddc {
             let tier_id = self.get_tier_id(&reporter);
 
             let tier_limit = self.get_tier_limit(tier_id);
+
+            let t_thr_limit = tier_limit[0];  // throughput is for request received/replicated
+            let t_sto_limit = tier_limit[1];  // storage is data received/replicated
                         
             let v = self.metrics.get(&reporter).unwrap();
             let d_rec = v[1] + data_rec;
@@ -298,7 +330,7 @@ mod ddc {
             let r_rec = v[3] + req_rec;
             let r_rep = v[4] + req_rep;
 
-            if d_rec <= tier_limit && d_rep <= tier_limit && r_rec <=tier_limit && r_rep <= tier_limit {
+            if d_rec <= t_sto_limit && d_rep <= t_sto_limit && r_rec <= t_thr_limit && r_rep <= t_thr_limit {
                 let mut v2 = Vec::new();
                 v2.push(tier_id);
                 v2.push(d_rec);
@@ -322,7 +354,7 @@ mod ddc {
 
 
         #[ink(message)]
-        pub fn opt_out(&mut self) -> Result<()> {
+        pub fn unsubscribe(&mut self) -> Result<()> {
             self.only_active()?;
             let caller = self.env().caller();
             let caller_bal = self.balance_of_or_zero(&caller) as Balance;
@@ -431,17 +463,25 @@ mod ddc {
 
         /// Check if the new fee is the same as the old fee
         /// Return error if they are the same
-        fn diff_deposit(&self, tid: u64, new_value: Balance) -> Result<()> {
-            if tid == 3 && *self.tier3_fee != new_value {
+        fn diff_deposit(&self, tid: u128, new_value: Balance) -> Result<()> {
+            self.tid_in_bound(tid)?;
+            let newv = new_value as u128;
+            let v = self.service.get(&tid).unwrap();
+            if v[1] != newv {
                 return Ok(());
-            } else if tid == 2 && *self.tier2_fee != new_value {
-                return Ok(());
-            } else if tid == 1 && *self.tier1_fee != new_value {
-                return Ok(());
-            }else {
+            } else {
                 return Err(Error::SameDepositValue);
             }
+        }
 
+        /// check if tid is within 1, 2 ,3
+        /// return ok or error
+        fn tid_in_bound(&self, tid: u128) -> Result<()> {
+            if tid <= 3 {
+                Ok(())
+            } else {
+                return Err(Error::TidOutOfBound);
+            }
         }
 
         /// Return balance of an account
@@ -451,28 +491,27 @@ mod ddc {
 
 
         /// Return tier id given an account
-        fn get_tier_id(&self, owner: &AccountId) -> u64 {
+        fn get_tier_id(&self, owner: &AccountId) -> u128 {
             let v = self.metrics.get(owner).unwrap();
             v[0]
         }
 
         /// Return metrics given an account
-        fn get_metrics(&self, owner: &AccountId) -> &Vec<u64> {
+        fn get_metrics(&self, owner: &AccountId) -> &Vec<u128> {
             let v = self.metrics.get(owner).unwrap();
             v
         }
 
-        /// Return tier limit given a tier id 1.2.3
-        fn get_tier_limit(&self, tid: u64) -> u64 {
-            if tid == 1 {
-                return self.tier1_limit;
-            } else if tid == 2 {
-                return self.tier2_limit;
-            } else if tid == 3 {
-                return self.tier3_limit;
-            } else {
-                return 0;
-            }
+        /// Return tier limit given a tier id 1, 2, 3
+        fn get_tier_limit(&self, tid: u128) -> Vec<u128> {
+            let mut v = Vec::new();
+            let v2 = self.service.get(&tid).unwrap();
+            let throughput_limit = v2[2];
+            let storage_limit = v2[3];
+            v.push(throughput_limit);
+            v.push(storage_limit);
+            v
+
         }
 
 
@@ -489,7 +528,7 @@ mod ddc {
         /// We test if the default constructor does its job.
         #[ink::test]
         fn new_works() {
-            let contract = Ddc::new(2, 2000,4, 4000, 8, 3000,"DDC".to_string());
+            let contract = Ddc::new(2, 2000,2000, 4, 4000, 4000, 8, 8000, 800,"DDC".to_string());
             assert_eq!(contract.tier_deposit(1), 8);
             assert_eq!(contract.tier_deposit(2), 4);
             assert_eq!(contract.tier_deposit(3), 2);
@@ -501,14 +540,14 @@ mod ddc {
         /// Test if a function can only be called by the contract admin
         #[ink::test]
         fn onlyowner_works() {
-            let contract = Ddc::new(2, 2000,4, 4000, 8, 3000,"DDC".to_string());
+            let contract = Ddc::new(2, 2000,2000, 4, 4000, 4000, 8, 8000, 800,"DDC".to_string());
             assert_eq!(contract.only_owner(AccountId::from([0x1; 32])), Ok(()));
         }
 
         /// Test that we can transfer owner to another account
         #[ink::test]
         fn transfer_ownership_works() {
-            let mut contract = Ddc::new(2, 2000,4, 4000, 8, 3000,"DDC".to_string());
+            let mut contract = Ddc::new(2, 2000,2000, 4, 4000, 4000, 8, 8000, 800,"DDC".to_string());
             assert_eq!(contract.only_owner(AccountId::from([0x1; 32])), Ok(()));
             contract
                 .transfer_ownership(AccountId::from([0x0; 32]))
@@ -518,41 +557,58 @@ mod ddc {
 
         /// Test the contract can take payment from users
         #[ink::test]
-        fn create_payment_works() {
-            let mut contract = Ddc::new(2, 2000,4, 4000, 8, 3000,"DDC".to_string());
+        fn subscribe_works() {
+            let mut contract = Ddc::new(2, 2000,2000, 4, 4000, 4000, 8, 8000, 800,"DDC".to_string());
             let payer = AccountId::from([0x1; 32]);
             assert_eq!(contract.balance_of(payer), 0);
-            assert_eq!(contract.create_payment(2),Ok(()));
+            assert_eq!(contract.subscribe(3,2),Ok(()));
             assert_eq!(contract.balance_of(payer), 2);
         }
 
         /// Test the total balance of the contract is correct
         #[ink::test]
         fn balance_of_contract_works() {
-            let mut contract = Ddc::new(2, 2000,4, 4000, 8, 3000,"DDC".to_string());
+            let mut contract = Ddc::new(2, 2000,2000, 4, 4000, 4000, 8, 8000, 800,"DDC".to_string());
             let payer_one = AccountId::from([0x1; 32]);
-            // let payer_two = AccountId::from([0x0; 32]);
-            assert_eq!(contract.balance_of(payer_one), 0);
-            // assert_eq!(contract.balance_of(payer_two), 0);
-            assert_eq!(contract.create_payment(2),Ok(()));
-            // assert_eq!(contract.create_payment(4),Ok(()));
-            assert_eq!(contract.balance_of_contract(),2);
+            assert_eq!(contract.balance_of(payer_one), 0);  
+            assert_eq!(contract.subscribe(3,2),Ok(()));
+            assert_eq!(contract.balance_of_contract(),0);
         }
 
         /// Test the contract can return the correct tier if given an account id
         #[ink::test]
         fn tier_id_of_works() {
-            let mut contract = Ddc::new(2, 2000,4, 4000, 8, 3000,"DDC".to_string());
+            let mut contract = Ddc::new(2, 2000,2000, 4, 4000, 4000, 8, 8000, 800,"DDC".to_string());
             let payer_one = AccountId::from([0x1; 32]);
             assert_eq!(contract.balance_of(payer_one), 0);
-            assert_eq!(contract.create_payment(4),Ok(()));
+            assert_eq!(contract.subscribe(2,4),Ok(()));
             assert_eq!(contract.tier_id_of(payer_one), 2);
+        }
+
+        /// Test we can read metrics 
+        #[ink::test]
+        fn get_all_tiers_works() {
+            let contract = Ddc::new(2000, 2000,2000, 4000, 4000, 4000, 8000, 8000, 8000,"DDC".to_string());
+
+            let v = contract.get_all_tiers();
+            assert_eq!(v[0],1); //tid
+            assert_eq!(v[1],8000); //fee
+            assert_eq!(v[2],8000); //throughput limit
+            assert_eq!(v[3],8000); // storage limit
+            assert_eq!(v[4],2); //tid
+            assert_eq!(v[5],4000); //t2 fee
+            assert_eq!(v[6],4000); //t2 throughtput limit
+            assert_eq!(v[7],4000); //t2 storage limit
+            assert_eq!(v[8],3);
+            assert_eq!(v[9],2000);
+            assert_eq!(v[10],2000);
+            assert_eq!(v[11],2000);
         }
 
         /// Test the contract owner can change tier fees for all 3 tiers
         #[ink::test]
         fn change_tier_fee_works() {
-            let mut contract = Ddc::new(2, 2000,4, 4000, 8, 3000,"DDC".to_string());
+            let mut contract = Ddc::new(2, 2000,2000, 4, 4000, 4000, 8, 8000, 800,"DDC".to_string());
             assert_eq!(contract.only_owner(AccountId::from([0x1; 32])), Ok(()));
             assert_eq!(contract.change_tier_fee(3,3), Ok(()));
             assert_eq!(contract.change_tier_fee(2,5), Ok(()));
@@ -565,22 +621,22 @@ mod ddc {
         /// Test the contract can change tier limits for all 3 tiers
         #[ink::test]
         fn change_tier_limit_works() {
-            let mut contract = Ddc::new(2, 2000,4, 4000, 8, 3000,"DDC".to_string());
+            let mut contract = Ddc::new(2, 2000,2000, 4, 4000, 4000, 8, 8000, 800,"DDC".to_string());
             assert_eq!(contract.only_owner(AccountId::from([0x1; 32])), Ok(()));
-            assert_eq!(contract.change_tier_limit(3,100), Ok(()));
-            assert_eq!(contract.change_tier_limit(2,200), Ok(()));
-            assert_eq!(contract.change_tier_limit(1,300), Ok(()));
-            assert_eq!(contract.get_tier_limit(3), 100);
-            assert_eq!(contract.get_tier_limit(2), 200);
-            assert_eq!(contract.get_tier_limit(1), 300);
+            assert_eq!(contract.change_tier_limit(3,100,100), Ok(()));
+            assert_eq!(contract.change_tier_limit(2,200,200), Ok(()));
+            assert_eq!(contract.change_tier_limit(1,300,300), Ok(()));
+            assert_eq!(contract.get_tier_limit(3), vec![100,100]);
+            assert_eq!(contract.get_tier_limit(2), vec![200,200]);
+            assert_eq!(contract.get_tier_limit(1), vec![300,300]);
         }
 
         /// Test the contract owner can revoke the membership of a subscriber (a participating ddc node)
         #[ink::test]
         fn revoke_membership_works() {
-            let mut contract = Ddc::new(2, 2000,4, 4000, 8, 3000,"DDC".to_string());
+            let mut contract = Ddc::new(2, 2000,2000, 4, 4000, 4000, 8, 8000, 800,"DDC".to_string());
             let payer_one = AccountId::from([0x1; 32]);
-            assert_eq!(contract.create_payment(4),Ok(()));
+            assert_eq!(contract.subscribe(2,4),Ok(()));
             assert_eq!(contract.revoke_membership(payer_one),Ok(()));
             assert_eq!(contract.balance_of(payer_one), 0);           
         }
@@ -589,7 +645,7 @@ mod ddc {
         /// Can pause and unpause the contract
         #[ink::test]
         fn flip_contract_status_works() {
-            let mut contract = Ddc::new(2, 2000,4, 4000, 8, 3000,"DDC".to_string());
+            let mut contract = Ddc::new(2, 2000,2000, 4, 4000, 4000, 8, 8000, 800,"DDC".to_string());
             assert_eq!(contract.only_owner(AccountId::from([0x1; 32])), Ok(()));
             assert_eq!(contract.paused_or_not(), false);
             assert_eq!(contract.flip_contract_status(), Ok(()));
@@ -601,8 +657,8 @@ mod ddc {
         /// Test the contract owner can transfer all the balance out of the contract after it is paused
         #[ink::test]
         fn transfer_all_balance_works() {
-            let mut contract = Ddc::new(2, 2000,4, 4000, 8, 3000,"DDC".to_string());
-            assert_eq!(contract.create_payment(8),Ok(()));
+            let mut contract = Ddc::new(2, 2000,2000, 4, 4000, 4000, 8, 8000, 800,"DDC".to_string());
+            assert_eq!(contract.subscribe(3,8),Ok(()));
             assert_eq!(contract.flip_contract_status(), Ok(()));
             assert_eq!(contract.paused_or_not(), true);
             assert_eq!(contract.transfer_all_balance(AccountId::from([0x0; 32])), Ok(()));
@@ -613,9 +669,9 @@ mod ddc {
         /// Test the contract can process the metrics reported by DDC
         #[ink::test]
         fn report_metrics_works() {
-            let mut contract = Ddc::new(2, 2000,4, 4000, 8, 3000,"DDC".to_string());
+            let mut contract = Ddc::new(2, 2000,2000, 4, 4000, 4000, 8, 8000, 800,"DDC".to_string());
             let reporter = AccountId::from([0x1; 32]);
-            assert_eq!(contract.create_payment(8), Ok(()));
+            assert_eq!(contract.subscribe(1,8), Ok(()));
             assert_eq!(contract.balance_of(reporter), 8);
             let v = contract.get_metrics(&reporter);
             assert_eq!(v[0],1);
@@ -635,9 +691,9 @@ mod ddc {
         /// Test we can read metrics 
         #[ink::test]
         fn read_metrics_works() {
-            let mut contract = Ddc::new(2, 2000,4, 4000, 8, 3000,"DDC".to_string());
+            let mut contract = Ddc::new(2, 2000,2000, 4, 4000, 4000, 8, 8000, 800,"DDC".to_string());
             let reporter = AccountId::from([0x1; 32]);
-            assert_eq!(contract.create_payment(4), Ok(()));
+            assert_eq!(contract.subscribe(2,4), Ok(()));
             assert_eq!(contract.balance_of(reporter), 4);
             let v = contract.metrics_of(reporter);
             assert_eq!(v[0],2);
@@ -656,15 +712,14 @@ mod ddc {
 
         /// Test DDC node can opt out the program and get refund
         #[ink::test]
-        fn opt_out_works() {
-            let mut contract = Ddc::new(2, 2000,4, 4000, 8, 3000,"DDC".to_string());
+        fn unsubscribe_works() {
+            let mut contract = Ddc::new(2, 2000,2000, 4, 4000, 4000, 8, 8000, 800,"DDC".to_string());
             let payer = AccountId::from([0x1; 32]);
-            assert_eq!(contract.create_payment(8), Ok(()));
+            assert_eq!(contract.subscribe(3,8), Ok(()));
             assert_eq!(contract.balance_of(payer), 8);
-            assert_eq!(contract.opt_out(), Ok(()));
+            assert_eq!(contract.unsubscribe(), Ok(()));
             assert_eq!(contract.balance_of(payer), 0);
         }
-
 
     }
 }
