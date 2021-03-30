@@ -281,7 +281,7 @@ mod ddc {
         /// Receive payment from the participating DDC node
         /// Store payment into users balance map
         /// Initialize user metrics map
-        #[ink(message)]
+        #[ink(message, payable)]
         pub fn subscribe(&mut self, tier_id: u128, value: Balance) -> Result<()> {
             self.tid_in_bound(tier_id)?;
             self.only_active()?;
