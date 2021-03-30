@@ -5,9 +5,7 @@ use ink_lang as ink;
 #[ink::contract]
 mod ddc {
     
-    /// Defines the storage of your contract.
-    /// Add new fields to the below struct in order
-    /// to add new static storage fields to your contract.
+    /// Defines the storage of contract.
 
     use ink_storage::{collections::HashMap as StorageHashMap, lazy::Lazy};
 
@@ -58,19 +56,23 @@ mod ddc {
         ///Owner of Contract.
         owner: Lazy<AccountId>,
         /// HashMap of tier_id: vector of [tier_id, tier_fee, tier_throughput_limit, tier_storage_limit]
+        /// key: tier_id
+        /// value [tier_id, tier_fee, tier_throughput_limit, tier_storage_limit]
         service: StorageHashMap<u128, Vec<u128>>,
         /// Mapping from owner to number of owned coins.
         balances: StorageHashMap<AccountId, Balance>,
-        /// Mapping from ddc wallet to metrics vector
         /// 1st tier; 2nd dataReceived; 3rd dataReplicated; 4th requestReceived; 5th requestReplicated
+        /// key: AccountId
+        /// value: [tier_id, data_recv,data_replicated, request_recv, request_replicated]
         metrics: StorageHashMap<AccountId, Vec<u128>>,
         /// contract symbol example: "DDC"
         symbol: String,
         /// contract status
+        /// default pause == false, meaning the contract is active
         pause: bool,
     }
 
-    /// event emit when a deposit is made
+    /// emit the event when a deposit is received
     #[ink(event)]
     pub struct Deposit {
         #[ink(topic)]
@@ -82,7 +84,10 @@ mod ddc {
 
     impl Ddc {
         /// Constructor that initializes the contract
-        /// Give tier3fee, tier3limit, tier2fee, tier2limit, tier1fee, tier1 limit, and a symbol to initialize
+        /// tier3fee, tier3_throughput_limit, tier3_storage_limit,
+        /// tier2fee, tier2_throughput_limit, tier2_storage_limit,
+        /// tier1fee, tier1_throughput_limit, tier1_storage_limit,
+        /// string of the contract symbol, such as "DDC"
         #[ink(constructor)]
         pub fn new(
             tier3fee: Balance, 
@@ -140,13 +145,17 @@ mod ddc {
             instance
         }
 
+        /// read function
+        /// return if the contract is paused or not
+        /// return false means pause == false, contract is live
+        /// return true means pause == true, contract is paused
         #[ink(message)]
         pub fn paused_or_not(&self) -> bool {
             self.pause
         }
 
-        /// Given a tier id: 1, 2, 3
-        /// return the fee required
+        /// Give a tier id: 1, 2, 3
+        /// return the fee required for the tier id
         #[ink(message)]
         pub fn tier_deposit(&self, tid: u128) -> Balance {
             //self.tid_in_bound(tier_id)?;
@@ -157,6 +166,8 @@ mod ddc {
             return v[1] as Balance;
         }
 
+        /// get all tier limits information in one array
+        /// return [tier1_id, tier1_fee, tier1_throughput_lim, tier1_storage_lim, .... tier2_id, .... tier3_id...]
         #[ink(message)]
         pub fn get_all_tiers(&self) -> Vec<u128> {
             let mut v = Vec::new();
@@ -203,13 +214,15 @@ mod ddc {
             self.symbol.clone()
         }
 
+        /// The function takes an AccountId
+        /// return an array of metric stored for this AccountId
         #[ink(message)]
         pub fn metrics_of(&self, acct: AccountId) -> Vec<u128> {
             let v =self.get_metrics(&acct);
             return v.clone();
         }
 
-        /// Return the tier id corresponding to the account
+        /// Return the tier id of the the AccountId
         #[ink(message)]
         pub fn tier_id_of(&self, acct: AccountId) -> u128 {
             let tid = self.get_tier_id(&acct);
@@ -217,7 +230,7 @@ mod ddc {
         }
 
 
-        /// Return the tier limit corresponding the account
+        /// Return the tier limit of the AccountId
         #[ink(message)]
         pub fn tier_limit_of(&self, acct: AccountId) -> Vec<u128> {
             let tid = self.get_tier_id(&acct);
@@ -225,7 +238,7 @@ mod ddc {
             tl.clone()
         }
 
-        /// Transfer the contract admin to the accoung provided
+        /// Transfer the contract admin to the account provided
         #[ink(message)]
         pub fn transfer_ownership(&mut self, to: AccountId) -> Result<()> {
             self.only_active()?;
@@ -234,7 +247,7 @@ mod ddc {
             Ok(())
         }
 
-        /// change the tier fee given the tier id and new fee 
+        /// change the tier fee by giving the tier_id and new_fee 
         /// Must be the contract admin to call this function
         #[ink(message)]
         pub fn change_tier_fee(&mut self, tier_id: u128, new_fee: u128) -> Result<()> {
@@ -259,7 +272,7 @@ mod ddc {
         }
 
 
-        /// Change tier limit given tier id and a new limit
+        /// Change tier limit by entering the a tier id and a new limit
         /// Must be contract admin to call this function
         #[ink(message)]
         pub fn change_tier_limit(&mut self, tier_id: u128, new_throughput_limit: u128, new_storage_limit: u128) -> Result<()> {
@@ -278,17 +291,18 @@ mod ddc {
             Ok(())
         }
         
-        /// Receive payment from the participating DDC node
+        /// Users can subscribe service by giving a tier id and value to send
         /// Store payment into users balance map
         /// Initialize user metrics map
-        #[ink(message)]
-        pub fn subscribe(&mut self, tier_id: u128, value: Balance) -> Result<()> {
+        /// Return OK or Error
+        #[ink(message, payable, selector = "0xCAFEBABE")]
+        pub fn subscribe(&mut self, tier_id: u128) -> Result<()> {
             self.tid_in_bound(tier_id)?;
             self.only_active()?;
             let payer = self.env().caller();
-            let fee_value = value as u128;
+            let value = self.env().transferred_balance();
             let service_v = self.service.get(&tier_id).unwrap();
-            if service_v[1] > fee_value {
+            if service_v[1] > value {
                 return Err(Error::InsufficientDeposit);
             }
             self.balances.insert(payer, value);
@@ -307,8 +321,9 @@ mod ddc {
             
         }
 
-        /// Take metrics reported by DDC nodes
+        /// Log metrics into the contract reported by application users
         /// Insert metrics to the reporting node's map in the contract
+        /// Return OK or Error
         #[ink(message)]
         pub fn report_metrics(&mut self, data_rec: u128, data_rep: u128, req_rec: u128, req_rep: u128) -> Result<()> {
             self.only_active()?;
@@ -347,8 +362,8 @@ mod ddc {
         }
 
 
-        /// DDC node can call this function to opt out
-        /// Refund the DDC node
+        /// Application user can call this function to opt out
+        /// Refund the user
         /// Clear the node's balance inside the contract
         /// But keep the metrics record
 
@@ -377,10 +392,9 @@ mod ddc {
 
         }
 
-        //TODO:  blacklist the account
-        /// given an account id, revoke its membership by clearing its balance;
-        /// only the contract owner can call this function
-        /// return ok or error
+        /// Given an account id, the contract administrator can revoke its membership;
+        /// Only the contract owner can call this function
+        /// Return ok or error
         #[ink(message)]
         pub fn revoke_membership(&mut self, member: AccountId) -> Result<()> {
             self.only_active()?;
@@ -417,9 +431,9 @@ mod ddc {
             Ok(())
         }
 
-        /// flip the status of contract, pause it if it is live
-        /// unpause it if it is paused before
-        /// only contract owner can call this function
+        /// Flip the status of contract, pause it if it is live
+        /// Unpause it if it is paused before
+        /// Only contract owner can call this function
         #[ink(message)]
         pub fn flip_contract_status(&mut self) -> Result<()> {
             let caller = self.env().caller();
@@ -453,6 +467,8 @@ mod ddc {
             }
         }
 
+        /// check if contract is pause
+        /// return ok if pause is true - contract paused
         fn only_not_active(&self) -> Result<()> {
             if self.pause == true {
                 Ok(())
@@ -490,19 +506,19 @@ mod ddc {
         }
 
 
-        /// Return tier id given an account
+        /// Return tier id of an account
         fn get_tier_id(&self, owner: &AccountId) -> u128 {
             let v = self.metrics.get(owner).unwrap();
             v[0]
         }
 
-        /// Return metrics given an account
+        /// Return metrics of an account
         fn get_metrics(&self, owner: &AccountId) -> &Vec<u128> {
             let v = self.metrics.get(owner).unwrap();
             v
         }
 
-        /// Return tier limit given a tier id 1, 2, 3
+        /// Return tier limit of a tier id 1, 2, 3
         fn get_tier_limit(&self, tid: u128) -> Vec<u128> {
             let mut v = Vec::new();
             let v2 = self.service.get(&tid).unwrap();
@@ -522,6 +538,11 @@ mod ddc {
     mod tests {
         /// Imports all the definitions from the outer scope so we can use them here.
         use super::*;
+
+        use ink_env::{
+            call,
+            test,
+        };
 
         use ink_lang as ink;
 
@@ -557,32 +578,120 @@ mod ddc {
 
         /// Test the contract can take payment from users
         #[ink::test]
+        // fn subscribe_works() {
+        //     let mut contract = Ddc::new(2, 2000,2000, 4, 4000, 4000, 8, 8000, 800,"DDC".to_string());
+        //     let payer = AccountId::from([0x1; 32]);
+        //     assert_eq!(contract.balance_of(payer), 0);
+        //     assert_eq!(contract.subscribe(3,2),Ok(()));
+        //     assert_eq!(contract.balance_of(payer), 2);
+        // }
+
         fn subscribe_works() {
-            let mut contract = Ddc::new(2, 2000,2000, 4, 4000, 4000, 8, 8000, 800,"DDC".to_string());
-            let payer = AccountId::from([0x1; 32]);
-            assert_eq!(contract.balance_of(payer), 0);
-            assert_eq!(contract.subscribe(3,2),Ok(()));
-            assert_eq!(contract.balance_of(payer), 2);
+            // given
+            let accounts = default_accounts();
+            let mut ddc = create_contract(100);
+
+            // when
+            set_sender(accounts.eve);
+            let mut data = ink_env::test::CallData::new(ink_env::call::Selector::new([
+                0xCA, 0xFE, 0xBA, 0xBE,
+            ]));
+            data.push_arg(&accounts.eve);
+            let mock_fee = 2;
+
+            // Push the new execution context which sets Eve as caller and
+            // the `mock_transferred_balance` as the value which the contract
+            // will see as transferred to it.
+            ink_env::test::push_execution_context::<ink_env::DefaultEnvironment>(
+                accounts.eve,
+                contract_id(),
+                1000000,
+                mock_fee,
+                data,
+            );
+
+            assert_eq!(ddc.balance_of(accounts.eve), 0);
+            assert_eq!(ddc.subscribe(3),Ok(()));
+            assert_eq!(ddc.balance_of(accounts.eve), 2);
         }
 
         /// Test the total balance of the contract is correct
         #[ink::test]
         fn balance_of_contract_works() {
-            let mut contract = Ddc::new(2, 2000,2000, 4, 4000, 4000, 8, 8000, 800,"DDC".to_string());
-            let payer_one = AccountId::from([0x1; 32]);
-            assert_eq!(contract.balance_of(payer_one), 0);  
-            assert_eq!(contract.subscribe(3,2),Ok(()));
-            assert_eq!(contract.balance_of_contract(),0);
+            // let mut contract = Ddc::new(2, 2000,2000, 4, 4000, 4000, 8, 8000, 800,"DDC".to_string());
+            // let payer_one = AccountId::from([0x1; 32]);
+            // assert_eq!(contract.balance_of(payer_one), 0);  
+            // assert_eq!(contract.subscribe(3,2),Ok(()));
+            // assert_eq!(contract.balance_of_contract(),0);
+
+            // given
+            let accounts = default_accounts();
+            let mut ddc = create_contract(100);
+            assert_eq!(ddc.balance_of_contract(),100);
+
+            // when
+            set_sender(accounts.eve);
+            let mut data = ink_env::test::CallData::new(ink_env::call::Selector::new([
+                0xCA, 0xFE, 0xBA, 0xBE,
+            ]));
+            data.push_arg(&accounts.eve);
+            let mock_fee = 2;
+
+            // Push the new execution context which sets Eve as caller and
+            // the `mock_transferred_balance` as the value which the contract
+            // will see as transferred to it.
+            ink_env::test::push_execution_context::<ink_env::DefaultEnvironment>(
+                accounts.eve,
+                contract_id(),
+                1000000,
+                mock_fee,
+                data,
+            );
+
+            assert_eq!(ddc.balance_of(accounts.eve), 0);
+            assert_eq!(ddc.subscribe(3),Ok(()));
+            assert_eq!(ddc.balance_of(accounts.eve), 2);
+            assert_eq!(ddc.balance_of_contract(),102);
         }
 
         /// Test the contract can return the correct tier if given an account id
         #[ink::test]
         fn tier_id_of_works() {
-            let mut contract = Ddc::new(2, 2000,2000, 4, 4000, 4000, 8, 8000, 800,"DDC".to_string());
-            let payer_one = AccountId::from([0x1; 32]);
-            assert_eq!(contract.balance_of(payer_one), 0);
-            assert_eq!(contract.subscribe(2,4),Ok(()));
-            assert_eq!(contract.tier_id_of(payer_one), 2);
+            // given
+            let accounts = default_accounts();
+            let mut ddc = create_contract(100);
+
+            set_balance(accounts.eve, 50);
+            // assert_eq!(get_balance(accounts.eve), 50);
+
+            // when
+            set_sender(accounts.eve);
+            let mut data = ink_env::test::CallData::new(ink_env::call::Selector::new([
+                0xCA, 0xFE, 0xBA, 0xBE,
+            ]));
+
+            // set_balance(accounts.eve, 50);
+            // assert_eq!(get_balance(accounts.eve), 50);
+
+            data.push_arg(&accounts.eve);
+            let mock_fee = 8;
+
+            // Push the new execution context which sets Eve as caller and
+            // the `mock_transferred_balance` as the value which the contract
+            // will see as transferred to it.
+            ink_env::test::push_execution_context::<ink_env::DefaultEnvironment>(
+                accounts.eve,
+                contract_id(),
+                1000000,
+                mock_fee,
+                data,
+            );
+
+            assert_eq!(ddc.balance_of(accounts.eve), 0);
+            assert_eq!(ddc.subscribe(1),Ok(()));
+            assert_eq!(ddc.balance_of(accounts.eve), 8);
+            assert_eq!(get_balance(accounts.eve), 42);
+            assert_eq!(ddc.tier_id_of(accounts.eve), 1);
         }
 
         /// Test we can read metrics 
@@ -634,11 +743,46 @@ mod ddc {
         /// Test the contract owner can revoke the membership of a subscriber (a participating ddc node)
         #[ink::test]
         fn revoke_membership_works() {
-            let mut contract = Ddc::new(2, 2000,2000, 4, 4000, 4000, 8, 8000, 800,"DDC".to_string());
-            let payer_one = AccountId::from([0x1; 32]);
-            assert_eq!(contract.subscribe(2,4),Ok(()));
-            assert_eq!(contract.revoke_membership(payer_one),Ok(()));
-            assert_eq!(contract.balance_of(payer_one), 0);           
+            // let mut contract = Ddc::new(2, 2000,2000, 4, 4000, 4000, 8, 8000, 800,"DDC".to_string());
+            // let payer_one = AccountId::from([0x1; 32]);
+            // assert_eq!(contract.subscribe(2,4),Ok(()));
+            // assert_eq!(contract.revoke_membership(payer_one),Ok(()));
+            // assert_eq!(contract.balance_of(payer_one), 0); 
+            
+            // given
+            let accounts = default_accounts();
+            let mut ddc = create_contract(100);
+            assert_eq!(ddc.balance_of_contract(),100);
+
+            // when
+            set_sender(accounts.eve);
+            let mut data = ink_env::test::CallData::new(ink_env::call::Selector::new([
+                0xCA, 0xFE, 0xBA, 0xBE,
+            ]));
+
+            set_balance(accounts.eve, 50);
+
+            data.push_arg(&accounts.eve);
+            let mock_fee = 2;
+
+            // Push the new execution context which sets Eve as caller and
+            // the `mock_transferred_balance` as the value which the contract
+            // will see as transferred to it.
+            ink_env::test::push_execution_context::<ink_env::DefaultEnvironment>(
+                accounts.eve,
+                contract_id(),
+                1000000,
+                mock_fee,
+                data,
+            );
+
+            assert_eq!(ddc.balance_of(accounts.eve), 0);
+            assert_eq!(ddc.subscribe(3),Ok(()));
+            assert_eq!(ddc.balance_of(accounts.eve), 2);
+            assert_eq!(ddc.balance_of_contract(),102);
+            assert_eq!(ddc.revoke_membership(accounts.eve),Ok(()));
+            assert_eq!(ddc.balance_of(accounts.eve), 0); 
+
         }
 
         /// Test the contract owner can flip the status of the contract
@@ -657,30 +801,89 @@ mod ddc {
         /// Test the contract owner can transfer all the balance out of the contract after it is paused
         #[ink::test]
         fn transfer_all_balance_works() {
-            let mut contract = Ddc::new(2, 2000,2000, 4, 4000, 4000, 8, 8000, 800,"DDC".to_string());
-            assert_eq!(contract.subscribe(3,8),Ok(()));
-            assert_eq!(contract.flip_contract_status(), Ok(()));
-            assert_eq!(contract.paused_or_not(), true);
-            assert_eq!(contract.transfer_all_balance(AccountId::from([0x0; 32])), Ok(()));
-            assert_eq!(contract.balance_of_contract(),0);
+            // let mut contract = Ddc::new(2, 2000,2000, 4, 4000, 4000, 8, 8000, 800,"DDC".to_string());
+            // assert_eq!(contract.subscribe(3,8),Ok(()));
+
+            // given
+            let accounts = default_accounts();
+            let mut ddc = create_contract(100);
+            assert_eq!(ddc.balance_of_contract(),100);
+
+            // when
+            // set_sender(accounts.eve);
+            // let mut data = ink_env::test::CallData::new(ink_env::call::Selector::new([
+            //     0xCA, 0xFE, 0xBA, 0xBE,
+            // ]));
+            // data.push_arg(&accounts.eve);
+            // let mock_fee = 8;
+
+            // // Push the new execution context which sets Eve as caller and
+            // // the `mock_transferred_balance` as the value which the contract
+            // // will see as transferred to it.
+            // ink_env::test::push_execution_context::<ink_env::DefaultEnvironment>(
+            //     accounts.eve,
+            //     contract_id(),
+            //     1000000,
+            //     mock_fee,
+            //     data,
+            // );
+
+            set_sender(accounts.alice);
+
+            // assert_eq!(ddc.balance_of(accounts.eve),0);
+            // assert_eq!(ddc.subscribe(1),Ok(()));
+            
+            assert_eq!(ddc.flip_contract_status(), Ok(()));
+            assert_eq!(ddc.paused_or_not(), true);
+            // assert_eq!(ddc.transfer_all_balance(AccountId::from([0x0; 32])), Ok(()));
+            assert_eq! (ddc.transfer_all_balance(accounts.bob), Ok(()));
+            assert_eq!(ddc.balance_of_contract(),0);
         }
 
         
         /// Test the contract can process the metrics reported by DDC
         #[ink::test]
         fn report_metrics_works() {
-            let mut contract = Ddc::new(2, 2000,2000, 4, 4000, 4000, 8, 8000, 800,"DDC".to_string());
-            let reporter = AccountId::from([0x1; 32]);
-            assert_eq!(contract.subscribe(1,8), Ok(()));
-            assert_eq!(contract.balance_of(reporter), 8);
-            let v = contract.get_metrics(&reporter);
+            // let mut contract = Ddc::new(2, 2000,2000, 4, 4000, 4000, 8, 8000, 800,"DDC".to_string());
+            // let reporter = AccountId::from([0x1; 32]);
+            // assert_eq!(contract.subscribe(1,8), Ok(()));
+            // given
+            let accounts = default_accounts();
+            let mut ddc = create_contract(100);
+            assert_eq!(ddc.balance_of_contract(),100);
+
+            // when
+            set_sender(accounts.eve);
+            let mut data = ink_env::test::CallData::new(ink_env::call::Selector::new([
+                0xCA, 0xFE, 0xBA, 0xBE,
+            ]));
+
+            set_balance(accounts.eve, 50);
+            data.push_arg(&accounts.eve);
+            let mock_fee = 8;
+
+            // Push the new execution context which sets Eve as caller and
+            // the `mock_transferred_balance` as the value which the contract
+            // will see as transferred to it.
+            ink_env::test::push_execution_context::<ink_env::DefaultEnvironment>(
+                accounts.eve,
+                contract_id(),
+                1000000,
+                mock_fee,
+                data,
+            );
+
+            assert_eq!(ddc.balance_of(accounts.eve), 0);
+            assert_eq!(ddc.subscribe(1),Ok(()));
+            assert_eq!(ddc.balance_of(accounts.eve), 8);
+            let v = ddc.get_metrics(&accounts.eve);
             assert_eq!(v[0],1);
             assert_eq!(v[1],0);
             assert_eq!(v[2],0);
             assert_eq!(v[3],0);
             assert_eq!(v[4],0);
-            assert_eq!(contract.report_metrics(100,200,300,400), Ok(()));
-            let vv = contract.get_metrics(&reporter);
+            assert_eq!(ddc.report_metrics(100,200,300,400), Ok(()));
+            let vv = ddc.get_metrics(&accounts.eve);
             assert_eq!(vv[0],1);
             assert_eq!(vv[1],100);
             assert_eq!(vv[2],200);
@@ -691,19 +894,49 @@ mod ddc {
         /// Test we can read metrics 
         #[ink::test]
         fn read_metrics_works() {
-            let mut contract = Ddc::new(2, 2000,2000, 4, 4000, 4000, 8, 8000, 800,"DDC".to_string());
-            let reporter = AccountId::from([0x1; 32]);
-            assert_eq!(contract.subscribe(2,4), Ok(()));
-            assert_eq!(contract.balance_of(reporter), 4);
-            let v = contract.metrics_of(reporter);
-            assert_eq!(v[0],2);
+            // let mut contract = Ddc::new(2, 2000,2000, 4, 4000, 4000, 8, 8000, 800,"DDC".to_string());
+            // let reporter = AccountId::from([0x1; 32]);
+            // assert_eq!(contract.subscribe(2,4), Ok(()));
+            // assert_eq!(contract.balance_of(reporter), 4);
+            // given
+            let accounts = default_accounts();
+            let mut ddc = create_contract(100);
+            assert_eq!(ddc.balance_of_contract(),100);
+
+            // when
+            set_sender(accounts.eve);
+            let mut data = ink_env::test::CallData::new(ink_env::call::Selector::new([
+                0xCA, 0xFE, 0xBA, 0xBE,
+            ]));
+
+            set_balance(accounts.eve, 50);
+
+            data.push_arg(&accounts.eve);
+            let mock_fee = 8;
+
+            // Push the new execution context which sets Eve as caller and
+            // the `mock_transferred_balance` as the value which the contract
+            // will see as transferred to it.
+            ink_env::test::push_execution_context::<ink_env::DefaultEnvironment>(
+                accounts.eve,
+                contract_id(),
+                1000000,
+                mock_fee,
+                data,
+            );
+
+            assert_eq!(ddc.balance_of(accounts.eve), 0);
+            assert_eq!(ddc.subscribe(1),Ok(()));
+            assert_eq!(ddc.balance_of(accounts.eve), 8);
+            let v = ddc.metrics_of(accounts.eve);
+            assert_eq!(v[0],1);
             assert_eq!(v[1],0);
             assert_eq!(v[2],0);
             assert_eq!(v[3],0);
             assert_eq!(v[4],0);
-            assert_eq!(contract.report_metrics(20,30,40,50), Ok(()));
-            let vv = contract.metrics_of(reporter);
-            assert_eq!(vv[0],2);
+            assert_eq!(ddc.report_metrics(20,30,40,50), Ok(()));
+            let vv = ddc.metrics_of(accounts.eve);
+            assert_eq!(vv[0],1);
             assert_eq!(vv[1],20);
             assert_eq!(vv[2],30);
             assert_eq!(vv[3],40);
@@ -713,13 +946,88 @@ mod ddc {
         /// Test DDC node can opt out the program and get refund
         #[ink::test]
         fn unsubscribe_works() {
-            let mut contract = Ddc::new(2, 2000,2000, 4, 4000, 4000, 8, 8000, 800,"DDC".to_string());
-            let payer = AccountId::from([0x1; 32]);
-            assert_eq!(contract.subscribe(3,8), Ok(()));
-            assert_eq!(contract.balance_of(payer), 8);
-            assert_eq!(contract.unsubscribe(), Ok(()));
-            assert_eq!(contract.balance_of(payer), 0);
+            // let mut contract = Ddc::new(2, 2000,2000, 4, 4000, 4000, 8, 8000, 800,"DDC".to_string());
+            // let payer = AccountId::from([0x1; 32]);
+            // assert_eq!(contract.subscribe(3,8), Ok(()));
+            // assert_eq!(contract.balance_of(payer), 8);
+            // given
+            let accounts = default_accounts();
+            let mut ddc = create_contract(100);
+            assert_eq!(ddc.balance_of_contract(),100);
+
+            // when
+            set_sender(accounts.eve);
+            let mut data = ink_env::test::CallData::new(ink_env::call::Selector::new([
+                0xCA, 0xFE, 0xBA, 0xBE,
+            ]));
+
+            set_balance(accounts.eve, 50);
+
+            data.push_arg(&accounts.eve);
+            let mock_fee = 8;
+
+            // Push the new execution context which sets Eve as caller and
+            // the `mock_transferred_balance` as the value which the contract
+            // will see as transferred to it.
+            ink_env::test::push_execution_context::<ink_env::DefaultEnvironment>(
+                accounts.eve,
+                contract_id(),
+                1000000,
+                mock_fee,
+                data,
+            );
+
+            assert_eq!(ddc.balance_of(accounts.eve), 0);
+            assert_eq!(ddc.subscribe(1),Ok(()));
+            assert_eq!(ddc.balance_of(accounts.eve), 8);
+            assert_eq!(ddc.unsubscribe(), Ok(()));
+            assert_eq!(ddc.balance_of(accounts.eve), 0);
         }
+
+
+        /// Create a new instance of 'DDC' with 'initial_balance'
+        /// Returns the contract instance
+        fn create_contract(initial_balance: Balance) -> Ddc {
+            let accounts = default_accounts();
+            set_sender(accounts.alice);
+            set_balance(contract_id(), initial_balance);
+            Ddc::new(2, 2000,2000, 4, 4000, 4000, 8, 8000, 8000,"DDC".to_string())
+        }
+
+        fn contract_id() -> AccountId {
+            ink_env::test::get_current_contract_account_id::<ink_env::DefaultEnvironment>().expect("cannot get contract id")
+        }
+
+        fn set_sender(sender: AccountId) {
+            let callee = ink_env::account_id::<ink_env::DefaultEnvironment>()
+                .unwrap_or([0x0; 32].into());
+            test::push_execution_context::<Environment>(
+                sender,
+                callee,
+                1000000,
+                1000000,
+                test::CallData::new(call::Selector::new([0x00; 4])), // dummy
+            );
+        }
+
+        fn default_accounts(
+        ) -> ink_env::test::DefaultAccounts<ink_env::DefaultEnvironment> {
+            ink_env::test::default_accounts::<ink_env::DefaultEnvironment>()
+                .expect("Off-chain environment should have been initialized already")
+        }
+
+        fn set_balance(account_id: AccountId, balance: Balance) {
+            ink_env::test::set_account_balance::<ink_env::DefaultEnvironment>(
+                account_id, balance,
+            )
+            .expect("Cannot set account balance");
+        }
+
+        fn get_balance(account_id: AccountId) -> Balance {
+            ink_env::test::get_account_balance::<ink_env::DefaultEnvironment>(account_id)
+                .expect("Cannot get account balance")
+        }
+
 
     }
 }

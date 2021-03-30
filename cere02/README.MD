@@ -2,6 +2,8 @@
 
 This smart contract takes deposit from DDC node wallet; then accepts data metrics reported by the paying node; then store and increment the metrics in a hashmap.
 
+This branch adds [ink(message, payable, selector = "0xCAFEBABE")] to the subscribe() function that receives payment from payers.
+
 
 # Data structure of hashmap
 
@@ -18,14 +20,23 @@ Value: Vec![tier_id, tier_fee, tier_throughput_limit, tier_storage_limit]
 Initialize the contract with these params
 
 tier 3 fee,  // supposed to be the lowest
+
 tier 3 throughput limit,
+
 tier 3 storage limit,
+
 tier 2 fee,  // medium level
+
 tier 2 throughput limit,
+
 tier 2 storage limit,
+
 tier 1 fee, // most expensive level
+
 tier 1 throughtput limit,
+
 tier 1 storage limit,
+
 name of the contract - a string such as "DDC"
 
 
