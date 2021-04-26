@@ -311,7 +311,7 @@ mod ddc {
 
         /// Take metrics reported by DDC nodes
         /// Insert metrics to the reporting node's map in the contract
-        #[ink(message)]
+        #[ink(message, selector = "0xCAFEBABE")]
         pub fn report_metrics(&mut self, data_rec: u128, data_rep: u128, req_rec: u128, req_rep: u128) -> Result<()> {
             self.only_active()?;
             let reporter = self.env().caller();
