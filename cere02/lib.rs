@@ -12,19 +12,23 @@ mod ddc {
     // ---- Storage ----
     #[ink(storage)]
     pub struct Ddc {
-        ///Owner of Contract.
+        // -- Admin --
+        /// Owner of Contract.
         owner: Lazy<AccountId>,
-        /// HashMap of tier_id: vector of [tier_id, tier_fee, tier_throughput_limit, tier_storage_limit]
-        service: StorageHashMap<u128, Vec<u128>>,
-        /// Mapping from owner to number of owned coins.
-        balances: StorageHashMap<AccountId, Balance>,
-        /// Mapping from ddc wallet to metrics vector
-        /// 1st tier; 2nd dataReceived; 3rd dataReplicated; 4th requestReceived; 5th requestReplicated
-        metrics: StorageHashMap<AccountId, Vec<u128>>,
+        pause: bool,
         /// contract symbol example: "DDC"
         symbol: String,
-        /// contract status
-        pause: bool,
+
+        // -- Tiers --
+        /// HashMap of tier_id: vector of [tier_id, tier_fee, tier_throughput_limit, tier_storage_limit]
+        service: StorageHashMap<u128, Vec<u128>>,
+
+        // -- App Subscriptions --
+        /// Mapping from owner to number of owned coins.
+        balances: StorageHashMap<AccountId, Balance>,
+
+        // -- Metrics Reporting --
+        metrics: StorageHashMap<AccountId, Vec<u128>>,
     }
 
     impl Ddc {
@@ -348,7 +352,7 @@ mod ddc {
     }
 
 
-    // ---- Apps Payments ----
+    // ---- App Subscriptions ----
 
     /// event emit when a deposit is made
     #[ink(event)]
@@ -365,12 +369,6 @@ mod ddc {
         #[ink(message)]
         pub fn balance_of(&self, owner: AccountId) -> Balance {
             self.balances.get(&owner).copied().unwrap_or(0)
-        }
-
-        #[ink(message)]
-        pub fn metrics_of(&self, acct: AccountId) -> Vec<u128> {
-            let v = self.get_metrics(&acct);
-            return v.clone();
         }
 
         /// Return the tier id corresponding to the account
@@ -463,46 +461,13 @@ mod ddc {
     impl Ddc {
         /// Return metrics given an account
         fn get_metrics(&self, owner: &AccountId) -> &Vec<u128> {
-            let v = self.metrics.get(owner).unwrap();
-            v
+            self.metrics.get(owner).unwrap()
         }
 
-        /// Take metrics reported by DDC nodes
-        /// Insert metrics to the reporting node's map in the contract
         #[ink(message)]
-        pub fn report_metrics(&mut self, data_rec: u128, data_rep: u128, req_rec: u128, req_rep: u128) -> Result<()> {
-            self.only_active()?;
-            let reporter = self.env().caller();
-            let reporter_balance = self.balance_of_or_zero(&reporter);
-            if reporter_balance == 0 {
-                return Err(Error::NoPermission);
-            }
-            let tier_id = self.get_tier_id(&reporter);
-
-            let tier_limit = self.get_tier_limit(tier_id);
-
-            let t_thr_limit = tier_limit[0];  // throughput is for request received/replicated
-            let t_sto_limit = tier_limit[1];  // storage is data received/replicated
-
-            let v = self.metrics.get(&reporter).unwrap();
-            let d_rec = v[1] + data_rec;
-            let d_rep = v[2] + data_rep;
-            let r_rec = v[3] + req_rec;
-            let r_rep = v[4] + req_rep;
-
-            if d_rec <= t_sto_limit && d_rep <= t_sto_limit && r_rec <= t_thr_limit && r_rep <= t_thr_limit {
-                let mut v2 = Vec::new();
-                v2.push(tier_id);
-                v2.push(d_rec);
-                v2.push(d_rep);
-                v2.push(r_rec);
-                v2.push(r_rep);
-                self.metrics.insert(reporter, v2);
-
-                return Ok(());
-            } else {
-                return Err(Error::OverLimit);
-            }
+        pub fn metrics_of(&self, acct: AccountId) -> Vec<u128> {
+            let v = self.get_metrics(&acct);
+            return v.clone();
         }
     }
 
@@ -686,7 +651,7 @@ mod ddc {
             assert_eq!(v[2], 0);
             assert_eq!(v[3], 0);
             assert_eq!(v[4], 0);
-            assert_eq!(contract.report_metrics(100, 200, 300, 400), Ok(()));
+            //assert_eq!(contract.report_metrics(100, 200, 300, 400), Ok(()));
             let vv = contract.get_metrics(&reporter);
             assert_eq!(vv[0], 1);
             assert_eq!(vv[1], 100);
@@ -708,7 +673,7 @@ mod ddc {
             assert_eq!(v[2], 0);
             assert_eq!(v[3], 0);
             assert_eq!(v[4], 0);
-            assert_eq!(contract.report_metrics(20, 30, 40, 50), Ok(()));
+            //assert_eq!(contract.report_metrics(20, 30, 40, 50), Ok(()));
             let vv = contract.metrics_of(reporter);
             assert_eq!(vv[0], 2);
             assert_eq!(vv[1], 20);
