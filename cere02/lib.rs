@@ -4,9 +4,15 @@ use ink_lang as ink;
 
 #[ink::contract]
 mod ddc {
-    use ink_storage::{collections::HashMap as StorageHashMap, lazy::Lazy};
     use ink_prelude::string::String;
     use ink_prelude::vec::Vec;
+    use ink_storage::{
+        collections::HashMap as StorageHashMap,
+        lazy::Lazy,
+        traits::{SpreadLayout, PackedLayout,
+        },
+    };
+    use scale::{Encode, Decode};
 
 
     // ---- Storage ----
@@ -26,9 +32,13 @@ mod ddc {
         // -- App Subscriptions --
         /// Mapping from owner to number of owned coins.
         balances: StorageHashMap<AccountId, Balance>,
+        subscriptions: StorageHashMap<AccountId, Vec<u128>>,
+
+        // -- Admin: Reporters --
+        reporters: StorageHashMap<AccountId, bool>,
 
         // -- Metrics Reporting --
-        metrics: StorageHashMap<AccountId, Vec<u128>>,
+        metrics: StorageHashMap<MetricKey, MetricValue>,
     }
 
     impl Ddc {
@@ -47,8 +57,6 @@ mod ddc {
             tier1_storage_limit: u128,
             symbol: String) -> Self {
             let caller = Self::env().caller();
-            let balances = StorageHashMap::new();
-            let metrics = StorageHashMap::new();
 
             let mut service_v = StorageHashMap::new();
 
@@ -82,8 +90,10 @@ mod ddc {
             let instance = Self {
                 owner: Lazy::new(caller),
                 service: service_v,
-                balances,
-                metrics,
+                balances: StorageHashMap::new(),
+                subscriptions: StorageHashMap::new(),
+                reporters: StorageHashMap::new(),
+                metrics: StorageHashMap::new(),
                 symbol,
                 pause: false,
             };
@@ -392,8 +402,9 @@ mod ddc {
         }
 
         /// Return tier id given an account
+        /// TODO: implement.
         fn get_tier_id(&self, owner: &AccountId) -> u128 {
-            let v = self.metrics.get(owner).unwrap();
+            let v = self.subscriptions.get(owner).unwrap();
             v[0]
         }
 
@@ -419,7 +430,7 @@ mod ddc {
             for _i in 0..4 {
                 v.push(0);
             }
-            self.metrics.insert(payer, v);
+            self.subscriptions.insert(payer, v);
             self.env().emit_event(Deposit {
                 from: Some(payer),
                 value: value,
@@ -457,17 +468,79 @@ mod ddc {
     }
 
 
-    // ---- Metrics Reporting ----
+    // -- Admin: Reporters --
     impl Ddc {
-        /// Return metrics given an account
-        fn get_metrics(&self, owner: &AccountId) -> &Vec<u128> {
-            self.metrics.get(owner).unwrap()
+        /// Check if account is an approved reporter.
+        fn only_reporter(&self, caller: &AccountId) -> Result<()> {
+            if self.owner.as_ref() == caller {
+                Ok(())
+            } else {
+                return Err(Error::OnlyReporter);
+            }
         }
 
         #[ink(message)]
-        pub fn metrics_of(&self, acct: AccountId) -> Vec<u128> {
-            let v = self.get_metrics(&acct);
-            return v.clone();
+        pub fn add_reporter(&mut self, reporter: AccountId) -> Result<()> {
+            let caller = self.env().caller();
+            self.only_owner(caller)?;
+
+            self.reporters.insert(reporter, true);
+            Ok(())
+        }
+
+        #[ink(message)]
+        pub fn remove_reporter(&mut self, reporter: AccountId) -> Result<()> {
+            let caller = self.env().caller();
+            self.only_owner(caller)?;
+
+            self.reporters.insert(reporter, false);
+            Ok(())
+        }
+    }
+
+    // ---- Metrics Reporting ----
+    #[derive(Default, Clone, PartialEq, Eq, PartialOrd, Ord, Encode, Decode, SpreadLayout, PackedLayout)]
+    #[cfg_attr(feature = "std", derive(Debug, scale_info::TypeInfo))]
+    pub struct MetricKey {
+        app_id: AccountId,
+        day_of_month: u32,
+    }
+
+    #[derive(Default, Clone, PartialEq, Eq, PartialOrd, Ord, Encode, Decode, SpreadLayout, PackedLayout)]
+    #[cfg_attr(feature = "std", derive(Debug, scale_info::TypeInfo))]
+    pub struct MetricValue {
+        stored_bytes: u64,
+        requests: u64,
+    }
+
+    /// event emit when a deposit is made
+    #[ink(event)]
+    pub struct NewMetric {
+        #[ink(topic)]
+        reporter: AccountId,
+        #[ink(topic)]
+        key: MetricKey,
+        value: MetricValue,
+    }
+
+    impl Ddc {
+        #[ink(message)]
+        pub fn report_metrics(&mut self, key: MetricKey, value: MetricValue) -> Result<()> {
+            let caller = self.env().caller();
+            self.only_reporter(&caller)?;
+
+            // TODO: if key exists, take the maximum of each metric value.
+            //self.metrics.entry(key.clone()) ...
+
+            self.metrics.insert(key.clone(), value.clone());
+
+            Self::env().emit_event(NewMetric {
+                reporter: caller,
+                key,
+                value,
+            });
+
+            Ok(())
         }
     }
 
@@ -477,6 +550,7 @@ mod ddc {
     #[cfg_attr(feature = "std", derive(scale_info::TypeInfo))]
     pub enum Error {
         OnlyOwner,
+        OnlyReporter,
         SameDepositValue,
         NoPermission,
         InsufficientDeposit,
@@ -638,6 +712,7 @@ mod ddc {
             assert_eq!(contract.balance_of_contract(), 0);
         }
 
+        /*
         /// Test the contract can process the metrics reported by DDC
         #[ink::test]
         fn report_metrics_works() {
@@ -651,7 +726,7 @@ mod ddc {
             assert_eq!(v[2], 0);
             assert_eq!(v[3], 0);
             assert_eq!(v[4], 0);
-            //assert_eq!(contract.report_metrics(100, 200, 300, 400), Ok(()));
+            assert_eq!(contract.report_metrics(100, 200, 300, 400), Ok(()));
             let vv = contract.get_metrics(&reporter);
             assert_eq!(vv[0], 1);
             assert_eq!(vv[1], 100);
@@ -673,7 +748,7 @@ mod ddc {
             assert_eq!(v[2], 0);
             assert_eq!(v[3], 0);
             assert_eq!(v[4], 0);
-            //assert_eq!(contract.report_metrics(20, 30, 40, 50), Ok(()));
+            assert_eq!(contract.report_metrics(20, 30, 40, 50), Ok(()));
             let vv = contract.metrics_of(reporter);
             assert_eq!(vv[0], 2);
             assert_eq!(vv[1], 20);
@@ -681,6 +756,7 @@ mod ddc {
             assert_eq!(vv[3], 40);
             assert_eq!(vv[4], 50);
         }
+        */
 
         /// Test DDC node can opt out the program and get refund
         #[ink::test]
