@@ -35,7 +35,7 @@ mod ddc {
         subscriptions: StorageHashMap<AccountId, Vec<u128>>,
 
         // -- Admin: Reporters --
-        reporters: StorageHashMap<AccountId, bool>,
+        reporters: StorageHashMap<AccountId, ()>,
 
         // -- Metrics Reporting --
         metrics: StorageHashMap<MetricKey, MetricValue>,
@@ -402,7 +402,6 @@ mod ddc {
         }
 
         /// Return tier id given an account
-        /// TODO: implement.
         fn get_tier_id(&self, owner: &AccountId) -> u128 {
             let v = self.subscriptions.get(owner).unwrap();
             v[0]
@@ -468,15 +467,33 @@ mod ddc {
     }
 
 
-    // -- Admin: Reporters --
+    // ---- Admin: Reporters ----
+
+    #[ink(event)]
+    pub struct ReporterAdded {
+        #[ink(topic)]
+        reporter: AccountId,
+    }
+
+    #[ink(event)]
+    pub struct ReporterRemoved {
+        #[ink(topic)]
+        reporter: AccountId,
+    }
+
     impl Ddc {
         /// Check if account is an approved reporter.
         fn only_reporter(&self, caller: &AccountId) -> Result<()> {
-            if self.owner.as_ref() == caller {
+            if self.is_reporter(caller) {
                 Ok(())
             } else {
-                return Err(Error::OnlyReporter);
+                Err(Error::OnlyReporter)
             }
+        }
+
+        #[ink(message)]
+        pub fn is_reporter(&self, reporter: &AccountId) -> bool {
+            self.reporters.contains_key(&reporter)
         }
 
         #[ink(message)]
@@ -484,7 +501,8 @@ mod ddc {
             let caller = self.env().caller();
             self.only_owner(caller)?;
 
-            self.reporters.insert(reporter, true);
+            self.reporters.insert(reporter, ());
+            Self::env().emit_event(ReporterAdded { reporter });
             Ok(())
         }
 
@@ -493,7 +511,8 @@ mod ddc {
             let caller = self.env().caller();
             self.only_owner(caller)?;
 
-            self.reporters.insert(reporter, false);
+            self.reporters.take(&reporter);
+            Self::env().emit_event(ReporterRemoved { reporter });
             Ok(())
         }
     }
@@ -513,7 +532,6 @@ mod ddc {
         requests: u64,
     }
 
-    /// event emit when a deposit is made
     #[ink(event)]
     pub struct NewMetric {
         #[ink(topic)]
@@ -767,6 +785,41 @@ mod ddc {
             assert_eq!(contract.balance_of(payer), 8);
             assert_eq!(contract.unsubscribe(), Ok(()));
             assert_eq!(contract.balance_of(payer), 0);
+        }
+
+        use ink_env::test::recorded_events;
+        use scale::Decode;
+
+        type Event = <Ddc as ::ink_lang::BaseEvent>::Type;
+
+        // ---- Admin: Reporters ----
+        #[ink::test]
+        fn test_reporters() {
+            let mut contract = Ddc::new(2, 2000, 2000, 4, 4000, 4000, 8, 8000, 800, "DDC".to_string());
+
+            let new_reporter = AccountId::from([0x1; 32]);
+
+            assert!(!contract.is_reporter(&new_reporter));
+            contract.add_reporter(new_reporter);
+            assert!(contract.is_reporter(&new_reporter));
+            contract.remove_reporter(new_reporter);
+            assert!(!contract.is_reporter(&new_reporter));
+
+            let raw_events = recorded_events().collect::<Vec<_>>();
+            println!("{:?}", raw_events);
+            assert_eq!(2, raw_events.len());
+
+            if let Event::ReporterAdded(ReporterAdded { reporter }) = <Event as Decode>::decode(&mut &raw_events[0].data[..]).unwrap() {
+                assert_eq!(reporter, new_reporter);
+            } else {
+                panic!("Wrong event type");
+            }
+
+            if let Event::ReporterRemoved(ReporterRemoved { reporter }) = <Event as Decode>::decode(&mut &raw_events[1].data[..]).unwrap() {
+                assert_eq!(reporter, new_reporter);
+            } else {
+                panic!("Wrong event type");
+            }
         }
     }
 }
