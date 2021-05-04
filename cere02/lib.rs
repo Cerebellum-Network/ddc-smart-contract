@@ -522,7 +522,7 @@ mod ddc {
     #[cfg_attr(feature = "std", derive(Debug, scale_info::TypeInfo))]
     pub struct MetricKey {
         app_id: AccountId,
-        day_of_month: u32,
+        day_of_month: u8,
     }
 
     #[derive(Default, Clone, PartialEq, Eq, PartialOrd, Ord, Encode, Decode, SpreadLayout, PackedLayout)]
@@ -543,9 +543,19 @@ mod ddc {
 
     impl Ddc {
         #[ink(message)]
-        pub fn report_metrics(&mut self, key: MetricKey, value: MetricValue) -> Result<()> {
+        pub fn report_metrics(&mut self, app_id: AccountId, day_time_ms: u64, value: MetricValue) -> Result<()> {
             let caller = self.env().caller();
             self.only_reporter(&caller)?;
+
+            let time_of_day = day_time_ms % (24 * 3600 * 1000);
+            if time_of_day != 0 {
+                return Err(Error::UnexpectedTimestamp);
+            }
+
+            let day = day_time_ms / (24 * 3600 * 1000);
+            let day_of_month = (day % 31) as u8;
+
+            let key = MetricKey { app_id, day_of_month };
 
             // If key exists, take the maximum of each metric value.
             let mut value = value;
@@ -582,6 +592,7 @@ mod ddc {
         TidOutOfBound,
         ContractPaused,
         ContractActive,
+        UnexpectedTimestamp,
     }
 
     pub type Result<T> = core::result::Result<T, Error>;
