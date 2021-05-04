@@ -547,8 +547,12 @@ mod ddc {
             let caller = self.env().caller();
             self.only_reporter(&caller)?;
 
-            // TODO: if key exists, take the maximum of each metric value.
-            //self.metrics.entry(key.clone()) ...
+            // If key exists, take the maximum of each metric value.
+            let mut value = value;
+            if let Some(previous) = self.metrics.get(&key) {
+                value.requests = value.requests.max(previous.requests);
+                value.stored_bytes = value.stored_bytes.max(previous.stored_bytes);
+            }
 
             self.metrics.insert(key.clone(), value.clone());
 
@@ -806,7 +810,6 @@ mod ddc {
             assert!(!contract.is_reporter(&new_reporter));
 
             let raw_events = recorded_events().collect::<Vec<_>>();
-            println!("{:?}", raw_events);
             assert_eq!(2, raw_events.len());
 
             if let Event::ReporterAdded(ReporterAdded { reporter }) = <Event as Decode>::decode(&mut &raw_events[0].data[..]).unwrap() {
