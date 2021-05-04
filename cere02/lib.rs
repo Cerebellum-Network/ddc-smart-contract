@@ -38,7 +38,7 @@ mod ddc {
         reporters: StorageHashMap<AccountId, ()>,
 
         // -- Metrics Reporting --
-        metrics: StorageHashMap<MetricKey, MetricValue>,
+        pub metrics: StorageHashMap<MetricKey, MetricValue>,
     }
 
     impl Ddc {
@@ -484,7 +484,7 @@ mod ddc {
     impl Ddc {
         /// Check if account is an approved reporter.
         fn only_reporter(&self, caller: &AccountId) -> Result<()> {
-            if self.is_reporter(caller) {
+            if self.is_reporter(*caller) {
                 Ok(())
             } else {
                 Err(Error::OnlyReporter)
@@ -492,7 +492,7 @@ mod ddc {
         }
 
         #[ink(message)]
-        pub fn is_reporter(&self, reporter: &AccountId) -> bool {
+        pub fn is_reporter(&self, reporter: AccountId) -> bool {
             self.reporters.contains_key(&reporter)
         }
 
@@ -522,7 +522,7 @@ mod ddc {
     #[cfg_attr(feature = "std", derive(Debug, scale_info::TypeInfo))]
     pub struct MetricKey {
         app_id: AccountId,
-        day_of_month: u8,
+        day_of_month: u64,
     }
 
     #[derive(Default, Clone, PartialEq, Eq, PartialOrd, Ord, Encode, Decode, SpreadLayout, PackedLayout)]
@@ -553,16 +553,18 @@ mod ddc {
             }
 
             let day = day_time_ms / (24 * 3600 * 1000);
-            let day_of_month = (day % 31) as u8;
+            let day_of_month = day % 31;
 
             let key = MetricKey { app_id, day_of_month };
 
+            /* TODO(Aurel): support starting a new month, and enable this block.
             // If key exists, take the maximum of each metric value.
             let mut value = value;
             if let Some(previous) = self.metrics.get(&key) {
                 value.requests = value.requests.max(previous.requests);
                 value.stored_bytes = value.stored_bytes.max(previous.stored_bytes);
             }
+            */
 
             self.metrics.insert(key.clone(), value.clone());
 
@@ -602,8 +604,15 @@ mod ddc {
     mod tests {
         /// Imports all the definitions from the outer scope so we can use them here.
         use super::*;
-
         use ink_lang as ink;
+        use ink_env::{DefaultEnvironment, test::{recorded_events, default_accounts}};
+        use scale::Decode;
+
+        type Event = <Ddc as ::ink_lang::BaseEvent>::Type;
+
+        fn make_contract() -> Ddc {
+            Ddc::new(2, 2000, 2000, 4, 4000, 4000, 8, 8000, 800, "DDC".to_string())
+        }
 
         /// We test if the default constructor does its job.
         #[ink::test]
@@ -644,6 +653,19 @@ mod ddc {
             assert_eq!(contract.subscribe(3), Ok(()));
             // assert_eq!(contract.balance_of(payer), 2);
         }
+
+        /*
+        /// Test DDC node can opt out the program and get refund
+        #[ink::test]
+        fn unsubscribe_works() {
+            let mut contract = Ddc::new(2, 2000, 2000, 4, 4000, 4000, 8, 8000, 800, "DDC".to_string());
+            let payer = AccountId::from([0x1; 32]);
+            assert_eq!(contract.subscribe(3), Ok(()));
+            assert_eq!(contract.balance_of(payer), 8);
+            assert_eq!(contract.unsubscribe(), Ok(()));
+            assert_eq!(contract.balance_of(payer), 0);
+        }
+        */
 
         /// Test the total balance of the contract is correct
         #[ink::test]
@@ -745,67 +767,56 @@ mod ddc {
             assert_eq!(contract.balance_of_contract(), 0);
         }
 
-        /*
         /// Test the contract can process the metrics reported by DDC
         #[ink::test]
         fn report_metrics_works() {
-            let mut contract = Ddc::new(2, 2000, 2000, 4, 4000, 4000, 8, 8000, 800, "DDC".to_string());
-            let reporter = AccountId::from([0x1; 32]);
-            assert_eq!(contract.subscribe(1), Ok(()));
-            assert_eq!(contract.balance_of(reporter), 8);
-            let v = contract.get_metrics(&reporter);
-            assert_eq!(v[0], 1);
-            assert_eq!(v[1], 0);
-            assert_eq!(v[2], 0);
-            assert_eq!(v[3], 0);
-            assert_eq!(v[4], 0);
-            assert_eq!(contract.report_metrics(100, 200, 300, 400), Ok(()));
-            let vv = contract.get_metrics(&reporter);
-            assert_eq!(vv[0], 1);
-            assert_eq!(vv[1], 100);
-            assert_eq!(vv[2], 200);
-            assert_eq!(vv[3], 300);
-            assert_eq!(vv[4], 400);
+            let mut contract = make_contract();
+            let accounts = default_accounts::<DefaultEnvironment>().unwrap();
+
+            let app_id = accounts.charlie;
+            let metrics = MetricValue { stored_bytes: 11, requests: 12 };
+            let big_metrics = MetricValue { stored_bytes: 100, requests: 200 };
+            let some_day = 9999;
+            let ms_per_day = 24 * 3600 * 1000;
+
+            let today_ms = some_day * ms_per_day; // Midnight time on some day.
+            let today_key = MetricKey { app_id, day_of_month: some_day % 31 };
+
+            let yesterday_ms = (some_day + 1) * ms_per_day; // Midnight time on some day.
+            let yesterday_key = MetricKey { app_id, day_of_month: (some_day + 1) % 31 };
+
+            let next_month_ms = (some_day + 31) * ms_per_day; // Midnight time on some day.
+            let next_month_key = MetricKey { app_id, day_of_month: (some_day + 31) % 31 };
+
+            // Unauthorized report, we are not a reporter.
+            let err = contract.report_metrics(app_id, 0, metrics.clone());
+            assert_eq!(err, Err(Error::OnlyReporter));
+
+            // No metric yet.
+            assert_eq!(contract.metrics.get(&today_key), None);
+
+            // Authorize our admin account to be a reporter too.
+            contract.add_reporter(accounts.alice).unwrap();
+
+            // Wrong day format.
+            let err = contract.report_metrics(app_id, today_ms + 1, metrics.clone());
+            assert_eq!(err, Err(Error::UnexpectedTimestamp));
+
+            // Store metrics.
+            contract.report_metrics(app_id, yesterday_ms, big_metrics.clone()).unwrap();
+            contract.report_metrics(app_id, today_ms, metrics.clone()).unwrap();
+            assert_eq!(contract.metrics.get(&yesterday_key), Some(&big_metrics));
+            assert_eq!(contract.metrics.get(&today_key), Some(&metrics));
+
+            // Update with bigger metrics.
+            contract.report_metrics(app_id, today_ms, big_metrics.clone()).unwrap();
+            assert_eq!(contract.metrics.get(&today_key), Some(&big_metrics));
+
+            // Update one month later, overwriting the same day slot.
+            assert_eq!(contract.metrics.get(&next_month_key), Some(&big_metrics));
+            contract.report_metrics(app_id, next_month_ms, metrics.clone()).unwrap();
+            assert_eq!(contract.metrics.get(&next_month_key), Some(&metrics));
         }
-
-        /// Test we can read metrics 
-        #[ink::test]
-        fn read_metrics_works() {
-            let mut contract = Ddc::new(2, 2000, 2000, 4, 4000, 4000, 8, 8000, 800, "DDC".to_string());
-            let reporter = AccountId::from([0x1; 32]);
-            assert_eq!(contract.subscribe(2), Ok(()));
-            assert_eq!(contract.balance_of(reporter), 4);
-            let v = contract.metrics_of(reporter);
-            assert_eq!(v[0], 2);
-            assert_eq!(v[1], 0);
-            assert_eq!(v[2], 0);
-            assert_eq!(v[3], 0);
-            assert_eq!(v[4], 0);
-            assert_eq!(contract.report_metrics(20, 30, 40, 50), Ok(()));
-            let vv = contract.metrics_of(reporter);
-            assert_eq!(vv[0], 2);
-            assert_eq!(vv[1], 20);
-            assert_eq!(vv[2], 30);
-            assert_eq!(vv[3], 40);
-            assert_eq!(vv[4], 50);
-        }
-        */
-
-        /// Test DDC node can opt out the program and get refund
-        #[ink::test]
-        fn unsubscribe_works() {
-            let mut contract = Ddc::new(2, 2000, 2000, 4, 4000, 4000, 8, 8000, 800, "DDC".to_string());
-            let payer = AccountId::from([0x1; 32]);
-            assert_eq!(contract.subscribe(3), Ok(()));
-            assert_eq!(contract.balance_of(payer), 8);
-            assert_eq!(contract.unsubscribe(), Ok(()));
-            assert_eq!(contract.balance_of(payer), 0);
-        }
-
-        use ink_env::test::recorded_events;
-        use scale::Decode;
-
-        type Event = <Ddc as ::ink_lang::BaseEvent>::Type;
 
         // ---- Admin: Reporters ----
         #[ink::test]
@@ -814,11 +825,11 @@ mod ddc {
 
             let new_reporter = AccountId::from([0x1; 32]);
 
-            assert!(!contract.is_reporter(&new_reporter));
-            contract.add_reporter(new_reporter);
-            assert!(contract.is_reporter(&new_reporter));
-            contract.remove_reporter(new_reporter);
-            assert!(!contract.is_reporter(&new_reporter));
+            assert!(!contract.is_reporter(new_reporter));
+            contract.add_reporter(new_reporter).unwrap();
+            assert!(contract.is_reporter(new_reporter));
+            contract.remove_reporter(new_reporter).unwrap();
+            assert!(!contract.is_reporter(new_reporter));
 
             let raw_events = recorded_events().collect::<Vec<_>>();
             assert_eq!(2, raw_events.len());
