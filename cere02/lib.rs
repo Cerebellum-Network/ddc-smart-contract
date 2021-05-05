@@ -9,11 +9,10 @@ mod ddc {
     use ink_storage::{
         collections::HashMap as StorageHashMap,
         lazy::Lazy,
-        traits::{SpreadLayout, PackedLayout,
+        traits::{PackedLayout, SpreadLayout,
         },
     };
-    use scale::{Encode, Decode};
-
+    use scale::{Decode, Encode};
 
     // ---- Storage ----
     #[ink(storage)]
@@ -640,10 +639,10 @@ mod ddc {
             self.current_period_ms
         }
 
-        pub fn is_within_limit(&mut self, app_id: AccountId) -> bool{
+        pub fn is_within_limit(&self, app_id: AccountId) -> bool {
             let metrics: MetricValue = self.metrics_since_subscription(app_id);
             let current_tier_limit = self.tier_limit_of(app_id);
-            if (metrics.requests > current_tier_limit[0] || metrics.stored_bytes > current_tier_limit[1]) {
+            if metrics.requests > current_tier_limit[0] || metrics.stored_bytes > current_tier_limit[1] {
                 return false;
             }
 
@@ -685,11 +684,12 @@ mod ddc {
 
     #[cfg(test)]
     mod tests {
+        use ink_env::{DefaultEnvironment, test::{default_accounts, recorded_events}};
+        use ink_lang as ink;
+        use scale::Decode;
+
         /// Imports all the definitions from the outer scope so we can use them here.
         use super::*;
-        use ink_lang as ink;
-        use ink_env::{DefaultEnvironment, test::{recorded_events, default_accounts}};
-        use scale::Decode;
 
         type Event = <Ddc as ::ink_lang::BaseEvent>::Type;
 
@@ -967,16 +967,15 @@ mod ddc {
             let accounts = default_accounts::<DefaultEnvironment>().unwrap();
             let app_id = accounts.alice;
             let metrics = MetricValue { stored_bytes: 99999, requests: 10 };
-            let some_day = 9999;
-            let ms_per_day = 24 * 3600 * 1000;
 
             let some_day = 9999;
             let ms_per_day = 24 * 3600 * 1000;
 
             let today_ms = some_day * ms_per_day;
-            let today_key = MetricKey { app_id, day_of_month: some_day % 31 };
 
-            contract.subscribe(1);
+            contract.subscribe(1).unwrap();
+
+            assert_eq!(contract.is_within_limit(app_id), true);
 
             contract.add_reporter(accounts.alice).unwrap();
             contract.report_metrics(app_id, today_ms, metrics.clone()).unwrap();
@@ -993,13 +992,9 @@ mod ddc {
             let some_day = 9999;
             let ms_per_day = 24 * 3600 * 1000;
 
-            let some_day = 9999;
-            let ms_per_day = 24 * 3600 * 1000;
-
             let today_ms = some_day * ms_per_day;
-            let today_key = MetricKey { app_id, day_of_month: some_day % 31 };
 
-            contract.subscribe(1);
+            contract.subscribe(1).unwrap();
 
             contract.add_reporter(accounts.alice).unwrap();
             contract.report_metrics(app_id, today_ms, metrics.clone()).unwrap();
