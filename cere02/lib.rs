@@ -572,7 +572,8 @@ mod ddc {
 
     impl Ddc {
         #[ink(message)]
-        pub fn metrics_this_month(&self, app_id: AccountId) -> MetricValue {
+        pub fn metrics_since_subscription(&self, app_id: AccountId) -> MetricValue {
+            // TODO(Aurel): limit to the period [subscription start; now].
             let mut month_metrics = MetricValue::default();
             for day_of_month in 0..31 {
                 let day_key = MetricKey { app_id, day_of_month };
@@ -865,7 +866,7 @@ mod ddc {
 
             // No metric yet.
             assert_eq!(contract.metrics.get(&today_key), None);
-            assert_eq!(contract.metrics_this_month(accounts.charlie),
+            assert_eq!(contract.metrics_since_subscription(accounts.charlie),
                        MetricValue { stored_bytes: 0, requests: 0 });
 
             // Authorize our admin account to be a reporter too.
@@ -886,7 +887,7 @@ mod ddc {
             assert_eq!(contract.metrics.get(&today_key), Some(&big_metrics));
 
             // The metrics for the month is yesterday + today, both big_metrics now.
-            assert_eq!(contract.metrics_this_month(accounts.charlie), double_big_metrics);
+            assert_eq!(contract.metrics_since_subscription(accounts.charlie), double_big_metrics);
 
             // Update one month later, overwriting the same day slot.
             assert_eq!(contract.metrics.get(&next_month_key), Some(&big_metrics));
