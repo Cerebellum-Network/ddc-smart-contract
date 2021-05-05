@@ -900,7 +900,7 @@ mod ddc {
         }
 
         #[ink::test]
-        fn test_finalize_metric_period() {
+        fn finalize_metric_period_works() {
             let mut contract = make_contract();
             let accounts = default_accounts::<DefaultEnvironment>().unwrap();
             let yesterday_ms = 9999 * MS_PER_DAY; // Midnight time on some day.
@@ -924,7 +924,7 @@ mod ddc {
 
         // ---- Admin: Reporters ----
         #[ink::test]
-        fn test_reporters() {
+        fn add_and_remove_reporters_works() {
             let mut contract = Ddc::new(2, 2000, 2000, 4, 4000, 4000, 8, 8000, 800, "DDC".to_string());
 
             let new_reporter = AccountId::from([0x1; 32]);
