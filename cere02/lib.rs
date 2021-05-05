@@ -532,6 +532,22 @@ mod ddc {
         requests: u64,
     }
 
+    impl MetricValue {
+        pub fn add_assign(&mut self, other: &Self) {
+            self.stored_bytes += other.stored_bytes;
+            self.requests += other.requests;
+        }
+
+        pub fn max_assign(&mut self, other: &Self) {
+            if self.stored_bytes < other.stored_bytes {
+                self.stored_bytes = other.stored_bytes;
+            }
+            if self.requests < other.requests {
+                self.requests = other.requests;
+            }
+        }
+    }
+
     #[ink(event)]
     pub struct NewMetric {
         #[ink(topic)]
@@ -542,6 +558,18 @@ mod ddc {
     }
 
     impl Ddc {
+        #[ink(message)]
+        pub fn metrics_this_month(&self, app_id: AccountId) -> MetricValue {
+            let mut month_metrics = MetricValue { stored_bytes: 0, requests: 0 };
+            for day_of_month in 0..31 {
+                let day_key = MetricKey { app_id, day_of_month };
+                if let Some(day_metrics) = self.metrics.get(&day_key) {
+                    month_metrics.add_assign(day_metrics);
+                }
+            }
+            month_metrics
+        }
+
         #[ink(message)]
         pub fn report_metrics(&mut self, app_id: AccountId, day_time_ms: u64, value: MetricValue) -> Result<()> {
             let caller = self.env().caller();
@@ -561,8 +589,7 @@ mod ddc {
             // If key exists, take the maximum of each metric value.
             let mut value = value;
             if let Some(previous) = self.metrics.get(&key) {
-                value.requests = value.requests.max(previous.requests);
-                value.stored_bytes = value.stored_bytes.max(previous.stored_bytes);
+                value.max_assign(previous);
             }
             */
 
@@ -775,7 +802,8 @@ mod ddc {
 
             let app_id = accounts.charlie;
             let metrics = MetricValue { stored_bytes: 11, requests: 12 };
-            let big_metrics = MetricValue { stored_bytes: 100, requests: 200 };
+            let big_metrics = MetricValue { stored_bytes: 100, requests: 300 };
+            let double_big_metrics = MetricValue { stored_bytes: 200, requests: 600 };
             let some_day = 9999;
             let ms_per_day = 24 * 3600 * 1000;
 
@@ -794,6 +822,8 @@ mod ddc {
 
             // No metric yet.
             assert_eq!(contract.metrics.get(&today_key), None);
+            assert_eq!(contract.metrics_this_month(accounts.charlie),
+                       MetricValue { stored_bytes: 0, requests: 0 });
 
             // Authorize our admin account to be a reporter too.
             contract.add_reporter(accounts.alice).unwrap();
@@ -812,10 +842,17 @@ mod ddc {
             contract.report_metrics(app_id, today_ms, big_metrics.clone()).unwrap();
             assert_eq!(contract.metrics.get(&today_key), Some(&big_metrics));
 
+            // The metrics for the month is yesterday + today, both big_metrics now.
+            assert_eq!(contract.metrics_this_month(accounts.charlie), double_big_metrics);
+
             // Update one month later, overwriting the same day slot.
             assert_eq!(contract.metrics.get(&next_month_key), Some(&big_metrics));
             contract.report_metrics(app_id, next_month_ms, metrics.clone()).unwrap();
             assert_eq!(contract.metrics.get(&next_month_key), Some(&metrics));
+
+            // Some other account has no metrics.
+            let other_key = MetricKey { app_id: accounts.bob, day_of_month: 0 };
+            assert_eq!(contract.metrics.get(&other_key), None);
         }
 
         // ---- Admin: Reporters ----
