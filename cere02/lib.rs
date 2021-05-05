@@ -39,6 +39,7 @@ mod ddc {
 
         // -- Metrics Reporting --
         pub metrics: StorageHashMap<MetricKey, MetricValue>,
+        current_period_ms: u64,
     }
 
     impl Ddc {
@@ -87,6 +88,9 @@ mod ddc {
 
             service_v.insert(3, t3);
 
+            // TODO(Aurel): check the unit is milliseconds (not documented).
+            let today_ms = (Self::env().block_timestamp() as u64) % MS_PER_DAY;
+
             let instance = Self {
                 owner: Lazy::new(caller),
                 service: service_v,
@@ -94,6 +98,7 @@ mod ddc {
                 subscriptions: StorageHashMap::new(),
                 reporters: StorageHashMap::new(),
                 metrics: StorageHashMap::new(),
+                current_period_ms: today_ms,
                 symbol,
                 pause: false,
             };
@@ -554,13 +559,22 @@ mod ddc {
         reporter: AccountId,
         #[ink(topic)]
         key: MetricKey,
-        value: MetricValue,
+        metrics: MetricValue,
     }
+
+    #[ink(event)]
+    pub struct MetricPeriodFinalized {
+        #[ink(topic)]
+        reporter: AccountId,
+        start_ms: u64,
+    }
+
 
     impl Ddc {
         #[ink(message)]
-        pub fn metrics_this_month(&self, app_id: AccountId) -> MetricValue {
-            let mut month_metrics = MetricValue { stored_bytes: 0, requests: 0 };
+        pub fn metrics_since_subscription(&self, app_id: AccountId) -> MetricValue {
+            // TODO(Aurel): limit to the period [subscription start; now].
+            let mut month_metrics = MetricValue::default();
             for day_of_month in 0..31 {
                 let day_key = MetricKey { app_id, day_of_month };
                 if let Some(day_metrics) = self.metrics.get(&day_key) {
@@ -571,37 +585,59 @@ mod ddc {
         }
 
         #[ink(message)]
-        pub fn report_metrics(&mut self, app_id: AccountId, day_time_ms: u64, value: MetricValue) -> Result<()> {
-            let caller = self.env().caller();
-            self.only_reporter(&caller)?;
+        pub fn report_metrics(
+            &mut self,
+            app_id: AccountId,
+            day_start_ms: u64,
+            metrics: MetricValue,
+        ) -> Result<()> {
+            let reporter = self.env().caller();
+            self.only_reporter(&reporter)?;
 
-            let time_of_day = day_time_ms % (24 * 3600 * 1000);
-            if time_of_day != 0 {
-                return Err(Error::UnexpectedTimestamp);
-            }
-
-            let day = day_time_ms / (24 * 3600 * 1000);
+            enforce_time_is_start_of_day(day_start_ms)?;
+            let day = day_start_ms / MS_PER_DAY;
             let day_of_month = day % 31;
 
             let key = MetricKey { app_id, day_of_month };
 
             /* TODO(Aurel): support starting a new month, and enable this block.
             // If key exists, take the maximum of each metric value.
-            let mut value = value;
+            let mut metrics = metrics;
             if let Some(previous) = self.metrics.get(&key) {
-                value.max_assign(previous);
+                metrics.max_assign(previous);
             }
             */
 
-            self.metrics.insert(key.clone(), value.clone());
+            self.metrics.insert(key.clone(), metrics.clone());
 
-            Self::env().emit_event(NewMetric {
-                reporter: caller,
+            self.env().emit_event(NewMetric {
+                reporter,
                 key,
-                value,
+                metrics,
             });
 
             Ok(())
+        }
+
+        #[ink(message)]
+        pub fn finalize_metric_period(&mut self, start_ms: u64) -> Result<()> {
+            let reporter = self.env().caller();
+            self.only_reporter(&reporter)?;
+
+            enforce_time_is_start_of_day(start_ms)?;
+            self.current_period_ms = start_ms + MS_PER_DAY;
+
+            self.env().emit_event(MetricPeriodFinalized {
+                reporter,
+                start_ms,
+            });
+
+            Ok(())
+        }
+
+        #[ink(message)]
+        pub fn get_current_period_ms(&self) -> u64 {
+            self.current_period_ms
         }
     }
 
@@ -625,6 +661,16 @@ mod ddc {
     }
 
     pub type Result<T> = core::result::Result<T, Error>;
+
+    const MS_PER_DAY: u64 = 24 * 3600 * 1000;
+
+    fn enforce_time_is_start_of_day(ms: u64) -> Result<()> {
+        if ms % MS_PER_DAY == 0 {
+            Ok(())
+        } else {
+            Err(Error::UnexpectedTimestamp)
+        }
+    }
 
 
     #[cfg(test)]
@@ -794,12 +840,10 @@ mod ddc {
             assert_eq!(contract.balance_of_contract(), 0);
         }
 
-        /// Test the contract can process the metrics reported by DDC
         #[ink::test]
         fn report_metrics_works() {
             let mut contract = make_contract();
             let accounts = default_accounts::<DefaultEnvironment>().unwrap();
-
             let app_id = accounts.charlie;
             let metrics = MetricValue { stored_bytes: 11, requests: 12 };
             let big_metrics = MetricValue { stored_bytes: 100, requests: 300 };
@@ -822,7 +866,7 @@ mod ddc {
 
             // No metric yet.
             assert_eq!(contract.metrics.get(&today_key), None);
-            assert_eq!(contract.metrics_this_month(accounts.charlie),
+            assert_eq!(contract.metrics_since_subscription(accounts.charlie),
                        MetricValue { stored_bytes: 0, requests: 0 });
 
             // Authorize our admin account to be a reporter too.
@@ -843,7 +887,7 @@ mod ddc {
             assert_eq!(contract.metrics.get(&today_key), Some(&big_metrics));
 
             // The metrics for the month is yesterday + today, both big_metrics now.
-            assert_eq!(contract.metrics_this_month(accounts.charlie), double_big_metrics);
+            assert_eq!(contract.metrics_since_subscription(accounts.charlie), double_big_metrics);
 
             // Update one month later, overwriting the same day slot.
             assert_eq!(contract.metrics.get(&next_month_key), Some(&big_metrics));
@@ -855,9 +899,32 @@ mod ddc {
             assert_eq!(contract.metrics.get(&other_key), None);
         }
 
+        #[ink::test]
+        fn finalize_metric_period_works() {
+            let mut contract = make_contract();
+            let accounts = default_accounts::<DefaultEnvironment>().unwrap();
+            let yesterday_ms = 9999 * MS_PER_DAY; // Midnight time on some day.
+            let today_ms = yesterday_ms + MS_PER_DAY;
+
+            // Unauthorized report, we are not a reporter.
+            let err = contract.finalize_metric_period(yesterday_ms);
+            assert_eq!(err, Err(Error::OnlyReporter));
+
+            // Authorize our admin account to be a reporter too.
+            contract.add_reporter(accounts.alice).unwrap();
+
+            // Wrong day format.
+            let err = contract.finalize_metric_period(yesterday_ms + 1);
+            assert_eq!(err, Err(Error::UnexpectedTimestamp));
+
+            // Finalize today.
+            contract.finalize_metric_period(yesterday_ms).unwrap();
+            assert_eq!(contract.get_current_period_ms(), today_ms);
+        }
+
         // ---- Admin: Reporters ----
         #[ink::test]
-        fn test_reporters() {
+        fn add_and_remove_reporters_works() {
             let mut contract = Ddc::new(2, 2000, 2000, 4, 4000, 4000, 8, 8000, 800, "DDC".to_string());
 
             let new_reporter = AccountId::from([0x1; 32]);
