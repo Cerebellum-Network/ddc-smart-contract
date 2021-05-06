@@ -794,12 +794,14 @@ mod ddc {
             let mut subscription = contract.subscriptions.get(&payer).unwrap();
 
             assert_eq!(subscription.end_date_ms, 31 * MS_PER_DAY);
+            assert_eq!(subscription.balance, 500);
 
             contract.subscribe(3);
 
             subscription = contract.subscriptions.get(&payer).unwrap();
 
             assert_eq!(subscription.end_date_ms, 31 * MS_PER_DAY * 2);
+            assert_eq!(subscription.balance, 1000);
 
             // assert_eq!(contract.balance_of(payer), 2);
         }
