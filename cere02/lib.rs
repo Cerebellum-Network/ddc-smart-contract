@@ -588,7 +588,8 @@ mod ddc {
             &mut self,
             app_id: AccountId,
             day_start_ms: u64,
-            metrics: MetricValue,
+            stored_bytes: u128,
+            requests: u128,
         ) -> Result<()> {
             let reporter = self.env().caller();
             self.only_reporter(&reporter)?;
@@ -598,6 +599,7 @@ mod ddc {
             let day_of_month = day % 31;
 
             let key = MetricKey { app_id, day_of_month };
+            let metrics = MetricValue { stored_bytes, requests };
 
             /* TODO(Aurel): support starting a new month, and enable this block.
             // If key exists, take the maximum of each metric value.
@@ -872,7 +874,7 @@ mod ddc {
             let next_month_key = MetricKey { app_id, day_of_month: (some_day + 31) % 31 };
 
             // Unauthorized report, we are not a reporter.
-            let err = contract.report_metrics(app_id, 0, metrics.clone());
+            let err = contract.report_metrics(app_id, 0, metrics.stored_bytes, metrics.requests);
             assert_eq!(err, Err(Error::OnlyReporter));
 
             // No metric yet.
@@ -884,17 +886,17 @@ mod ddc {
             contract.add_reporter(accounts.alice).unwrap();
 
             // Wrong day format.
-            let err = contract.report_metrics(app_id, today_ms + 1, metrics.clone());
+            let err = contract.report_metrics(app_id, today_ms + 1, metrics.stored_bytes, metrics.requests);
             assert_eq!(err, Err(Error::UnexpectedTimestamp));
 
             // Store metrics.
-            contract.report_metrics(app_id, yesterday_ms, big_metrics.clone()).unwrap();
-            contract.report_metrics(app_id, today_ms, metrics.clone()).unwrap();
+            contract.report_metrics(app_id, yesterday_ms, big_metrics.stored_bytes, big_metrics.requests).unwrap();
+            contract.report_metrics(app_id, today_ms, metrics.stored_bytes, metrics.requests).unwrap();
             assert_eq!(contract.metrics.get(&yesterday_key), Some(&big_metrics));
             assert_eq!(contract.metrics.get(&today_key), Some(&metrics));
 
             // Update with bigger metrics.
-            contract.report_metrics(app_id, today_ms, big_metrics.clone()).unwrap();
+            contract.report_metrics(app_id, today_ms, big_metrics.stored_bytes, big_metrics.requests).unwrap();
             assert_eq!(contract.metrics.get(&today_key), Some(&big_metrics));
 
             // The metrics for the month is yesterday + today, both big_metrics now.
@@ -902,7 +904,7 @@ mod ddc {
 
             // Update one month later, overwriting the same day slot.
             assert_eq!(contract.metrics.get(&next_month_key), Some(&big_metrics));
-            contract.report_metrics(app_id, next_month_ms, metrics.clone()).unwrap();
+            contract.report_metrics(app_id, next_month_ms, metrics.stored_bytes, metrics.requests).unwrap();
             assert_eq!(contract.metrics.get(&next_month_key), Some(&metrics));
 
             // Some other account has no metrics.
@@ -979,7 +981,7 @@ mod ddc {
             assert_eq!(contract.is_within_limit(app_id), true);
 
             contract.add_reporter(accounts.alice).unwrap();
-            contract.report_metrics(app_id, today_ms, metrics.clone()).unwrap();
+            contract.report_metrics(app_id, today_ms, metrics.stored_bytes, metrics.requests).unwrap();
 
             assert_eq!(contract.is_within_limit(app_id), false)
         }
@@ -998,7 +1000,7 @@ mod ddc {
             contract.subscribe(1).unwrap();
 
             contract.add_reporter(accounts.alice).unwrap();
-            contract.report_metrics(app_id, today_ms, metrics.clone()).unwrap();
+            contract.report_metrics(app_id, today_ms, metrics.stored_bytes, metrics.requests).unwrap();
 
             assert_eq!(contract.is_within_limit(app_id), true)
         }
