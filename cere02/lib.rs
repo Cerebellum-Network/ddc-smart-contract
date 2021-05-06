@@ -31,7 +31,7 @@ mod ddc {
         // -- App Subscriptions --
         /// Mapping from owner to number of owned coins.
         balances: StorageHashMap<AccountId, Balance>,
-        subscriptions: StorageHashMap<AccountId, Vec<u128>>,
+        subscriptions: StorageHashMap<AccountId, AppSubscription>,
 
         // -- Admin: Reporters --
         reporters: StorageHashMap<AccountId, ()>,
@@ -173,12 +173,22 @@ mod ddc {
             self.only_active()?;
             let caller = self.env().caller();
             self.only_owner(caller)?;
-            let member_bal = self.balance_of_or_zero(&member) as Balance;
-            if member_bal == 0 {
+
+            let subscription_opt = self.subscriptions.get(&member);
+
+            if subscription_opt.is_none() {
+                return Err(Error::NoSubscription);
+            }
+
+            let mut subscription = subscription_opt.unwrap().clone();
+
+            if subscription.balance == 0 {
                 return Err(Error::ZeroBalance);
             }
-            // clear the balance, but keeps the metrics record
-            self.balances.insert(member, 0);
+
+            subscription.balance = 0;
+            self.subscriptions.insert(member, subscription);
+
             Ok(())
         }
     }
@@ -377,12 +387,28 @@ mod ddc {
         value: Balance,
     }
 
+    #[derive(Default, Clone, PartialEq, Eq, PartialOrd, Ord, Encode, Decode, SpreadLayout, PackedLayout)]
+    #[cfg_attr(feature = "std", derive(Debug, scale_info::TypeInfo))]
+    pub struct AppSubscription {
+        start_date_ms: u64,
+        end_date_ms: u64,
+        tier_id: u128,
+        balance: Balance,
+    }
+
     impl Ddc {
         /// Returns the account balance for the specified `account`.
         /// Returns `0` if the account is non-existent.
         #[ink(message)]
-        pub fn balance_of(&self, owner: AccountId) -> Balance {
-            self.balances.get(&owner).copied().unwrap_or(0)
+        pub fn balance_of(&mut self, owner: AccountId) -> Balance {
+            let subscription_opt = self.subscriptions.get(&owner);
+
+            if subscription_opt.is_none() {
+                return 0;
+            }
+
+            let subscription = subscription_opt.unwrap();
+            subscription.balance
         }
 
         /// Return the tier id corresponding to the account
@@ -402,13 +428,21 @@ mod ddc {
 
         /// Return balance of an account
         fn balance_of_or_zero(&self, owner: &AccountId) -> Balance {
-            *self.balances.get(owner).unwrap_or(&0)
+            let subscription_opt = self.subscriptions.get(&owner);
+
+            if subscription_opt.is_none() {
+                return 0;
+            }
+
+            let subscription = subscription_opt.unwrap();
+
+            subscription.balance
         }
 
         /// Return tier id given an account
         fn get_tier_id(&self, owner: &AccountId) -> u128 {
-            let v = self.subscriptions.get(owner).unwrap();
-            v[0]
+            let subscription = self.subscriptions.get(owner).unwrap();
+            subscription.tier_id
         }
 
         /// Receive payment from the participating DDC node
@@ -422,18 +456,30 @@ mod ddc {
             let value = self.env().transferred_balance();
             let fee_value = value as u128;
             let service_v = self.service.get(&tier_id).unwrap();
-            if service_v[1] > fee_value {
+            if service_v[1] > fee_value { //TODO: We probably need to summarize the existing balance with provided, in case app wants to deposit more than monthly amount
                 return Err(Error::InsufficientDeposit);
             }
 
-            // TODO: Incorrect overwriting, losing tokens if multiple calls.
-            self.balances.insert(payer, value);
-            let mut v = Vec::new();
-            v.push(tier_id); // tier_id 1,2,3
-            for _i in 0..4 {
-                v.push(0);
+            let subscription_opt = self.subscriptions.get(&payer);
+            let now = Self::env().block_timestamp();
+            let mut subscription: AppSubscription;
+            if subscription_opt.is_none() {
+                subscription = AppSubscription { start_date_ms: now, end_date_ms: now + 31 * MS_PER_DAY, tier_id, balance: value };
+            } else {
+                subscription = subscription_opt.unwrap().clone();
+
+                let subscription_end_date_ms: u64;
+                if subscription.end_date_ms > now {
+                    subscription_end_date_ms = subscription.end_date_ms + 31 * MS_PER_DAY;
+                } else {
+                    subscription_end_date_ms = now + 31 * MS_PER_DAY;
+                }
+
+                subscription.end_date_ms = subscription_end_date_ms;
+                subscription.balance = subscription.balance + value;
             }
-            self.subscriptions.insert(payer, v);
+
+            self.subscriptions.insert(payer, subscription);
             self.env().emit_event(Deposit {
                 from: Some(payer),
                 value: value,
@@ -456,7 +502,16 @@ mod ddc {
                 return Err(Error::ZeroBalance);
             }
 
-            self.balances.insert(caller, 0);
+            let subscription_opt = self.subscriptions.get(&caller);
+
+            if subscription_opt.is_none() {
+                return Err(Error::NoSubscription);
+            }
+
+            let mut subscription = subscription_opt.unwrap().clone();
+
+            subscription.balance = 0;
+            self.subscriptions.insert(caller, subscription);
 
             // ink! transfer emit a panic!, this function doesn't work with this nightly build
             // self.env().transfer(caller, balance).expect("pay out failure");
@@ -667,6 +722,7 @@ mod ddc {
         ContractPaused,
         ContractActive,
         UnexpectedTimestamp,
+        NoSubscription,
     }
 
     pub type Result<T> = core::result::Result<T, Error>;
@@ -734,6 +790,17 @@ mod ddc {
             let payer = AccountId::from([0x1; 32]);
             assert_eq!(contract.balance_of(payer), 0);
             assert_eq!(contract.subscribe(3), Ok(()));
+
+            let mut subscription = contract.subscriptions.get(&payer).unwrap();
+
+            assert_eq!(subscription.end_date_ms, 31 * MS_PER_DAY);
+
+            contract.subscribe(3);
+
+            subscription = contract.subscriptions.get(&payer).unwrap();
+
+            assert_eq!(subscription.end_date_ms, 31 * MS_PER_DAY * 2);
+
             // assert_eq!(contract.balance_of(payer), 2);
         }
 
