@@ -846,6 +846,7 @@ mod ddc {
             assert_eq!(contract.subscribe(3), Ok(()));
             assert_eq!(contract.flip_contract_status(), Ok(()));
             assert_eq!(contract.paused_or_not(), true);
+            assert!(contract.balance_of_contract() > 0);
             assert_eq!(contract.transfer_all_balance(AccountId::from([0x0; 32])), Ok(()));
             assert_eq!(contract.balance_of_contract(), 0);
         }
