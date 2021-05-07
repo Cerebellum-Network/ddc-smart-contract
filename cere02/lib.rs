@@ -450,20 +450,13 @@ mod ddc {
             let subscription_opt = self.subscriptions.get(&payer);
             let now = Self::env().block_timestamp();
             let mut subscription: AppSubscription;
-            let mut subscription_end_date_ms: u64 = now + 31 * MS_PER_DAY;
 
-            if subscription_opt.is_none() {
-                subscription = AppSubscription { start_date_ms: now, end_date_ms: subscription_end_date_ms, tier_id, balance: value };
+            if subscription_opt.is_none() || subscription_opt.unwrap().end_date_ms < now {
+                subscription = AppSubscription { start_date_ms: now, end_date_ms: now + 31 * MS_PER_DAY, tier_id, balance: value };
             } else {
                 subscription = subscription_opt.unwrap().clone();
 
-                if subscription.end_date_ms < now { // subscription expired
-                    subscription.start_date_ms = now;
-                } else {
-                    subscription_end_date_ms = subscription.end_date_ms + 31 * MS_PER_DAY;
-                }
-
-                subscription.end_date_ms = subscription_end_date_ms;
+                subscription.end_date_ms += 31 * MS_PER_DAY;
                 subscription.balance = subscription.balance + value;
             }
 
