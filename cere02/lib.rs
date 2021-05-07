@@ -426,19 +426,6 @@ mod ddc {
             tl.clone()
         }
 
-        /// Return balance of an account
-        fn balance_of_or_zero(&self, owner: &AccountId) -> Balance {
-            let subscription_opt = self.subscriptions.get(&owner);
-
-            if subscription_opt.is_none() {
-                return 0;
-            }
-
-            let subscription = subscription_opt.unwrap();
-
-            subscription.balance
-        }
-
         /// Return tier id given an account
         fn get_tier_id(&self, owner: &AccountId) -> u128 {
             let subscription = self.subscriptions.get(owner).unwrap();
@@ -463,16 +450,17 @@ mod ddc {
             let subscription_opt = self.subscriptions.get(&payer);
             let now = Self::env().block_timestamp();
             let mut subscription: AppSubscription;
+            let mut subscription_end_date_ms: u64 = now + 31 * MS_PER_DAY;
+
             if subscription_opt.is_none() {
-                subscription = AppSubscription { start_date_ms: now, end_date_ms: now + 31 * MS_PER_DAY, tier_id, balance: value };
+                subscription = AppSubscription { start_date_ms: now, end_date_ms: subscription_end_date_ms, tier_id, balance: value };
             } else {
                 subscription = subscription_opt.unwrap().clone();
 
-                let subscription_end_date_ms: u64;
-                if subscription.end_date_ms > now {
-                    subscription_end_date_ms = subscription.end_date_ms + 31 * MS_PER_DAY;
+                if subscription.end_date_ms < now { // subscription expired
+                    subscription.start_date_ms = now;
                 } else {
-                    subscription_end_date_ms = now + 31 * MS_PER_DAY;
+                    subscription_end_date_ms = subscription.end_date_ms + 31 * MS_PER_DAY;
                 }
 
                 subscription.end_date_ms = subscription_end_date_ms;
@@ -488,41 +476,43 @@ mod ddc {
             return Ok(());
         }
 
-        /// DDC node can call this function to opt out
-        /// Refund the DDC node
-        /// Clear the node's balance inside the contract
-        /// But keep the metrics record
-        #[ink(message)]
-        pub fn unsubscribe(&mut self) -> Result<()> {
-            self.only_active()?;
-            let caller = self.env().caller();
-            let caller_bal = self.balance_of_or_zero(&caller) as Balance;
+        // DDC node can call this function to opt out
+        // Refund the DDC node
+        // Clear the node's balance inside the contract
+        // But keep the metrics record
 
-            if caller_bal == 0 {
-                return Err(Error::ZeroBalance);
-            }
-
-            let subscription_opt = self.subscriptions.get(&caller);
-
-            if subscription_opt.is_none() {
-                return Err(Error::NoSubscription);
-            }
-
-            let mut subscription = subscription_opt.unwrap().clone();
-
-            subscription.balance = 0;
-            self.subscriptions.insert(caller, subscription);
-
-            // ink! transfer emit a panic!, this function doesn't work with this nightly build
-            // self.env().transfer(caller, balance).expect("pay out failure");
-
-            let _result = match self.env().transfer(caller, caller_bal) {
-                Err(_e) => Err(Error::TransferFailed),
-                Ok(_v) => Ok(()),
-            };
-
-            Ok(())
-        }
+//        #[ink(message)]
+          // TODO: Need to re-design
+//        pub fn unsubscribe(&mut self) -> Result<()> {
+//            self.only_active()?;
+//            let caller = self.env().caller();
+//            let caller_bal = self.balance_of_or_zero(&caller) as Balance;
+//
+//            if caller_bal == 0 {
+//                return Err(Error::ZeroBalance);
+//            }
+//
+//            let subscription_opt = self.subscriptions.get(&caller);
+//
+//            if subscription_opt.is_none() {
+//                return Err(Error::NoSubscription);
+//            }
+//
+//            let mut subscription = subscription_opt.unwrap().clone();
+//
+//            subscription.balance = 0;
+//            self.subscriptions.insert(caller, subscription);
+//
+//            // ink! transfer emit a panic!, this function doesn't work with this nightly build
+//            // self.env().transfer(caller, balance).expect("pay out failure");
+//
+//            let _result = match self.env().transfer(caller, caller_bal) {
+//                Err(_e) => Err(Error::TransferFailed),
+//                Ok(_v) => Ok(()),
+//            };
+//
+//            Ok(())
+//        }
     }
 
 
@@ -796,7 +786,7 @@ mod ddc {
             assert_eq!(subscription.end_date_ms, 31 * MS_PER_DAY);
             assert_eq!(subscription.balance, 500);
 
-            contract.subscribe(3);
+            contract.subscribe(3).unwrap();
 
             subscription = contract.subscriptions.get(&payer).unwrap();
 
