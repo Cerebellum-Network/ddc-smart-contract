@@ -1,7 +1,7 @@
 {
   "metadataVersion": "0.1.0",
   "source": {
-    "hash": "0xaed63110d9f6cc6ea8d413c2b7231c034ec80acd9af9bd04048050bdc631f666",
+    "hash": "0x7481754110317db9f7f70e8d453df2b8c08008d9f843f216977391c75c5b0737",
     "language": "ink! 3.0.0-rc3",
     "compiler": "rustc 1.53.0-nightly"
   },
@@ -659,27 +659,6 @@
         "selector": "0xfb968a8f"
       },
       {
-        "args": [],
-        "docs": [
-          " DDC node can call this function to opt out",
-          " Refund the DDC node",
-          " Clear the node's balance inside the contract",
-          " But keep the metrics record"
-        ],
-        "mutates": true,
-        "name": [
-          "unsubscribe"
-        ],
-        "payable": false,
-        "returnType": {
-          "displayName": [
-            "Result"
-          ],
-          "type": 24
-        },
-        "selector": "0x7dfa0db4"
-      },
-      {
         "args": [
           {
             "name": "reporter",
@@ -804,12 +783,21 @@
             }
           },
           {
-            "name": "metrics",
+            "name": "stored_bytes",
             "type": {
               "displayName": [
-                "MetricValue"
+                "u128"
               ],
-              "type": 23
+              "type": 9
+            }
+          },
+          {
+            "name": "requests",
+            "type": {
+              "displayName": [
+                "u128"
+              ],
+              "type": 9
             }
           }
         ],
