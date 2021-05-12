@@ -630,7 +630,7 @@ mod ddc {
             requests: u128,
         ) -> Result<()> {
             let reporter = self.env().caller();
-            self.only_reporter(&reporter)?;
+            self.only_reporter(&reporter).unwrap();
 
             enforce_time_is_start_of_day(day_start_ms)?;
             let day = day_start_ms / MS_PER_DAY;
@@ -661,7 +661,7 @@ mod ddc {
         #[ink(message)]
         pub fn finalize_metric_period(&mut self, start_ms: u64) -> Result<()> {
             let reporter = self.env().caller();
-            self.only_reporter(&reporter)?;
+            self.only_reporter(&reporter).unwrap();
 
             enforce_time_is_start_of_day(start_ms)?;
             self.current_period_ms = start_ms + MS_PER_DAY;
