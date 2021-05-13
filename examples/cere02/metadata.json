@@ -1,7 +1,7 @@
 {
   "metadataVersion": "0.1.0",
   "source": {
-    "hash": "0xd9e82994b284cf00bbc3f182a9df4ca67aa9850b04aa4992bd8c52bf6ade45e6",
+    "hash": "0x08ee918bbd5cf3e075ed36478ebe0ef49b9d5f280f40db74f55ff3f8d3bf307f",
     "language": "ink! 3.0.0-rc3",
     "compiler": "rustc 1.53.0-nightly"
   },
@@ -129,7 +129,7 @@
               "displayName": [
                 "Option"
               ],
-              "type": 26
+              "type": 27
             }
           },
           {
@@ -182,6 +182,11 @@
         ],
         "docs": [],
         "name": "ReporterRemoved"
+      },
+      {
+        "args": [],
+        "docs": [],
+        "name": "ErrorOnlyReporter"
       },
       {
         "args": [
@@ -756,9 +761,9 @@
         "payable": false,
         "returnType": {
           "displayName": [
-            "MetricValue"
+            "Result"
           ],
-          "type": 23
+          "type": 26
         },
         "selector": "0xa7e90f2c"
       },
@@ -1863,6 +1868,39 @@
         "ddc",
         "ddc",
         "Error"
+      ]
+    },
+    {
+      "def": {
+        "variant": {
+          "variants": [
+            {
+              "fields": [
+                {
+                  "type": 23,
+                  "typeName": "T"
+                }
+              ],
+              "name": "Ok"
+            },
+            {
+              "fields": [
+                {
+                  "type": 25,
+                  "typeName": "E"
+                }
+              ],
+              "name": "Err"
+            }
+          ]
+        }
+      },
+      "params": [
+        23,
+        25
+      ],
+      "path": [
+        "Result"
       ]
     },
     {
