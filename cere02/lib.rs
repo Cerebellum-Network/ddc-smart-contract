@@ -523,12 +523,17 @@ mod ddc {
         reporter: AccountId,
     }
 
+    #[ink(event)]
+    pub struct ErrorOnlyReporter {
+    }
+
     impl Ddc {
         /// Check if account is an approved reporter.
         fn only_reporter(&self, caller: &AccountId) -> Result<()> {
             if self.is_reporter(*caller) {
                 Ok(())
             } else {
+                self.env().emit_event(ErrorOnlyReporter {});
                 Err(Error::OnlyReporter)
             }
         }
@@ -643,7 +648,7 @@ mod ddc {
             requests: u128,
         ) -> Result<()> {
             let reporter = self.env().caller();
-            self.only_reporter(&reporter).unwrap();
+            self.only_reporter(&reporter)?;
 
             enforce_time_is_start_of_day(day_start_ms)?;
             let day = day_start_ms / MS_PER_DAY;
@@ -674,7 +679,7 @@ mod ddc {
         #[ink(message)]
         pub fn finalize_metric_period(&mut self, start_ms: u64) -> Result<()> {
             let reporter = self.env().caller();
-            self.only_reporter(&reporter).unwrap();
+            self.only_reporter(&reporter)?;
 
             enforce_time_is_start_of_day(start_ms)?;
             self.current_period_ms = start_ms + MS_PER_DAY;
