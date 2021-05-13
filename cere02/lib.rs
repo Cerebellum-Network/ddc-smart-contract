@@ -523,12 +523,17 @@ mod ddc {
         reporter: AccountId,
     }
 
+    #[ink(event)]
+    pub struct ErrorOnlyReporter {
+    }
+
     impl Ddc {
         /// Check if account is an approved reporter.
         fn only_reporter(&self, caller: &AccountId) -> Result<()> {
             if self.is_reporter(*caller) {
                 Ok(())
             } else {
+                self.env().emit_event(ErrorOnlyReporter {});
                 Err(Error::OnlyReporter)
             }
         }

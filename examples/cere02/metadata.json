@@ -1,7 +1,7 @@
 {
   "metadataVersion": "0.1.0",
   "source": {
-    "hash": "0x7481754110317db9f7f70e8d453df2b8c08008d9f843f216977391c75c5b0737",
+    "hash": "0xd9e82994b284cf00bbc3f182a9df4ca67aa9850b04aa4992bd8c52bf6ade45e6",
     "language": "ink! 3.0.0-rc3",
     "compiler": "rustc 1.53.0-nightly"
   },
@@ -856,6 +856,32 @@
           "type": 17
         },
         "selector": "0xace4ecb3"
+      },
+      {
+        "args": [
+          {
+            "name": "app_id",
+            "type": {
+              "displayName": [
+                "AccountId"
+              ],
+              "type": 1
+            }
+          }
+        ],
+        "docs": [],
+        "mutates": false,
+        "name": [
+          "is_within_limit"
+        ],
+        "payable": false,
+        "returnType": {
+          "displayName": [
+            "bool"
+          ],
+          "type": 4
+        },
+        "selector": "0x9345c275"
       }
     ]
   },
