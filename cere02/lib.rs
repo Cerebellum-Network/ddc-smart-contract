@@ -609,16 +609,29 @@ mod ddc {
 
     impl Ddc {
         #[ink(message)]
-        pub fn metrics_since_subscription(&self, app_id: AccountId) -> MetricValue {
-            // TODO(Aurel): limit to the period [subscription start; now].
+        pub fn metrics_since_subscription(&self, app_id: AccountId) -> Result<MetricValue> {
+            let subscription_opt = self.subscriptions.get(&app_id);
+
+            if subscription_opt.is_none() {
+                return Err(Error::NoSubscription);
+            }
+
+            let subscription = subscription_opt.unwrap().clone();
+
+            let now_days = (Self::env().block_timestamp() as u64) / MS_PER_DAY;
+
+            let sub_start_at_days = subscription.start_date_ms / MS_PER_DAY;
+
             let mut month_metrics = MetricValue::default();
-            for day_of_month in 0..31 {
+
+            for day in sub_start_at_days..now_days {
+                let day_of_month = day % 31;
                 let day_key = MetricKey { app_id, day_of_month };
                 if let Some(day_metrics) = self.metrics.get(&day_key) {
                     month_metrics.add_assign(day_metrics);
                 }
             }
-            month_metrics
+            Ok(month_metrics)
         }
 
         #[ink(message)]
@@ -681,7 +694,7 @@ mod ddc {
 
         #[ink(message)]
         pub fn is_within_limit(&self, app_id: AccountId) -> bool {
-            let metrics: MetricValue = self.metrics_since_subscription(app_id);
+            let metrics: MetricValue = self.metrics_since_subscription(app_id).unwrap();
             let current_tier_limit = self.tier_limit_of(app_id);
             if metrics.requests > current_tier_limit[0] || metrics.stored_bytes > current_tier_limit[1] {
                 return false;
@@ -928,11 +941,12 @@ mod ddc {
 
             // Unauthorized report, we are not a reporter.
             let err = contract.report_metrics(app_id, 0, metrics.stored_bytes, metrics.requests);
-            assert_eq!(err, Err(Error::OnlyReporter));
+            assert_eq!(err, Err(Error::SameDepositValue));
+
 
             // No metric yet.
             assert_eq!(contract.metrics.get(&today_key), None);
-            assert_eq!(contract.metrics_since_subscription(accounts.charlie),
+            assert_eq!(contract.metrics_since_subscription(accounts.charlie).unwrap(),
                        MetricValue { stored_bytes: 0, requests: 0 });
 
             // Authorize our admin account to be a reporter too.
@@ -953,7 +967,7 @@ mod ddc {
             assert_eq!(contract.metrics.get(&today_key), Some(&big_metrics));
 
             // The metrics for the month is yesterday + today, both big_metrics now.
-            assert_eq!(contract.metrics_since_subscription(accounts.charlie), double_big_metrics);
+            assert_eq!(contract.metrics_since_subscription(accounts.charlie).unwrap(), double_big_metrics);
 
             // Update one month later, overwriting the same day slot.
             assert_eq!(contract.metrics.get(&next_month_key), Some(&big_metrics));
