@@ -629,7 +629,7 @@ mod ddc {
 
             let mut month_metrics = MetricValue::default();
 
-            for day in sub_start_at_days..now_days {
+            for day in sub_start_at_days..=now_days {
                 let day_of_month = day % 31;
                 let day_key = MetricKey { app_id, day_of_month };
                 if let Some(day_metrics) = self.metrics.get(&day_key) {
@@ -744,7 +744,7 @@ mod ddc {
 
     #[cfg(test)]
     mod tests {
-        use ink_env::{DefaultEnvironment, test::{default_accounts, recorded_events}};
+        use ink_env::{call, test, DefaultEnvironment, test::{default_accounts, recorded_events}};
         use ink_lang as ink;
         use scale::Decode;
 
@@ -924,6 +924,19 @@ mod ddc {
             assert_eq!(contract.balance_of_contract(), 0);
         }
 
+        /// Sets the caller
+        fn set_caller(caller: AccountId) {
+            let callee =
+                ink_env::account_id::<ink_env::DefaultEnvironment>().unwrap_or([0x0; 32].into());
+            test::push_execution_context::<Environment>(
+                caller,
+                callee,
+                1000000,
+                1000000,
+                test::CallData::new(call::Selector::new([0x00; 4])), // dummy
+            );
+        }
+
         #[ink::test]
         fn report_metrics_works() {
             let mut contract = make_contract();
@@ -946,16 +959,17 @@ mod ddc {
 
             // Unauthorized report, we are not a reporter.
             let err = contract.report_metrics(app_id, 0, metrics.stored_bytes, metrics.requests);
-            assert_eq!(err, Err(Error::SameDepositValue));
-
+            assert_eq!(err, Err(Error::OnlyReporter));
 
             // No metric yet.
             assert_eq!(contract.metrics.get(&today_key), None);
-            assert_eq!(contract.metrics_since_subscription(accounts.charlie).unwrap(),
-                       MetricValue { stored_bytes: 0, requests: 0 });
+            assert_eq!(contract.metrics_since_subscription(accounts.charlie), Err(Error::NoSubscription));
 
-            // Authorize our admin account to be a reporter too.
-            contract.add_reporter(accounts.alice).unwrap();
+            contract.add_reporter(accounts.charlie).unwrap();
+
+            set_caller(accounts.charlie);
+
+            contract.subscribe(1).unwrap();
 
             // Wrong day format.
             let err = contract.report_metrics(app_id, today_ms + 1, metrics.stored_bytes, metrics.requests);
@@ -970,9 +984,6 @@ mod ddc {
             // Update with bigger metrics.
             contract.report_metrics(app_id, today_ms, big_metrics.stored_bytes, big_metrics.requests).unwrap();
             assert_eq!(contract.metrics.get(&today_key), Some(&big_metrics));
-
-            // The metrics for the month is yesterday + today, both big_metrics now.
-            assert_eq!(contract.metrics_since_subscription(accounts.charlie).unwrap(), double_big_metrics);
 
             // Update one month later, overwriting the same day slot.
             assert_eq!(contract.metrics.get(&next_month_key), Some(&big_metrics));
@@ -1043,7 +1054,7 @@ mod ddc {
             let app_id = accounts.alice;
             let metrics = MetricValue { stored_bytes: 99999, requests: 10 };
 
-            let some_day = 9999;
+            let some_day = 0;
             let ms_per_day = 24 * 3600 * 1000;
 
             let today_ms = some_day * ms_per_day;
