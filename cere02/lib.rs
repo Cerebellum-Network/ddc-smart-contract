@@ -679,6 +679,7 @@ mod ddc {
             self.current_period_ms
         }
 
+        #[ink(message)]
         pub fn is_within_limit(&self, app_id: AccountId) -> bool {
             let metrics: MetricValue = self.metrics_since_subscription(app_id);
             let current_tier_limit = self.tier_limit_of(app_id);
