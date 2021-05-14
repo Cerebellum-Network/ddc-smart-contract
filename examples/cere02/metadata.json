@@ -1,15 +1,15 @@
 {
   "metadataVersion": "0.1.0",
   "source": {
-    "hash": "0x21cc4daa5a0721d4ebb45c40493688c4748fe84f74ee486459e9a50c391d9e7d",
+    "hash": "0xa7365cf0a6f5375eac8ae469c3e3d57b944b5f5a2edc4cdacaea6d26d73970e9",
     "language": "ink! 3.0.0-rc3",
     "compiler": "rustc 1.53.0-nightly"
   },
   "contract": {
     "name": "ddc",
-    "version": "0.1.0",
+    "version": "1.0.0",
     "authors": [
-      "[MM] <[mike@cere.io]>"
+      "[Cere Network] <[team@cere.io]>"
     ]
   },
   "spec": {

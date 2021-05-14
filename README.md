@@ -6,6 +6,14 @@ This doc will explain:
 * How to create Smart Contract artifacts
 * How to start using it
 
+## Release Notes
+#### vNext
+* ...
+#### v1.0.0
+* DDC Smart Contract v1.0.0
+    * Basic functionality added
+* Derivative Assets Smart Contrat v0.1.0
+
 ## How to create Smart Contract Artificats
 
 1. Clone this repository
