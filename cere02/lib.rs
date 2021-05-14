@@ -475,7 +475,7 @@ mod ddc {
         // But keep the metrics record
 
 //        #[ink(message)]
-          // TODO: Need to re-design
+        // TODO: Need to re-design
 //        pub fn unsubscribe(&mut self) -> Result<()> {
 //            self.only_active()?;
 //            let caller = self.env().caller();
@@ -524,8 +524,7 @@ mod ddc {
     }
 
     #[ink(event)]
-    pub struct ErrorOnlyReporter {
-    }
+    pub struct ErrorOnlyReporter {}
 
     impl Ddc {
         /// Check if account is an approved reporter.
@@ -615,28 +614,32 @@ mod ddc {
     impl Ddc {
         #[ink(message)]
         pub fn metrics_since_subscription(&self, app_id: AccountId) -> Result<MetricValue> {
-            let subscription_opt = self.subscriptions.get(&app_id);
+            let subscription = self.subscriptions.get(&app_id)
+                .ok_or(Error::NoSubscription)?;
 
-            if subscription_opt.is_none() {
-                return Err(Error::NoSubscription);
-            }
+            let now_ms = Self::env().block_timestamp() as u64;
+            let metrics = self.metrics_for_period(app_id, subscription.start_date_ms, now_ms);
+            Ok(metrics)
+        }
 
-            let subscription = subscription_opt.unwrap().clone();
-
-            let now_days = (Self::env().block_timestamp() as u64) / MS_PER_DAY;
-
-            let sub_start_at_days = subscription.start_date_ms / MS_PER_DAY;
+        #[ink(message)]
+        pub fn metrics_for_period(&self, app_id: AccountId, start_date_ms: u64, now_ms: u64) -> MetricValue {
+            // The start date may be several month away. When did the current period start?
+            let now_days = now_ms / MS_PER_DAY;
+            let start_days = start_date_ms / MS_PER_DAY;
+            let period_elapsed_days = (now_days - start_days) % 31;
+            let period_start_days = now_days - period_elapsed_days;
 
             let mut month_metrics = MetricValue::default();
 
-            for day in sub_start_at_days..=now_days {
+            for day in period_start_days..=now_days {
                 let day_of_month = day % 31;
                 let day_key = MetricKey { app_id, day_of_month };
                 if let Some(day_metrics) = self.metrics.get(&day_key) {
                     month_metrics.add_assign(day_metrics);
                 }
             }
-            Ok(month_metrics)
+            month_metrics
         }
 
         #[ink(message)]
@@ -941,7 +944,9 @@ mod ddc {
         fn report_metrics_works() {
             let mut contract = make_contract();
             let accounts = default_accounts::<DefaultEnvironment>().unwrap();
+            let reporter_id = accounts.alice;
             let app_id = accounts.charlie;
+
             let metrics = MetricValue { stored_bytes: 11, requests: 12 };
             let big_metrics = MetricValue { stored_bytes: 100, requests: 300 };
             let double_big_metrics = MetricValue { stored_bytes: 200, requests: 600 };
@@ -951,8 +956,8 @@ mod ddc {
             let today_ms = some_day * ms_per_day; // Midnight time on some day.
             let today_key = MetricKey { app_id, day_of_month: some_day % 31 };
 
-            let yesterday_ms = (some_day + 1) * ms_per_day; // Midnight time on some day.
-            let yesterday_key = MetricKey { app_id, day_of_month: (some_day + 1) % 31 };
+            let yesterday_ms = (some_day - 1) * ms_per_day; // Midnight time on some day.
+            let yesterday_key = MetricKey { app_id, day_of_month: (some_day - 1) % 31 };
 
             let next_month_ms = (some_day + 31) * ms_per_day; // Midnight time on some day.
             let next_month_key = MetricKey { app_id, day_of_month: (some_day + 31) % 31 };
@@ -963,13 +968,10 @@ mod ddc {
 
             // No metric yet.
             assert_eq!(contract.metrics.get(&today_key), None);
-            assert_eq!(contract.metrics_since_subscription(accounts.charlie), Err(Error::NoSubscription));
+            assert_eq!(contract.metrics_for_period(app_id, 0, today_ms), MetricValue::default());
 
-            contract.add_reporter(accounts.charlie).unwrap();
-
-            set_caller(accounts.charlie);
-
-            contract.subscribe(1).unwrap();
+            // Authorize our admin account to be a reporter too.
+            contract.add_reporter(reporter_id).unwrap();
 
             // Wrong day format.
             let err = contract.report_metrics(app_id, today_ms + 1, metrics.stored_bytes, metrics.requests);
@@ -985,6 +987,13 @@ mod ddc {
             contract.report_metrics(app_id, today_ms, big_metrics.stored_bytes, big_metrics.requests).unwrap();
             assert_eq!(contract.metrics.get(&today_key), Some(&big_metrics));
 
+            // The metrics for the month is yesterday + today, both big_metrics now.
+            assert_eq!(contract.metrics_for_period(app_id, 0, today_ms), double_big_metrics);
+            assert_eq!(contract.metrics_for_period(app_id, yesterday_ms, today_ms), double_big_metrics);
+
+            // If the app start date was today, then its metrics would be only today.
+            assert_eq!(contract.metrics_for_period(app_id, today_ms, today_ms), big_metrics);
+
             // Update one month later, overwriting the same day slot.
             assert_eq!(contract.metrics.get(&next_month_key), Some(&big_metrics));
             contract.report_metrics(app_id, next_month_ms, metrics.stored_bytes, metrics.requests).unwrap();
@@ -993,6 +1002,29 @@ mod ddc {
             // Some other account has no metrics.
             let other_key = MetricKey { app_id: accounts.bob, day_of_month: 0 };
             assert_eq!(contract.metrics.get(&other_key), None);
+        }
+
+        #[ink::test]
+        fn metrics_since_subscription_works() {
+            let mut contract = make_contract();
+            let accounts = default_accounts::<DefaultEnvironment>().unwrap();
+            let app_id = accounts.charlie;
+
+            // No subscription yet.
+            assert_eq!(contract.metrics_since_subscription(app_id), Err(Error::NoSubscription));
+
+            // Charlie subscribes for her app. The start date will be 0.
+            set_caller(app_id);
+            contract.subscribe(1).unwrap();
+            test::pop_execution_context(); // Back to Alice admin.
+
+            // Subscription without metrics.
+            assert_eq!(contract.metrics_since_subscription(app_id), Ok(MetricValue { stored_bytes: 0, requests: 0 }));
+
+            // Subscription with metrics.
+            contract.add_reporter(accounts.alice).unwrap();
+            contract.report_metrics(app_id, 0, 12, 34).unwrap();
+            assert_eq!(contract.metrics_since_subscription(app_id), Ok(MetricValue { stored_bytes: 12, requests: 34 }));
         }
 
         #[ink::test]
