@@ -1,7 +1,7 @@
 {
   "metadataVersion": "0.1.0",
   "source": {
-    "hash": "0x08ee918bbd5cf3e075ed36478ebe0ef49b9d5f280f40db74f55ff3f8d3bf307f",
+    "hash": "0x21cc4daa5a0721d4ebb45c40493688c4748fe84f74ee486459e9a50c391d9e7d",
     "language": "ink! 3.0.0-rc3",
     "compiler": "rustc 1.53.0-nightly"
   },
@@ -766,6 +766,50 @@
           "type": 26
         },
         "selector": "0xa7e90f2c"
+      },
+      {
+        "args": [
+          {
+            "name": "app_id",
+            "type": {
+              "displayName": [
+                "AccountId"
+              ],
+              "type": 1
+            }
+          },
+          {
+            "name": "start_date_ms",
+            "type": {
+              "displayName": [
+                "u64"
+              ],
+              "type": 17
+            }
+          },
+          {
+            "name": "now_ms",
+            "type": {
+              "displayName": [
+                "u64"
+              ],
+              "type": 17
+            }
+          }
+        ],
+        "docs": [],
+        "mutates": false,
+        "name": [
+          "metrics_for_period"
+        ],
+        "payable": false,
+        "returnType": {
+          "displayName": [
+            "MetricValue"
+          ],
+          "type": 23
+        },
+        "selector": "0x0f49f085"
       },
       {
         "args": [
