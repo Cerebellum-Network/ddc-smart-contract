@@ -4,7 +4,6 @@ use ink_lang as ink;
 
 #[ink::contract]
 mod ddc {
-    use ink_prelude::string::String;
     use ink_prelude::vec::Vec;
     use ink_storage::{
         collections::HashMap as StorageHashMap,
@@ -21,8 +20,6 @@ mod ddc {
         /// Owner of Contract.
         owner: Lazy<AccountId>,
         pause: bool,
-        /// contract symbol example: "DDC"
-        symbol: String,
 
         // -- Tiers --
         /// HashMap of tier_id: vector of [tier_id, tier_fee, tier_throughput_limit, tier_storage_limit]
@@ -43,7 +40,7 @@ mod ddc {
 
     impl Ddc {
         /// Constructor that initializes the contract
-        /// Give tier3fee, tier3limit, tier2fee, tier2limit, tier1fee, tier1 limit, and a symbol to initialize
+        /// Give tier3fee, tier3limit, tier2fee, tier2limit, tier1fee, and tier1 limit to initialize
         #[ink(constructor)]
         pub fn new(
             tier3fee: Balance,
@@ -54,8 +51,7 @@ mod ddc {
             tier2_storage_limit: u128,
             tier1fee: Balance,
             tier1_throughput_limit: u128,
-            tier1_storage_limit: u128,
-            symbol: String) -> Self {
+            tier1_storage_limit: u128) -> Self {
             let caller = Self::env().caller();
 
             let mut service_v = StorageHashMap::new();
@@ -98,7 +94,6 @@ mod ddc {
                 reporters: StorageHashMap::new(),
                 metrics: StorageHashMap::new(),
                 current_period_ms: today_ms,
-                symbol,
                 pause: false,
             };
             instance
@@ -138,11 +133,6 @@ mod ddc {
             self.env().balance()
         }
 
-        /// Return the contract symbol
-        #[ink(message)]
-        pub fn token_symbol(&self) -> String {
-            self.symbol.clone()
-        }
 
         /// Given a destination account, transfer all the contract balance to it
         /// only contract owner can call this function
@@ -161,33 +151,6 @@ mod ddc {
                 Err(_e) => Err(Error::TransferFailed),
                 Ok(_v) => Ok(()),
             };
-
-            Ok(())
-        }
-
-        /// given an account id, revoke its membership by clearing its balance;
-        /// only the contract owner can call this function
-        /// return ok or error
-        #[ink(message)]
-        pub fn revoke_membership(&mut self, member: AccountId) -> Result<()> {
-            self.only_active()?;
-            let caller = self.env().caller();
-            self.only_owner(caller)?;
-
-            let subscription_opt = self.subscriptions.get(&member);
-
-            if subscription_opt.is_none() {
-                return Err(Error::NoSubscription);
-            }
-
-            let mut subscription = subscription_opt.unwrap().clone();
-
-            if subscription.balance == 0 {
-                return Err(Error::ZeroBalance);
-            }
-
-            subscription.balance = 0;
-            self.subscriptions.insert(member, subscription);
 
             Ok(())
         }
@@ -468,44 +431,6 @@ mod ddc {
 
             return Ok(());
         }
-
-        // DDC node can call this function to opt out
-        // Refund the DDC node
-        // Clear the node's balance inside the contract
-        // But keep the metrics record
-
-//        #[ink(message)]
-        // TODO: Need to re-design
-//        pub fn unsubscribe(&mut self) -> Result<()> {
-//            self.only_active()?;
-//            let caller = self.env().caller();
-//            let caller_bal = self.balance_of_or_zero(&caller) as Balance;
-//
-//            if caller_bal == 0 {
-//                return Err(Error::ZeroBalance);
-//            }
-//
-//            let subscription_opt = self.subscriptions.get(&caller);
-//
-//            if subscription_opt.is_none() {
-//                return Err(Error::NoSubscription);
-//            }
-//
-//            let mut subscription = subscription_opt.unwrap().clone();
-//
-//            subscription.balance = 0;
-//            self.subscriptions.insert(caller, subscription);
-//
-//            // ink! transfer emit a panic!, this function doesn't work with this nightly build
-//            // self.env().transfer(caller, balance).expect("pay out failure");
-//
-//            let _result = match self.env().transfer(caller, caller_bal) {
-//                Err(_e) => Err(Error::TransferFailed),
-//                Ok(_v) => Ok(()),
-//            };
-//
-//            Ok(())
-//        }
     }
 
 
@@ -757,32 +682,30 @@ mod ddc {
         type Event = <Ddc as ::ink_lang::BaseEvent>::Type;
 
         fn make_contract() -> Ddc {
-            Ddc::new(2, 2000, 2000, 4, 4000, 4000, 8, 8000, 800, "DDC".to_string())
+            Ddc::new(2, 2000, 2000, 4, 4000, 4000, 8, 8000, 800)
         }
 
         /// We test if the default constructor does its job.
         #[ink::test]
         fn new_works() {
-            let contract = Ddc::new(2, 2000, 2000, 4, 4000, 4000, 8, 8000, 800, "DDC".to_string());
+            let contract = Ddc::new(2, 2000, 2000, 4, 4000, 4000, 8, 8000, 800);
             assert_eq!(contract.tier_deposit(1), 8);
             assert_eq!(contract.tier_deposit(2), 4);
             assert_eq!(contract.tier_deposit(3), 2);
-            assert_eq!(contract.token_symbol(), "DDC".to_owned());
-            assert_ne!(contract.symbol, "NoDDC".to_owned())
         }
 
 
         /// Test if a function can only be called by the contract admin
         #[ink::test]
         fn onlyowner_works() {
-            let contract = Ddc::new(2, 2000, 2000, 4, 4000, 4000, 8, 8000, 800, "DDC".to_string());
+            let contract = Ddc::new(2, 2000, 2000, 4, 4000, 4000, 8, 8000, 800);
             assert_eq!(contract.only_owner(AccountId::from([0x1; 32])), Ok(()));
         }
 
         /// Test that we can transfer owner to another account
         #[ink::test]
         fn transfer_ownership_works() {
-            let mut contract = Ddc::new(2, 2000, 2000, 4, 4000, 4000, 8, 8000, 800, "DDC".to_string());
+            let mut contract = Ddc::new(2, 2000, 2000, 4, 4000, 4000, 8, 8000, 800);
             assert_eq!(contract.only_owner(AccountId::from([0x1; 32])), Ok(()));
             contract
                 .transfer_ownership(AccountId::from([0x0; 32]))
@@ -793,7 +716,7 @@ mod ddc {
         /// Test the contract can take payment from users
         #[ink::test]
         fn subscribe_works() {
-            let mut contract = Ddc::new(2, 2000, 2000, 4, 4000, 4000, 8, 8000, 800, "DDC".to_string());
+            let mut contract = Ddc::new(2, 2000, 2000, 4, 4000, 4000, 8, 8000, 800);
             let payer = AccountId::from([0x1; 32]);
             assert_eq!(contract.balance_of(payer), 0);
             assert_eq!(contract.subscribe(3), Ok(()));
@@ -813,23 +736,10 @@ mod ddc {
             // assert_eq!(contract.balance_of(payer), 2);
         }
 
-        /*
-        /// Test DDC node can opt out the program and get refund
-        #[ink::test]
-        fn unsubscribe_works() {
-            let mut contract = Ddc::new(2, 2000, 2000, 4, 4000, 4000, 8, 8000, 800, "DDC".to_string());
-            let payer = AccountId::from([0x1; 32]);
-            assert_eq!(contract.subscribe(3), Ok(()));
-            assert_eq!(contract.balance_of(payer), 8);
-            assert_eq!(contract.unsubscribe(), Ok(()));
-            assert_eq!(contract.balance_of(payer), 0);
-        }
-        */
-
         /// Test the total balance of the contract is correct
         #[ink::test]
         fn balance_of_contract_works() {
-            let mut contract = Ddc::new(2, 2000, 2000, 4, 4000, 4000, 8, 8000, 800, "DDC".to_string());
+            let mut contract = Ddc::new(2, 2000, 2000, 4, 4000, 4000, 8, 8000, 800);
             let payer_one = AccountId::from([0x1; 32]);
             assert_eq!(contract.balance_of(payer_one), 0);
             assert_eq!(contract.subscribe(3), Ok(()));
@@ -839,7 +749,7 @@ mod ddc {
         /// Test the contract can return the correct tier if given an account id
         #[ink::test]
         fn tier_id_of_works() {
-            let mut contract = Ddc::new(2, 2000, 2000, 4, 4000, 4000, 8, 8000, 800, "DDC".to_string());
+            let mut contract = Ddc::new(2, 2000, 2000, 4, 4000, 4000, 8, 8000, 800);
             let payer_one = AccountId::from([0x1; 32]);
             assert_eq!(contract.balance_of(payer_one), 0);
             assert_eq!(contract.subscribe(2), Ok(()));
@@ -849,7 +759,7 @@ mod ddc {
         /// Test we can read metrics 
         #[ink::test]
         fn get_all_tiers_works() {
-            let contract = Ddc::new(2000, 2000, 2000, 4000, 4000, 4000, 8000, 8000, 8000, "DDC".to_string());
+            let contract = Ddc::new(2000, 2000, 2000, 4000, 4000, 4000, 8000, 8000, 8000);
 
             let v = contract.get_all_tiers();
             assert_eq!(v[0], 1); //tid
@@ -869,7 +779,7 @@ mod ddc {
         /// Test the contract owner can change tier fees for all 3 tiers
         #[ink::test]
         fn change_tier_fee_works() {
-            let mut contract = Ddc::new(2, 2000, 2000, 4, 4000, 4000, 8, 8000, 800, "DDC".to_string());
+            let mut contract = Ddc::new(2, 2000, 2000, 4, 4000, 4000, 8, 8000, 800);
             assert_eq!(contract.only_owner(AccountId::from([0x1; 32])), Ok(()));
             assert_eq!(contract.change_tier_fee(3, 3), Ok(()));
             assert_eq!(contract.change_tier_fee(2, 5), Ok(()));
@@ -882,7 +792,7 @@ mod ddc {
         /// Test the contract can change tier limits for all 3 tiers
         #[ink::test]
         fn change_tier_limit_works() {
-            let mut contract = Ddc::new(2, 2000, 2000, 4, 4000, 4000, 8, 8000, 800, "DDC".to_string());
+            let mut contract = Ddc::new(2, 2000, 2000, 4, 4000, 4000, 8, 8000, 800);
             assert_eq!(contract.only_owner(AccountId::from([0x1; 32])), Ok(()));
             assert_eq!(contract.change_tier_limit(3, 100, 100), Ok(()));
             assert_eq!(contract.change_tier_limit(2, 200, 200), Ok(()));
@@ -892,21 +802,11 @@ mod ddc {
             assert_eq!(contract.get_tier_limit(1), vec![300, 300]);
         }
 
-        /// Test the contract owner can revoke the membership of a subscriber (a participating ddc node)
-        #[ink::test]
-        fn revoke_membership_works() {
-            let mut contract = Ddc::new(2, 2000, 2000, 4, 4000, 4000, 8, 8000, 800, "DDC".to_string());
-            let payer_one = AccountId::from([0x1; 32]);
-            assert_eq!(contract.subscribe(2), Ok(()));
-            assert_eq!(contract.revoke_membership(payer_one), Ok(()));
-            assert_eq!(contract.balance_of(payer_one), 0);
-        }
-
         /// Test the contract owner can flip the status of the contract
         /// Can pause and unpause the contract
         #[ink::test]
         fn flip_contract_status_works() {
-            let mut contract = Ddc::new(2, 2000, 2000, 4, 4000, 4000, 8, 8000, 800, "DDC".to_string());
+            let mut contract = Ddc::new(2, 2000, 2000, 4, 4000, 4000, 8, 8000, 800);
             assert_eq!(contract.only_owner(AccountId::from([0x1; 32])), Ok(()));
             assert_eq!(contract.paused_or_not(), false);
             assert_eq!(contract.flip_contract_status(), Ok(()));
@@ -918,11 +818,10 @@ mod ddc {
         /// Test the contract owner can transfer all the balance out of the contract after it is paused
         #[ink::test]
         fn transfer_all_balance_works() {
-            let mut contract = Ddc::new(2, 2000, 2000, 4, 4000, 4000, 8, 8000, 800, "DDC".to_string());
+            let mut contract = Ddc::new(2, 2000, 2000, 4, 4000, 4000, 8, 8000, 800);
             assert_eq!(contract.subscribe(3), Ok(()));
             assert_eq!(contract.flip_contract_status(), Ok(()));
             assert_eq!(contract.paused_or_not(), true);
-            assert!(contract.balance_of_contract() > 0);
             assert_eq!(contract.transfer_all_balance(AccountId::from([0x0; 32])), Ok(()));
             assert_eq!(contract.balance_of_contract(), 0);
         }
@@ -1053,7 +952,7 @@ mod ddc {
         // ---- Admin: Reporters ----
         #[ink::test]
         fn add_and_remove_reporters_works() {
-            let mut contract = Ddc::new(2, 2000, 2000, 4, 4000, 4000, 8, 8000, 800, "DDC".to_string());
+            let mut contract = Ddc::new(2, 2000, 2000, 4, 4000, 4000, 8, 8000, 800);
 
             let new_reporter = AccountId::from([0x1; 32]);
 
