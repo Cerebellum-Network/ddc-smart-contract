@@ -919,10 +919,15 @@ mod ddc {
         #[ink::test]
         fn transfer_all_balance_works() {
             let mut contract = Ddc::new(2, 2000, 2000, 4, 4000, 4000, 8, 8000, 800, "DDC".to_string());
+
+            // Endownment equivalence. Inititalize SC address with balance 1000
+            let contract_id = ink_env::test::get_current_contract_account_id::<ink_env::DefaultEnvironment>();
+            ink_env::test::set_account_balance::<ink_env::DefaultEnvironment>(contract_id.unwrap(), 1000);
+
             assert_eq!(contract.subscribe(3), Ok(()));
             assert_eq!(contract.flip_contract_status(), Ok(()));
             assert_eq!(contract.paused_or_not(), true);
-            assert!(contract.balance_of_contract() > 0);
+            assert_eq!(contract.balance_of_contract(), 1000);
             assert_eq!(contract.transfer_all_balance(AccountId::from([0x0; 32])), Ok(()));
             assert_eq!(contract.balance_of_contract(), 0);
         }
