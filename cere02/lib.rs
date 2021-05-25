@@ -149,18 +149,18 @@ mod ddc {
         /// destination account can be the same as the contract owner
         /// return OK or an error
         #[ink(message)]
-        pub fn transfer_all_balance(&mut self, destination: AccountId) -> Result<()> {
+        pub fn transfer_all_balance(&mut self, destination: AccountId, transaction_fee: Balance) -> Result<()> {
             self.only_not_active()?;
             let caller = self.env().caller();
             self.only_owner(caller)?;
-            let contract_bal = self.env().balance();
-            // ink! transfer emit a panic!, the function below doesn't work, at least with this nightly build
-            // self.env().transfer(destination, contract_bal).expect("pay out failure");
+            
+            if transaction_fee <= 0 {
+                return Err(Error::ZeroFee);
+            }
 
-            let _result = match self.env().transfer(destination, contract_bal) {
-                Err(_e) => Err(Error::TransferFailed),
-                Ok(_v) => Ok(()),
-            };
+            let contract_bal = self.env().balance();
+
+            let _result = self.env().transfer(destination, contract_bal - transaction_fee);
 
             Ok(())
         }
@@ -724,6 +724,7 @@ mod ddc {
         InsufficientDeposit,
         TransferFailed,
         ZeroBalance,
+        ZeroFee,
         OverLimit,
         TidOutOfBound,
         ContractPaused,
@@ -922,14 +923,14 @@ mod ddc {
 
             // Endownment equivalence. Inititalize SC address with balance 1000
             let contract_id = ink_env::test::get_current_contract_account_id::<ink_env::DefaultEnvironment>();
-            ink_env::test::set_account_balance::<ink_env::DefaultEnvironment>(contract_id.unwrap(), 1000);
+            ink_env::test::set_account_balance::<ink_env::DefaultEnvironment>(contract_id.unwrap(), 1000)?;
 
             assert_eq!(contract.subscribe(3), Ok(()));
             assert_eq!(contract.flip_contract_status(), Ok(()));
             assert_eq!(contract.paused_or_not(), true);
             assert_eq!(contract.balance_of_contract(), 1000);
-            assert_eq!(contract.transfer_all_balance(AccountId::from([0x0; 32])), Ok(()));
-            assert_eq!(contract.balance_of_contract(), 0);
+            assert_eq!(contract.transfer_all_balance(AccountId::from([0x0; 32]), 1), Ok(()));
+            assert_eq!(contract.balance_of_contract(), 1);
         }
 
         /// Sets the caller
