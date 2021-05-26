@@ -656,6 +656,9 @@ mod ddc {
 
         #[ink(message)]
         pub fn add_ddc_node(&mut self, id: String, url: String) -> Result<()> {
+            let reporter = self.env().caller();
+            self.only_reporter(&reporter)?;
+
             let key = id.clone();
             let ddc_node = DDCNode { id, url };
             self.ddc_nodes.insert(key, ddc_node);
@@ -1048,20 +1051,30 @@ mod ddc {
         #[ink::test]
         fn get_all_ddc_nodes_works() {
             let contract = make_contract();
+
+            // Returns empty list
             assert_eq!(contract.get_all_ddc_nodes(), vec![]);
         }
 
         #[ink::test]
         fn add_ddc_node_works() {
             let mut contract = make_contract();
+            let accounts = default_accounts::<DefaultEnvironment>().unwrap();
             let id = "local".to_string();
             let url = "ws://localhost:9944".to_string();
 
+            // Should be a reporter
+            let err = contract.add_ddc_node(id.clone(), url.clone());
+            assert_eq!(err, Err(Error::OnlyReporter));
+
+            // Authorize admin account to be a reporter
+            contract.add_reporter(accounts.alice).unwrap();
+
+            // Add DDC node
             contract.add_ddc_node(id.clone(), url.clone()).unwrap();
 
-            let ddc_node = DDCNode { id, url };
-
-            assert_eq!(contract.get_all_ddc_nodes(), vec![ddc_node]);
+            // Should be in the list
+            assert_eq!(contract.get_all_ddc_nodes(), vec![DDCNode { id, url }]);
         }
     }
 }
