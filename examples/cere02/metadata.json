@@ -1,7 +1,7 @@
 {
   "metadataVersion": "0.1.0",
   "source": {
-    "hash": "0xa7365cf0a6f5375eac8ae469c3e3d57b944b5f5a2edc4cdacaea6d26d73970e9",
+    "hash": "0xbc176013decc5cce9a67796ec1b7c9f967198546bdbafc65d8caae7a720cc954",
     "language": "ink! 3.0.0-rc3",
     "compiler": "rustc 1.53.0-nightly"
   },
@@ -330,6 +330,15 @@
                 "AccountId"
               ],
               "type": 1
+            }
+          },
+          {
+            "name": "transaction_fee",
+            "type": {
+              "displayName": [
+                "Balance"
+              ],
+              "type": 9
             }
           }
         ],
@@ -1883,26 +1892,30 @@
             },
             {
               "discriminant": 7,
-              "name": "OverLimit"
+              "name": "ZeroFee"
             },
             {
               "discriminant": 8,
-              "name": "TidOutOfBound"
+              "name": "OverLimit"
             },
             {
               "discriminant": 9,
-              "name": "ContractPaused"
+              "name": "TidOutOfBound"
             },
             {
               "discriminant": 10,
-              "name": "ContractActive"
+              "name": "ContractPaused"
             },
             {
               "discriminant": 11,
-              "name": "UnexpectedTimestamp"
+              "name": "ContractActive"
             },
             {
               "discriminant": 12,
+              "name": "UnexpectedTimestamp"
+            },
+            {
+              "discriminant": 13,
               "name": "NoSubscription"
             }
           ]
