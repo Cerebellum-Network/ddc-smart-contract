@@ -649,11 +649,13 @@ mod ddc {
     }
 
     impl Ddc {
+        /// Returns the list of all registered DDC nodes
         #[ink(message)]
         pub fn get_all_ddc_nodes(&self) -> Vec<DDCNode> {
             self.ddc_nodes.values().cloned().collect()
         }
 
+        /// Registers a DDC node
         #[ink(message)]
         pub fn add_ddc_node(&mut self, id: String, url: String) -> Result<()> {
             let reporter = self.env().caller();
