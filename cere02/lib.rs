@@ -9,8 +9,7 @@ mod ddc {
     use ink_storage::{
         collections::HashMap as StorageHashMap,
         lazy::Lazy,
-        traits::{PackedLayout, SpreadLayout,
-        },
+        traits::{PackedLayout, SpreadLayout},
     };
     use scale::{Decode, Encode};
 
@@ -37,7 +36,7 @@ mod ddc {
         // -- Metrics Reporting --
         pub metrics: StorageHashMap<MetricKey, MetricValue>,
         current_period_ms: u64,
-        ddn_nodes: Vec<DDNNode>
+        ddc_nodes: StorageHashMap<String, DDCNode>
     }
 
     impl Ddc {
@@ -97,7 +96,7 @@ mod ddc {
                 metrics: StorageHashMap::new(),
                 current_period_ms: today_ms,
                 pause: false,
-                ddn_nodes: Vec::new(),
+                ddc_nodes: StorageHashMap::new(),
             };
             instance
         }
@@ -641,25 +640,26 @@ mod ddc {
     }
 
 
-    // ---- Admin: DDN nodes ----
+    // ---- Admin: DDC nodes ----
     #[derive(Default, Clone, PartialEq, Eq, PartialOrd, Ord, Encode, Decode, SpreadLayout, PackedLayout)]
     #[cfg_attr(feature = "std", derive(Debug, scale_info::TypeInfo))]
-    pub struct DDNNode {
+    pub struct DDCNode {
         id: String,
         url: String,
     }
 
     impl Ddc {
         #[ink(message)]
-        pub fn add_ddn_node(&mut self, id: String, url: String) -> Result<()> {
-            let ddn_node = DDNNode { id, url };
-            self.ddn_nodes.push(ddn_node);
-            Ok(())
+        pub fn get_all_ddc_nodes(&self) -> Vec<DDCNode> {
+            self.ddc_nodes.values().cloned().collect()
         }
 
         #[ink(message)]
-        pub fn get_ddn_nodes(&self) -> Vec<DDNNode> {
-            self.ddn_nodes.clone()
+        pub fn add_ddc_node(&mut self, id: String, url: String) -> Result<()> {
+            let key = id.clone();
+            let ddc_node = DDCNode { id, url };
+            self.ddc_nodes.insert(key, ddc_node);
+            Ok(())
         }
     }
 
@@ -1046,14 +1046,22 @@ mod ddc {
         }
 
         #[ink::test]
-        fn should_add_ddn_node() {
+        fn get_all_ddc_nodes_works() {
+            let contract = make_contract();
+            assert_eq!(contract.get_all_ddc_nodes(), vec![]);
+        }
+
+        #[ink::test]
+        fn add_ddc_node_works() {
             let mut contract = make_contract();
             let id = "local".to_string();
             let url = "ws://localhost:9944".to_string();
-            let ddn_node = DDNNode { id: id.clone(), url: url.clone() };
 
-            contract.add_ddn_node(id, url).unwrap();
-            assert_eq!(contract.get_ddn_nodes(), vec![ddn_node]);
+            contract.add_ddc_node(id.clone(), url.clone()).unwrap();
+
+            let ddc_node = DDCNode { id, url };
+
+            assert_eq!(contract.get_all_ddc_nodes(), vec![ddc_node]);
         }
     }
 }
