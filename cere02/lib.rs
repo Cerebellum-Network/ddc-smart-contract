@@ -160,9 +160,10 @@ mod ddc {
 
             let contract_bal = self.env().balance();
 
-            let _result = self.env().transfer(destination, contract_bal - transaction_fee);
-
-            Ok(())
+            match self.env().transfer(destination, contract_bal- transaction_fee) {
+                Err(_e) => return Err(Error::TransferFailed),
+                Ok(_v) => return Ok(()),
+            };
         }
 
         /// given an account id, revoke its membership by clearing its balance;
@@ -751,6 +752,7 @@ mod ddc {
         use ink_env::{call, test, DefaultEnvironment, test::{default_accounts, recorded_events}};
         use ink_lang as ink;
         use scale::Decode;
+        use crate::ddc::Error::OnlyOwner;
 
         /// Imports all the definitions from the outer scope so we can use them here.
         use super::*;
@@ -929,8 +931,17 @@ mod ddc {
             assert_eq!(contract.flip_contract_status(), Ok(()));
             assert_eq!(contract.paused_or_not(), true);
             assert_eq!(contract.balance_of_contract(), 1000);
-            assert_eq!(contract.transfer_all_balance(AccountId::from([0x0; 32]), 1), Ok(()));
-            assert_eq!(contract.balance_of_contract(), 1);
+            
+            // Transfer all works
+            assert_eq!(contract.transfer_all_balance(AccountId::from([0x0; 32]), 500), Ok(()));
+            assert_eq!(contract.balance_of_contract(), 500);
+
+            // Transfer all not works in case of not owner call
+            let accounts = default_accounts::<DefaultEnvironment>().unwrap();
+            let app_id = accounts.charlie;
+            set_caller(app_id);
+            assert_eq!(contract.transfer_all_balance(AccountId::from([0x0; 32]), 200), Err(OnlyOwner));
+            assert_eq!(contract.balance_of_contract(), 500);
         }
 
         /// Sets the caller
