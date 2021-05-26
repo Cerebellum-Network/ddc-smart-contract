@@ -4,6 +4,7 @@ use ink_lang as ink;
 
 #[ink::contract]
 mod ddc {
+    use ink_prelude::string::String;
     use ink_prelude::vec::Vec;
     use ink_storage::{
         collections::HashMap as StorageHashMap,
