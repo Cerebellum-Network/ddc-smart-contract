@@ -36,6 +36,7 @@ mod ddc {
         // -- Metrics Reporting --
         pub metrics: StorageHashMap<MetricKey, MetricValue>,
         current_period_ms: u64,
+        ddn_nodes: Vec<DDNNode>
     }
 
     impl Ddc {
@@ -95,6 +96,7 @@ mod ddc {
                 metrics: StorageHashMap::new(),
                 current_period_ms: today_ms,
                 pause: false,
+                ddn_nodes: Vec::new(),
             };
             instance
         }
@@ -638,6 +640,29 @@ mod ddc {
     }
 
 
+    // ---- Admin: DDN nodes ----
+    #[derive(Default, Clone, PartialEq, Eq, PartialOrd, Ord, Encode, Decode, SpreadLayout, PackedLayout)]
+    #[cfg_attr(feature = "std", derive(Debug, scale_info::TypeInfo))]
+    pub struct DDNNode {
+        id: String,
+        url: String,
+    }
+
+    impl Ddc {
+        #[ink(message)]
+        pub fn add_ddn_node(&mut self, id: String, url: String) -> Result<()> {
+            let ddn_node = DDNNode { id, url };
+            self.ddn_nodes.push(ddn_node);
+            Ok(())
+        }
+
+        #[ink(message)]
+        pub fn get_ddn_nodes(&self) -> Vec<DDNNode> {
+            self.ddn_nodes.clone()
+        }
+    }
+
+
     // ---- Utils ----
     #[derive(Debug, PartialEq, Eq, scale::Encode)]
     #[cfg_attr(feature = "std", derive(scale_info::TypeInfo))]
@@ -756,7 +781,7 @@ mod ddc {
             assert_eq!(contract.tier_id_of(payer_one), 2);
         }
 
-        /// Test we can read metrics 
+        /// Test we can read metrics
         #[ink::test]
         fn get_all_tiers_works() {
             let contract = Ddc::new(2000, 2000, 2000, 4000, 4000, 4000, 8000, 8000, 8000);
@@ -1017,6 +1042,17 @@ mod ddc {
             contract.report_metrics(app_id, today_ms, metrics.stored_bytes, metrics.requests).unwrap();
 
             assert_eq!(contract.is_within_limit(app_id), true)
+        }
+
+        #[ink::test]
+        fn should_add_ddn_node() {
+            let mut contract = make_contract();
+            let id = "local".to_string();
+            let url = "ws://localhost:9944".to_string();
+            let ddn_node = DDNNode { id: id.clone(), url: url.clone() };
+
+            contract.add_ddn_node(id, url).unwrap();
+            assert_eq!(contract.get_ddn_nodes(), vec![ddn_node]);
         }
     }
 }
