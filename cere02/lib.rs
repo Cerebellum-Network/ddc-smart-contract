@@ -511,8 +511,8 @@ mod ddc {
         /// Add DDC node to the list
         #[ink(message)]
         pub fn add_ddc_node(&mut self, p2p_id: String, url: String) -> Result<()> {
-            let reporter = self.env().caller();
-            self.only_reporter(&reporter)?;
+            let caller = self.env().caller();
+            self.only_owner(caller)?;
 
             let key = p2p_id.clone();
             let ddc_node = DDCNode { p2p_id, url };
@@ -1022,18 +1022,22 @@ mod ddc {
         }
 
         #[ink::test]
-        fn add_ddc_node_works() {
+        fn add_ddc_node_only_owner_works() {
             let mut contract = make_contract();
             let accounts = default_accounts::<DefaultEnvironment>().unwrap();
-            let p2p_id = "p2p_test_id".to_string();
-            let url = "ws://localhost:9944".to_string();
+            let p2p_id = String::from("p2p_test_id");
+            let url = String::from("ws://localhost:9944");
 
-            // Should be a reporter
-            let err = contract.add_ddc_node(p2p_id.clone(), url.clone());
-            assert_eq!(err, Err(Error::OnlyReporter));
+            // Should be an owner
+            set_caller(accounts.charlie);
+            assert_eq!(contract.add_ddc_node(p2p_id, url), Err(Error::OnlyOwner));
+        }
 
-            // Authorize admin account to be a reporter
-            contract.add_reporter(accounts.alice).unwrap();
+        #[ink::test]
+        fn add_ddc_node_works() {
+            let mut contract = make_contract();
+            let p2p_id = String::from("p2p_test_id");
+            let url = String::from("ws://localhost:9944");
 
             // Add DDC node
             contract.add_ddc_node(p2p_id.clone(), url.clone()).unwrap();
