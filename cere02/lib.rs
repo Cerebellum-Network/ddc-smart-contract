@@ -527,7 +527,7 @@ mod ddc {
             self.only_owner(caller)?;
 
             self.ddc_nodes.insert(p2p_id.clone(), DDCNode { p2p_id: p2p_id.clone(), url: url});
-            Self::env().emit_event(DDCNodeAdded { p2p_id: p2p_id.clone() });
+            Self::env().emit_event(DDCNodeAdded { p2p_id });
             Ok(())
         }
 
@@ -736,7 +736,6 @@ mod ddc {
     mod tests {
         use ink_env::{call, test, DefaultEnvironment, test::{default_accounts, recorded_events}};
         use ink_lang as ink;
-        use scale::Decode;
 
         /// Imports all the definitions from the outer scope so we can use them here.
         use super::*;
@@ -1011,6 +1010,11 @@ mod ddc {
             assert_eq!(contract.get_current_period_ms(), today_ms);
         }
 
+        fn decode_event(event: &ink_env::test::EmittedEvent) -> Event {
+            <Event as scale::Decode>::decode(&mut &event.data[..])
+                .expect("encountered invalid contract event data buffer")
+        }
+
         // ---- Admin: Reporters ----
         #[ink::test]
         fn add_and_remove_reporters_works() {
@@ -1027,13 +1031,13 @@ mod ddc {
             let raw_events = recorded_events().collect::<Vec<_>>();
             assert_eq!(2, raw_events.len());
 
-            if let Event::ReporterAdded(ReporterAdded { reporter }) = <Event as Decode>::decode(&mut &raw_events[0].data[..]).unwrap() {
+            if let Event::ReporterAdded(ReporterAdded { reporter }) = decode_event(&raw_events[0]) {
                 assert_eq!(reporter, new_reporter);
             } else {
                 panic!("Wrong event type");
             }
 
-            if let Event::ReporterRemoved(ReporterRemoved { reporter }) = <Event as Decode>::decode(&mut &raw_events[1].data[..]).unwrap() {
+            if let Event::ReporterRemoved(ReporterRemoved { reporter }) = decode_event(&raw_events[1]) {
                 assert_eq!(reporter, new_reporter);
             } else {
                 panic!("Wrong event type");
@@ -1041,15 +1045,6 @@ mod ddc {
         }
 
         // ---- DDC Nodes ----
-        fn get_emitted_events() -> Vec<ink_env::test::EmittedEvent> {
-            ink_env::test::recorded_events().collect::<Vec<_>>()
-        }
-
-        fn decode_event(event: &ink_env::test::EmittedEvent) -> Event {
-            <Event as scale::Decode>::decode(&mut &event.data[..])
-                .expect("encountered invalid contract event data buffer")
-        }
-
         #[ink::test]
         fn get_all_ddc_nodes_works() {
             let contract = make_contract();
@@ -1083,9 +1078,9 @@ mod ddc {
             assert_eq!(contract.get_all_ddc_nodes(), vec![DDCNode { p2p_id: p2p_id.clone(), url }]);
 
             // Should emit event
-            let emitted_events = get_emitted_events();
-            assert_eq!(1, emitted_events.len());
-            if let Event::DDCNodeAdded(DDCNodeAdded { p2p_id: id }) = decode_event(&emitted_events[0]) {
+            let raw_events = recorded_events().collect::<Vec<_>>();
+            assert_eq!(1, raw_events.len());
+            if let Event::DDCNodeAdded(DDCNodeAdded { p2p_id: id }) = decode_event(&raw_events[0]) {
                 assert_eq!(id, p2p_id.clone());
             } else {
                 panic!("Wrong event type")
@@ -1135,9 +1130,9 @@ mod ddc {
             assert_eq!(contract.get_all_ddc_nodes(), vec![]);
 
             // Should emit event
-            let emitted_events = get_emitted_events();
-            assert_eq!(2, emitted_events.len());
-            if let Event::DDCNodeRemoved(DDCNodeRemoved { p2p_id: id }) = decode_event(&emitted_events[1]) {
+            let raw_events = recorded_events().collect::<Vec<_>>();
+            assert_eq!(2, raw_events.len());
+            if let Event::DDCNodeRemoved(DDCNodeRemoved { p2p_id: id }) = decode_event(&raw_events[1]) {
                 assert_eq!(id, p2p_id.clone());
             } else {
                 panic!("Wrong event type")
