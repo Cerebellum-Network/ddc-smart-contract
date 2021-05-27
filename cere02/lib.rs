@@ -519,6 +519,22 @@ mod ddc {
             self.ddc_nodes.insert(key, ddc_node);
             Ok(())
         }
+
+        /// Check if DDC node is in the list
+        #[ink(message)]
+        pub fn is_ddc_node(&self, p2p_id: String) -> bool {
+            self.ddc_nodes.contains_key(&p2p_id)
+        }
+
+        /// Removes DDC node from the list
+        #[ink(message)]
+        pub fn remove_ddc_node(&mut self, p2p_id: String) -> Result<()> {
+            let caller = self.env().caller();
+            self.only_owner(caller)?;
+
+            self.ddc_nodes.take(&p2p_id);
+            Ok(())
+        }
     }
 
 
@@ -1044,6 +1060,49 @@ mod ddc {
 
             // Should be in the list
             assert_eq!(contract.get_all_ddc_nodes(), vec![DDCNode { p2p_id, url }]);
+        }
+
+        #[ink::test]
+        fn is_ddc_node_works() {
+            let mut contract = make_contract();
+            let p2p_id = String::from("p2p_test_id");
+            let url = String::from("ws://localhost:9944");
+
+            // Return false if not added
+            assert_eq!(contract.is_ddc_node(p2p_id.clone()), false);
+
+            // Add DDC node
+            contract.add_ddc_node(p2p_id.clone(), url.clone()).unwrap();
+
+            // Should be in the list
+            assert_eq!(contract.is_ddc_node(p2p_id), true);
+        }
+
+        #[ink::test]
+        fn remove_ddc_node_only_owner_works() {
+            let mut contract = make_contract();
+            let accounts = default_accounts::<DefaultEnvironment>().unwrap();
+            let p2p_id = String::from("p2p_test_id");
+
+            // Should be an owner
+            set_caller(accounts.charlie);
+            assert_eq!(contract.remove_ddc_node(p2p_id), Err(Error::OnlyOwner));
+        }
+
+        #[ink::test]
+        fn remove_ddc_node_works() {
+            let mut contract = make_contract();
+            let p2p_id = String::from("p2p_test_id");
+            let url = String::from("ws://localhost:9944");
+
+            // Add DDC node
+            contract.add_ddc_node(p2p_id.clone(), url.clone()).unwrap();
+
+            // Remove DDC node
+            contract.remove_ddc_node(p2p_id).unwrap();
+
+            // Should be removed from the list
+            assert_eq!(contract.get_all_ddc_nodes(), vec![]);
         }
 
         // ---- Metrics Reporting ----
