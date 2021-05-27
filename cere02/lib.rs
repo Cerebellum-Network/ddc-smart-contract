@@ -34,7 +34,7 @@ mod ddc {
         reporters: StorageHashMap<AccountId, ()>,
 
         // -- DDC Nodes --
-        ddc_nodes: StorageHashMap<String, DDCNode>
+        ddc_nodes: StorageHashMap<String, DDCNode>,
 
         // -- Metrics Reporting --
         pub metrics: StorageHashMap<MetricKey, MetricValue>,
@@ -497,7 +497,7 @@ mod ddc {
     #[derive(Default, Clone, PartialEq, Eq, PartialOrd, Ord, Encode, Decode, SpreadLayout, PackedLayout)]
     #[cfg_attr(feature = "std", derive(Debug, scale_info::TypeInfo))]
     pub struct DDCNode {
-        id: String,
+        p2p_id: String,
         url: String,
     }
 
@@ -510,12 +510,12 @@ mod ddc {
 
         /// Add DDC node to the list
         #[ink(message)]
-        pub fn add_ddc_node(&mut self, id: String, url: String) -> Result<()> {
+        pub fn add_ddc_node(&mut self, p2p_id: String, url: String) -> Result<()> {
             let reporter = self.env().caller();
             self.only_reporter(&reporter)?;
 
-            let key = id.clone();
-            let ddc_node = DDCNode { id, url };
+            let key = p2p_id.clone();
+            let ddc_node = DDCNode { p2p_id, url };
             self.ddc_nodes.insert(key, ddc_node);
             Ok(())
         }
@@ -1025,21 +1025,21 @@ mod ddc {
         fn add_ddc_node_works() {
             let mut contract = make_contract();
             let accounts = default_accounts::<DefaultEnvironment>().unwrap();
-            let id = "local".to_string();
+            let p2p_id = "p2p_test_id".to_string();
             let url = "ws://localhost:9944".to_string();
 
             // Should be a reporter
-            let err = contract.add_ddc_node(id.clone(), url.clone());
+            let err = contract.add_ddc_node(p2p_id.clone(), url.clone());
             assert_eq!(err, Err(Error::OnlyReporter));
 
             // Authorize admin account to be a reporter
             contract.add_reporter(accounts.alice).unwrap();
 
             // Add DDC node
-            contract.add_ddc_node(id.clone(), url.clone()).unwrap();
+            contract.add_ddc_node(p2p_id.clone(), url.clone()).unwrap();
 
             // Should be in the list
-            assert_eq!(contract.get_all_ddc_nodes(), vec![DDCNode { id, url }]);
+            assert_eq!(contract.get_all_ddc_nodes(), vec![DDCNode { p2p_id, url }]);
         }
 
         // ---- Metrics Reporting ----
