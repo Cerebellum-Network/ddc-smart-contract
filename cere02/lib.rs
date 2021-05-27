@@ -501,6 +501,18 @@ mod ddc {
         url: String,
     }
 
+    #[ink(event)]
+    pub struct DDCNodeAdded {
+        #[ink(topic)]
+        p2p_id: String,
+    }
+
+    #[ink(event)]
+    pub struct DDCNodeRemoved {
+        #[ink(topic)]
+        p2p_id: String,
+    }
+
     impl Ddc {
         /// Return the list of all DDC nodes
         #[ink(message)]
@@ -514,9 +526,8 @@ mod ddc {
             let caller = self.env().caller();
             self.only_owner(caller)?;
 
-            let key = p2p_id.clone();
-            let ddc_node = DDCNode { p2p_id, url };
-            self.ddc_nodes.insert(key, ddc_node);
+            self.ddc_nodes.insert(p2p_id.clone(), DDCNode { p2p_id: p2p_id.clone(), url: url});
+            Self::env().emit_event(DDCNodeAdded { p2p_id: p2p_id.clone() });
             Ok(())
         }
 
@@ -533,6 +544,7 @@ mod ddc {
             self.only_owner(caller)?;
 
             self.ddc_nodes.take(&p2p_id);
+            Self::env().emit_event(DDCNodeRemoved { p2p_id });
             Ok(())
         }
     }
@@ -1029,6 +1041,15 @@ mod ddc {
         }
 
         // ---- DDC Nodes ----
+        fn get_emitted_events() -> Vec<ink_env::test::EmittedEvent> {
+            ink_env::test::recorded_events().collect::<Vec<_>>()
+        }
+
+        fn decode_event(event: &ink_env::test::EmittedEvent) -> Event {
+            <Event as scale::Decode>::decode(&mut &event.data[..])
+                .expect("encountered invalid contract event data buffer")
+        }
+
         #[ink::test]
         fn get_all_ddc_nodes_works() {
             let contract = make_contract();
@@ -1059,7 +1080,16 @@ mod ddc {
             contract.add_ddc_node(p2p_id.clone(), url.clone()).unwrap();
 
             // Should be in the list
-            assert_eq!(contract.get_all_ddc_nodes(), vec![DDCNode { p2p_id, url }]);
+            assert_eq!(contract.get_all_ddc_nodes(), vec![DDCNode { p2p_id: p2p_id.clone(), url }]);
+
+            // Should emit event
+            let emitted_events = get_emitted_events();
+            assert_eq!(1, emitted_events.len());
+            if let Event::DDCNodeAdded(DDCNodeAdded { p2p_id: id }) = decode_event(&emitted_events[0]) {
+                assert_eq!(id, p2p_id.clone());
+            } else {
+                panic!("Wrong event type")
+            }
         }
 
         #[ink::test]
@@ -1099,10 +1129,19 @@ mod ddc {
             contract.add_ddc_node(p2p_id.clone(), url.clone()).unwrap();
 
             // Remove DDC node
-            contract.remove_ddc_node(p2p_id).unwrap();
+            contract.remove_ddc_node(p2p_id.clone()).unwrap();
 
             // Should be removed from the list
             assert_eq!(contract.get_all_ddc_nodes(), vec![]);
+
+            // Should emit event
+            let emitted_events = get_emitted_events();
+            assert_eq!(2, emitted_events.len());
+            if let Event::DDCNodeRemoved(DDCNodeRemoved { p2p_id: id }) = decode_event(&emitted_events[1]) {
+                assert_eq!(id, p2p_id.clone());
+            } else {
+                panic!("Wrong event type")
+            }
         }
 
         // ---- Metrics Reporting ----
