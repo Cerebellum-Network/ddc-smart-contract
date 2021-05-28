@@ -4,12 +4,12 @@ use ink_lang as ink;
 
 #[ink::contract]
 mod ddc {
+    use ink_prelude::string::String;
     use ink_prelude::vec::Vec;
     use ink_storage::{
         collections::HashMap as StorageHashMap,
         lazy::Lazy,
-        traits::{PackedLayout, SpreadLayout,
-        },
+        traits::{PackedLayout, SpreadLayout},
     };
     use scale::{Decode, Encode};
 
@@ -32,6 +32,9 @@ mod ddc {
 
         // -- Admin: Reporters --
         reporters: StorageHashMap<AccountId, ()>,
+
+        // -- DDC Nodes --
+        ddc_nodes: StorageHashMap<String, DDCNode>,
 
         // -- Metrics Reporting --
         pub metrics: StorageHashMap<MetricKey, MetricValue>,
@@ -92,6 +95,7 @@ mod ddc {
                 balances: StorageHashMap::new(),
                 subscriptions: StorageHashMap::new(),
                 reporters: StorageHashMap::new(),
+                ddc_nodes: StorageHashMap::new(),
                 metrics: StorageHashMap::new(),
                 current_period_ms: today_ms,
                 pause: false,
@@ -488,6 +492,70 @@ mod ddc {
         }
     }
 
+
+    // ---- DDC nodes ----
+    #[derive(Default, Clone, PartialEq, Eq, PartialOrd, Ord, Encode, Decode, SpreadLayout, PackedLayout)]
+    #[cfg_attr(feature = "std", derive(Debug, scale_info::TypeInfo))]
+    pub struct DDCNode {
+        p2p_id: String,
+        url: String,
+    }
+
+    #[ink(event)]
+    pub struct DDCNodeAdded {
+        #[ink(topic)]
+        p2p_id: String,
+        url: String,
+    }
+
+    #[ink(event)]
+    pub struct DDCNodeRemoved {
+        #[ink(topic)]
+        p2p_id: String,
+    }
+
+    impl Ddc {
+        /// Return the list of all DDC nodes
+        #[ink(message)]
+        pub fn get_all_ddc_nodes(&self) -> Vec<DDCNode> {
+            self.ddc_nodes.values().cloned().collect()
+        }
+
+        /// Add DDC node to the list
+        #[ink(message)]
+        pub fn add_ddc_node(&mut self, p2p_id: String, url: String) -> Result<()> {
+            let caller = self.env().caller();
+            self.only_owner(caller)?;
+
+            self.ddc_nodes.insert(p2p_id.clone(), DDCNode {
+                p2p_id: p2p_id.clone(),
+                url: url.clone(),
+            });
+            Self::env().emit_event(DDCNodeAdded { p2p_id, url });
+
+            Ok(())
+        }
+
+        /// Check if DDC node is in the list
+        #[ink(message)]
+        pub fn is_ddc_node(&self, p2p_id: String) -> bool {
+            self.ddc_nodes.contains_key(&p2p_id)
+        }
+
+        /// Removes DDC node from the list
+        #[ink(message)]
+        pub fn remove_ddc_node(&mut self, p2p_id: String) -> Result<()> {
+            let caller = self.env().caller();
+            self.only_owner(caller)?;
+
+            self.ddc_nodes.take(&p2p_id);
+            Self::env().emit_event(DDCNodeRemoved { p2p_id });
+
+            Ok(())
+        }
+    }
+
+
     // ---- Metrics Reporting ----
     #[derive(Default, Clone, PartialEq, Eq, PartialOrd, Ord, Encode, Decode, SpreadLayout, PackedLayout)]
     #[cfg_attr(feature = "std", derive(Debug, scale_info::TypeInfo))]
@@ -674,7 +742,6 @@ mod ddc {
     mod tests {
         use ink_env::{call, test, DefaultEnvironment, test::{default_accounts, recorded_events}};
         use ink_lang as ink;
-        use scale::Decode;
 
         /// Imports all the definitions from the outer scope so we can use them here.
         use super::*;
@@ -756,7 +823,7 @@ mod ddc {
             assert_eq!(contract.tier_id_of(payer_one), 2);
         }
 
-        /// Test we can read metrics 
+        /// Test we can read metrics
         #[ink::test]
         fn get_all_tiers_works() {
             let contract = Ddc::new(2000, 2000, 2000, 4000, 4000, 4000, 8000, 8000, 8000);
@@ -949,6 +1016,11 @@ mod ddc {
             assert_eq!(contract.get_current_period_ms(), today_ms);
         }
 
+        fn decode_event(event: &ink_env::test::EmittedEvent) -> Event {
+            <Event as scale::Decode>::decode(&mut &event.data[..])
+                .expect("encountered invalid contract event data buffer")
+        }
+
         // ---- Admin: Reporters ----
         #[ink::test]
         fn add_and_remove_reporters_works() {
@@ -965,19 +1037,126 @@ mod ddc {
             let raw_events = recorded_events().collect::<Vec<_>>();
             assert_eq!(2, raw_events.len());
 
-            if let Event::ReporterAdded(ReporterAdded { reporter }) = <Event as Decode>::decode(&mut &raw_events[0].data[..]).unwrap() {
+            if let Event::ReporterAdded(ReporterAdded { reporter }) = decode_event(&raw_events[0]) {
                 assert_eq!(reporter, new_reporter);
             } else {
                 panic!("Wrong event type");
             }
 
-            if let Event::ReporterRemoved(ReporterRemoved { reporter }) = <Event as Decode>::decode(&mut &raw_events[1].data[..]).unwrap() {
+            if let Event::ReporterRemoved(ReporterRemoved { reporter }) = decode_event(&raw_events[1]) {
                 assert_eq!(reporter, new_reporter);
             } else {
                 panic!("Wrong event type");
             }
         }
 
+        // ---- DDC Nodes ----
+        #[ink::test]
+        fn get_all_ddc_nodes_works() {
+            let contract = make_contract();
+
+            // Return an empty list
+            assert_eq!(contract.get_all_ddc_nodes(), vec![]);
+        }
+
+        #[ink::test]
+        fn add_ddc_node_only_owner_works() {
+            let mut contract = make_contract();
+            let accounts = default_accounts::<DefaultEnvironment>().unwrap();
+            let p2p_id = String::from("test_p2p_id");
+            let url = String::from("ws://localhost:9944");
+
+            // Should be an owner
+            set_caller(accounts.charlie);
+            assert_eq!(contract.add_ddc_node(p2p_id, url), Err(Error::OnlyOwner));
+        }
+
+        #[ink::test]
+        fn add_ddc_node_works() {
+            let mut contract = make_contract();
+            let p2p_id = String::from("test_p2p_id");
+            let url = String::from("ws://localhost:9944");
+
+            // Add DDC node
+            contract.add_ddc_node(p2p_id.clone(), url.clone()).unwrap();
+
+            // Should be in the list
+            assert_eq!(contract.get_all_ddc_nodes(), vec![
+                DDCNode {
+                    p2p_id: p2p_id.clone(),
+                    url: url.clone()
+                },
+            ]);
+
+            // Should emit event
+            let raw_events = recorded_events().collect::<Vec<_>>();
+            assert_eq!(1, raw_events.len());
+            if let Event::DDCNodeAdded(DDCNodeAdded {
+                p2p_id: event_p2p_id,
+                url: event_url
+            }) = decode_event(&raw_events[0]) {
+                assert_eq!(event_p2p_id, p2p_id);
+                assert_eq!(event_url, url);
+            } else {
+                panic!("Wrong event type")
+            }
+        }
+
+        #[ink::test]
+        fn is_ddc_node_works() {
+            let mut contract = make_contract();
+            let p2p_id = String::from("test_p2p_id");
+            let url = String::from("ws://localhost:9944");
+
+            // Return false if not added
+            assert_eq!(contract.is_ddc_node(p2p_id.clone()), false);
+
+            // Add DDC node
+            contract.add_ddc_node(p2p_id.clone(), url.clone()).unwrap();
+
+            // Should be in the list
+            assert_eq!(contract.is_ddc_node(p2p_id), true);
+        }
+
+        #[ink::test]
+        fn remove_ddc_node_only_owner_works() {
+            let mut contract = make_contract();
+            let accounts = default_accounts::<DefaultEnvironment>().unwrap();
+            let p2p_id = String::from("test_p2p_id");
+
+            // Should be an owner
+            set_caller(accounts.charlie);
+            assert_eq!(contract.remove_ddc_node(p2p_id), Err(Error::OnlyOwner));
+        }
+
+        #[ink::test]
+        fn remove_ddc_node_works() {
+            let mut contract = make_contract();
+            let p2p_id = String::from("test_p2p_id");
+            let url = String::from("ws://localhost:9944");
+
+            // Add DDC node
+            contract.add_ddc_node(p2p_id.clone(), url.clone()).unwrap();
+
+            // Remove DDC node
+            contract.remove_ddc_node(p2p_id.clone()).unwrap();
+
+            // Should be removed from the list
+            assert_eq!(contract.get_all_ddc_nodes(), vec![]);
+
+            // Should emit event
+            let raw_events = recorded_events().collect::<Vec<_>>();
+            assert_eq!(2, raw_events.len());
+            if let Event::DDCNodeRemoved(DDCNodeRemoved {
+                p2p_id: event_p2p_id
+            }) = decode_event(&raw_events[1]) {
+                assert_eq!(event_p2p_id, p2p_id);
+            } else {
+                panic!("Wrong event type")
+            }
+        }
+
+        // ---- Metrics Reporting ----
         #[ink::test]
         fn is_within_limit_works_outside_limit() {
             let mut contract = make_contract();
