@@ -505,6 +505,7 @@ mod ddc {
     pub struct DDCNodeAdded {
         #[ink(topic)]
         p2p_id: String,
+        url: String,
     }
 
     #[ink(event)]
@@ -526,8 +527,12 @@ mod ddc {
             let caller = self.env().caller();
             self.only_owner(caller)?;
 
-            self.ddc_nodes.insert(p2p_id.clone(), DDCNode { p2p_id: p2p_id.clone(), url: url});
-            Self::env().emit_event(DDCNodeAdded { p2p_id });
+            self.ddc_nodes.insert(p2p_id.clone(), DDCNode {
+                p2p_id: p2p_id.clone(),
+                url: url.clone(),
+            });
+            Self::env().emit_event(DDCNodeAdded { p2p_id, url });
+
             Ok(())
         }
 
@@ -545,6 +550,7 @@ mod ddc {
 
             self.ddc_nodes.take(&p2p_id);
             Self::env().emit_event(DDCNodeRemoved { p2p_id });
+
             Ok(())
         }
     }
@@ -1057,7 +1063,7 @@ mod ddc {
         fn add_ddc_node_only_owner_works() {
             let mut contract = make_contract();
             let accounts = default_accounts::<DefaultEnvironment>().unwrap();
-            let p2p_id = String::from("p2p_test_id");
+            let p2p_id = String::from("test_p2p_id");
             let url = String::from("ws://localhost:9944");
 
             // Should be an owner
@@ -1068,20 +1074,29 @@ mod ddc {
         #[ink::test]
         fn add_ddc_node_works() {
             let mut contract = make_contract();
-            let p2p_id = String::from("p2p_test_id");
+            let p2p_id = String::from("test_p2p_id");
             let url = String::from("ws://localhost:9944");
 
             // Add DDC node
             contract.add_ddc_node(p2p_id.clone(), url.clone()).unwrap();
 
             // Should be in the list
-            assert_eq!(contract.get_all_ddc_nodes(), vec![DDCNode { p2p_id: p2p_id.clone(), url }]);
+            assert_eq!(contract.get_all_ddc_nodes(), vec![
+                DDCNode {
+                    p2p_id: p2p_id.clone(),
+                    url: url.clone()
+                },
+            ]);
 
             // Should emit event
             let raw_events = recorded_events().collect::<Vec<_>>();
             assert_eq!(1, raw_events.len());
-            if let Event::DDCNodeAdded(DDCNodeAdded { p2p_id: id }) = decode_event(&raw_events[0]) {
-                assert_eq!(id, p2p_id.clone());
+            if let Event::DDCNodeAdded(DDCNodeAdded {
+                p2p_id: event_p2p_id,
+                url: event_url
+            }) = decode_event(&raw_events[0]) {
+                assert_eq!(event_p2p_id, p2p_id);
+                assert_eq!(event_url, url);
             } else {
                 panic!("Wrong event type")
             }
@@ -1090,7 +1105,7 @@ mod ddc {
         #[ink::test]
         fn is_ddc_node_works() {
             let mut contract = make_contract();
-            let p2p_id = String::from("p2p_test_id");
+            let p2p_id = String::from("test_p2p_id");
             let url = String::from("ws://localhost:9944");
 
             // Return false if not added
@@ -1107,7 +1122,7 @@ mod ddc {
         fn remove_ddc_node_only_owner_works() {
             let mut contract = make_contract();
             let accounts = default_accounts::<DefaultEnvironment>().unwrap();
-            let p2p_id = String::from("p2p_test_id");
+            let p2p_id = String::from("test_p2p_id");
 
             // Should be an owner
             set_caller(accounts.charlie);
@@ -1117,7 +1132,7 @@ mod ddc {
         #[ink::test]
         fn remove_ddc_node_works() {
             let mut contract = make_contract();
-            let p2p_id = String::from("p2p_test_id");
+            let p2p_id = String::from("test_p2p_id");
             let url = String::from("ws://localhost:9944");
 
             // Add DDC node
@@ -1132,8 +1147,10 @@ mod ddc {
             // Should emit event
             let raw_events = recorded_events().collect::<Vec<_>>();
             assert_eq!(2, raw_events.len());
-            if let Event::DDCNodeRemoved(DDCNodeRemoved { p2p_id: id }) = decode_event(&raw_events[1]) {
-                assert_eq!(id, p2p_id.clone());
+            if let Event::DDCNodeRemoved(DDCNodeRemoved {
+                p2p_id: event_p2p_id
+            }) = decode_event(&raw_events[1]) {
+                assert_eq!(event_p2p_id, p2p_id);
             } else {
                 panic!("Wrong event type")
             }
