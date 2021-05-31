@@ -54,7 +54,8 @@ mod ddc {
             tier2_storage_limit: u128,
             tier1fee: Balance,
             tier1_throughput_limit: u128,
-            tier1_storage_limit: u128) -> Self {
+            tier1_storage_limit: u128,
+        ) -> Self {
             let caller = Self::env().caller();
 
             let mut service_v = StorageHashMap::new();
@@ -104,7 +105,6 @@ mod ddc {
         }
     }
 
-
     // ---- Admin ----
     impl Ddc {
         /// Check if account is the owner of this contract
@@ -126,7 +126,6 @@ mod ddc {
         }
     }
 
-
     // ---- Admin: Funds ----
     impl Ddc {
         // This seems to be the endowment you give to the contract upon initializing it
@@ -136,7 +135,6 @@ mod ddc {
         pub fn balance_of_contract(&self) -> Balance {
             self.env().balance()
         }
-
 
         /// Given a destination account, transfer all the contract balance to it
         /// only contract owner can call this function
@@ -159,7 +157,6 @@ mod ddc {
             Ok(())
         }
     }
-
 
     // ---- Admin: Pausable ----
     impl Ddc {
@@ -203,7 +200,6 @@ mod ddc {
             }
         }
     }
-
 
     // ---- Admin: Tiers ----
 
@@ -301,7 +297,12 @@ mod ddc {
         /// Change tier limit given tier id and a new limit
         /// Must be contract admin to call this function
         #[ink(message)]
-        pub fn change_tier_limit(&mut self, tier_id: u128, new_throughput_limit: u128, new_storage_limit: u128) -> Result<()> {
+        pub fn change_tier_limit(
+            &mut self,
+            tier_id: u128,
+            new_throughput_limit: u128,
+            new_storage_limit: u128,
+        ) -> Result<()> {
             self.tid_in_bound(tier_id)?;
             self.only_active()?;
             let caller = self.env().caller();
@@ -342,7 +343,6 @@ mod ddc {
         }
     }
 
-
     // ---- App Subscriptions ----
 
     /// event emit when a deposit is made
@@ -354,7 +354,9 @@ mod ddc {
         value: Balance,
     }
 
-    #[derive(Default, Clone, PartialEq, Eq, PartialOrd, Ord, Encode, Decode, SpreadLayout, PackedLayout)]
+    #[derive(
+        Default, Clone, PartialEq, Eq, PartialOrd, Ord, Encode, Decode, SpreadLayout, PackedLayout,
+    )]
     #[cfg_attr(feature = "std", derive(Debug, scale_info::TypeInfo))]
     pub struct AppSubscription {
         start_date_ms: u64,
@@ -410,7 +412,8 @@ mod ddc {
             let value = self.env().transferred_balance();
             let fee_value = value as u128;
             let service_v = self.service.get(&tier_id).unwrap();
-            if service_v[1] > fee_value { //TODO: We probably need to summarize the existing balance with provided, in case app wants to deposit more than monthly amount
+            if service_v[1] > fee_value {
+                //TODO: We probably need to summarize the existing balance with provided, in case app wants to deposit more than monthly amount
                 return Err(Error::InsufficientDeposit);
             }
 
@@ -419,7 +422,12 @@ mod ddc {
             let mut subscription: AppSubscription;
 
             if subscription_opt.is_none() || subscription_opt.unwrap().end_date_ms < now {
-                subscription = AppSubscription { start_date_ms: now, end_date_ms: now + 31 * MS_PER_DAY, tier_id, balance: value };
+                subscription = AppSubscription {
+                    start_date_ms: now,
+                    end_date_ms: now + 31 * MS_PER_DAY,
+                    tier_id,
+                    balance: value,
+                };
             } else {
                 subscription = subscription_opt.unwrap().clone();
 
@@ -436,7 +444,6 @@ mod ddc {
             return Ok(());
         }
     }
-
 
     // ---- Admin: Reporters ----
 
@@ -492,9 +499,10 @@ mod ddc {
         }
     }
 
-
     // ---- DDC nodes ----
-    #[derive(Default, Clone, PartialEq, Eq, PartialOrd, Ord, Encode, Decode, SpreadLayout, PackedLayout)]
+    #[derive(
+        Default, Clone, PartialEq, Eq, PartialOrd, Ord, Encode, Decode, SpreadLayout, PackedLayout,
+    )]
     #[cfg_attr(feature = "std", derive(Debug, scale_info::TypeInfo))]
     pub struct DDCNode {
         p2p_id: String,
@@ -527,10 +535,13 @@ mod ddc {
             let caller = self.env().caller();
             self.only_owner(caller)?;
 
-            self.ddc_nodes.insert(p2p_id.clone(), DDCNode {
-                p2p_id: p2p_id.clone(),
-                url: url.clone(),
-            });
+            self.ddc_nodes.insert(
+                p2p_id.clone(),
+                DDCNode {
+                    p2p_id: p2p_id.clone(),
+                    url: url.clone(),
+                },
+            );
             Self::env().emit_event(DDCNodeAdded { p2p_id, url });
 
             Ok(())
@@ -555,16 +566,19 @@ mod ddc {
         }
     }
 
-
     // ---- Metrics Reporting ----
-    #[derive(Default, Clone, PartialEq, Eq, PartialOrd, Ord, Encode, Decode, SpreadLayout, PackedLayout)]
+    #[derive(
+        Default, Clone, PartialEq, Eq, PartialOrd, Ord, Encode, Decode, SpreadLayout, PackedLayout,
+    )]
     #[cfg_attr(feature = "std", derive(Debug, scale_info::TypeInfo))]
     pub struct MetricKey {
         app_id: AccountId,
         day_of_month: u64,
     }
 
-    #[derive(Default, Clone, PartialEq, Eq, PartialOrd, Ord, Encode, Decode, SpreadLayout, PackedLayout)]
+    #[derive(
+        Default, Clone, PartialEq, Eq, PartialOrd, Ord, Encode, Decode, SpreadLayout, PackedLayout,
+    )]
     #[cfg_attr(feature = "std", derive(Debug, scale_info::TypeInfo))]
     pub struct MetricValue {
         stored_bytes: u128,
@@ -603,11 +617,12 @@ mod ddc {
         start_ms: u64,
     }
 
-
     impl Ddc {
         #[ink(message)]
         pub fn metrics_since_subscription(&self, app_id: AccountId) -> Result<MetricValue> {
-            let subscription = self.subscriptions.get(&app_id)
+            let subscription = self
+                .subscriptions
+                .get(&app_id)
                 .ok_or(Error::NoSubscription)?;
 
             let now_ms = Self::env().block_timestamp() as u64;
@@ -616,7 +631,12 @@ mod ddc {
         }
 
         #[ink(message)]
-        pub fn metrics_for_period(&self, app_id: AccountId, start_date_ms: u64, now_ms: u64) -> MetricValue {
+        pub fn metrics_for_period(
+            &self,
+            app_id: AccountId,
+            start_date_ms: u64,
+            now_ms: u64,
+        ) -> MetricValue {
             // The start date may be several month away. When did the current period start?
             let now_days = now_ms / MS_PER_DAY;
             let start_days = start_date_ms / MS_PER_DAY;
@@ -627,7 +647,10 @@ mod ddc {
 
             for day in period_start_days..=now_days {
                 let day_of_month = day % 31;
-                let day_key = MetricKey { app_id, day_of_month };
+                let day_key = MetricKey {
+                    app_id,
+                    day_of_month,
+                };
                 if let Some(day_metrics) = self.metrics.get(&day_key) {
                     month_metrics.add_assign(day_metrics);
                 }
@@ -650,8 +673,14 @@ mod ddc {
             let day = day_start_ms / MS_PER_DAY;
             let day_of_month = day % 31;
 
-            let key = MetricKey { app_id, day_of_month };
-            let metrics = MetricValue { stored_bytes, requests };
+            let key = MetricKey {
+                app_id,
+                day_of_month,
+            };
+            let metrics = MetricValue {
+                stored_bytes,
+                requests,
+            };
 
             /* TODO(Aurel): support starting a new month, and enable this block.
             // If key exists, take the maximum of each metric value.
@@ -680,10 +709,8 @@ mod ddc {
             enforce_time_is_start_of_day(start_ms)?;
             self.current_period_ms = start_ms + MS_PER_DAY;
 
-            self.env().emit_event(MetricPeriodFinalized {
-                reporter,
-                start_ms,
-            });
+            self.env()
+                .emit_event(MetricPeriodFinalized { reporter, start_ms });
 
             Ok(())
         }
@@ -697,14 +724,15 @@ mod ddc {
         pub fn is_within_limit(&self, app_id: AccountId) -> bool {
             let metrics: MetricValue = self.metrics_since_subscription(app_id).unwrap();
             let current_tier_limit = self.tier_limit_of(app_id);
-            if metrics.requests > current_tier_limit[0] || metrics.stored_bytes > current_tier_limit[1] {
+            if metrics.requests > current_tier_limit[0]
+                || metrics.stored_bytes > current_tier_limit[1]
+            {
                 return false;
             }
 
             true
         }
     }
-
 
     // ---- Utils ----
     #[derive(Debug, PartialEq, Eq, scale::Encode)]
@@ -737,10 +765,13 @@ mod ddc {
         }
     }
 
-
     #[cfg(test)]
     mod tests {
-        use ink_env::{call, test, DefaultEnvironment, test::{default_accounts, recorded_events}};
+        use ink_env::{
+            call, test,
+            test::{default_accounts, recorded_events},
+            DefaultEnvironment,
+        };
         use ink_lang as ink;
 
         /// Imports all the definitions from the outer scope so we can use them here.
@@ -760,7 +791,6 @@ mod ddc {
             assert_eq!(contract.tier_deposit(2), 4);
             assert_eq!(contract.tier_deposit(3), 2);
         }
-
 
         /// Test if a function can only be called by the contract admin
         #[ink::test]
@@ -889,7 +919,10 @@ mod ddc {
             assert_eq!(contract.subscribe(3), Ok(()));
             assert_eq!(contract.flip_contract_status(), Ok(()));
             assert_eq!(contract.paused_or_not(), true);
-            assert_eq!(contract.transfer_all_balance(AccountId::from([0x0; 32])), Ok(()));
+            assert_eq!(
+                contract.transfer_all_balance(AccountId::from([0x0; 32])),
+                Ok(())
+            );
             assert_eq!(contract.balance_of_contract(), 0);
         }
 
@@ -913,20 +946,38 @@ mod ddc {
             let reporter_id = accounts.alice;
             let app_id = accounts.charlie;
 
-            let metrics = MetricValue { stored_bytes: 11, requests: 12 };
-            let big_metrics = MetricValue { stored_bytes: 100, requests: 300 };
-            let double_big_metrics = MetricValue { stored_bytes: 200, requests: 600 };
+            let metrics = MetricValue {
+                stored_bytes: 11,
+                requests: 12,
+            };
+            let big_metrics = MetricValue {
+                stored_bytes: 100,
+                requests: 300,
+            };
+            let double_big_metrics = MetricValue {
+                stored_bytes: 200,
+                requests: 600,
+            };
             let some_day = 9999;
             let ms_per_day = 24 * 3600 * 1000;
 
             let today_ms = some_day * ms_per_day; // Midnight time on some day.
-            let today_key = MetricKey { app_id, day_of_month: some_day % 31 };
+            let today_key = MetricKey {
+                app_id,
+                day_of_month: some_day % 31,
+            };
 
             let yesterday_ms = (some_day - 1) * ms_per_day; // Midnight time on some day.
-            let yesterday_key = MetricKey { app_id, day_of_month: (some_day - 1) % 31 };
+            let yesterday_key = MetricKey {
+                app_id,
+                day_of_month: (some_day - 1) % 31,
+            };
 
             let next_month_ms = (some_day + 31) * ms_per_day; // Midnight time on some day.
-            let next_month_key = MetricKey { app_id, day_of_month: (some_day + 31) % 31 };
+            let next_month_key = MetricKey {
+                app_id,
+                day_of_month: (some_day + 31) % 31,
+            };
 
             // Unauthorized report, we are not a reporter.
             let err = contract.report_metrics(app_id, 0, metrics.stored_bytes, metrics.requests);
@@ -934,39 +985,82 @@ mod ddc {
 
             // No metric yet.
             assert_eq!(contract.metrics.get(&today_key), None);
-            assert_eq!(contract.metrics_for_period(app_id, 0, today_ms), MetricValue::default());
+            assert_eq!(
+                contract.metrics_for_period(app_id, 0, today_ms),
+                MetricValue::default()
+            );
 
             // Authorize our admin account to be a reporter too.
             contract.add_reporter(reporter_id).unwrap();
 
             // Wrong day format.
-            let err = contract.report_metrics(app_id, today_ms + 1, metrics.stored_bytes, metrics.requests);
+            let err = contract.report_metrics(
+                app_id,
+                today_ms + 1,
+                metrics.stored_bytes,
+                metrics.requests,
+            );
             assert_eq!(err, Err(Error::UnexpectedTimestamp));
 
             // Store metrics.
-            contract.report_metrics(app_id, yesterday_ms, big_metrics.stored_bytes, big_metrics.requests).unwrap();
-            contract.report_metrics(app_id, today_ms, metrics.stored_bytes, metrics.requests).unwrap();
+            contract
+                .report_metrics(
+                    app_id,
+                    yesterday_ms,
+                    big_metrics.stored_bytes,
+                    big_metrics.requests,
+                )
+                .unwrap();
+            contract
+                .report_metrics(app_id, today_ms, metrics.stored_bytes, metrics.requests)
+                .unwrap();
             assert_eq!(contract.metrics.get(&yesterday_key), Some(&big_metrics));
             assert_eq!(contract.metrics.get(&today_key), Some(&metrics));
 
             // Update with bigger metrics.
-            contract.report_metrics(app_id, today_ms, big_metrics.stored_bytes, big_metrics.requests).unwrap();
+            contract
+                .report_metrics(
+                    app_id,
+                    today_ms,
+                    big_metrics.stored_bytes,
+                    big_metrics.requests,
+                )
+                .unwrap();
             assert_eq!(contract.metrics.get(&today_key), Some(&big_metrics));
 
             // The metrics for the month is yesterday + today, both big_metrics now.
-            assert_eq!(contract.metrics_for_period(app_id, 0, today_ms), double_big_metrics);
-            assert_eq!(contract.metrics_for_period(app_id, yesterday_ms, today_ms), double_big_metrics);
+            assert_eq!(
+                contract.metrics_for_period(app_id, 0, today_ms),
+                double_big_metrics
+            );
+            assert_eq!(
+                contract.metrics_for_period(app_id, yesterday_ms, today_ms),
+                double_big_metrics
+            );
 
             // If the app start date was today, then its metrics would be only today.
-            assert_eq!(contract.metrics_for_period(app_id, today_ms, today_ms), big_metrics);
+            assert_eq!(
+                contract.metrics_for_period(app_id, today_ms, today_ms),
+                big_metrics
+            );
 
             // Update one month later, overwriting the same day slot.
             assert_eq!(contract.metrics.get(&next_month_key), Some(&big_metrics));
-            contract.report_metrics(app_id, next_month_ms, metrics.stored_bytes, metrics.requests).unwrap();
+            contract
+                .report_metrics(
+                    app_id,
+                    next_month_ms,
+                    metrics.stored_bytes,
+                    metrics.requests,
+                )
+                .unwrap();
             assert_eq!(contract.metrics.get(&next_month_key), Some(&metrics));
 
             // Some other account has no metrics.
-            let other_key = MetricKey { app_id: accounts.bob, day_of_month: 0 };
+            let other_key = MetricKey {
+                app_id: accounts.bob,
+                day_of_month: 0,
+            };
             assert_eq!(contract.metrics.get(&other_key), None);
         }
 
@@ -977,7 +1071,10 @@ mod ddc {
             let app_id = accounts.charlie;
 
             // No subscription yet.
-            assert_eq!(contract.metrics_since_subscription(app_id), Err(Error::NoSubscription));
+            assert_eq!(
+                contract.metrics_since_subscription(app_id),
+                Err(Error::NoSubscription)
+            );
 
             // Charlie subscribes for her app. The start date will be 0.
             set_caller(app_id);
@@ -985,12 +1082,24 @@ mod ddc {
             test::pop_execution_context(); // Back to Alice admin.
 
             // Subscription without metrics.
-            assert_eq!(contract.metrics_since_subscription(app_id), Ok(MetricValue { stored_bytes: 0, requests: 0 }));
+            assert_eq!(
+                contract.metrics_since_subscription(app_id),
+                Ok(MetricValue {
+                    stored_bytes: 0,
+                    requests: 0
+                })
+            );
 
             // Subscription with metrics.
             contract.add_reporter(accounts.alice).unwrap();
             contract.report_metrics(app_id, 0, 12, 34).unwrap();
-            assert_eq!(contract.metrics_since_subscription(app_id), Ok(MetricValue { stored_bytes: 12, requests: 34 }));
+            assert_eq!(
+                contract.metrics_since_subscription(app_id),
+                Ok(MetricValue {
+                    stored_bytes: 12,
+                    requests: 34
+                })
+            );
         }
 
         #[ink::test]
@@ -1043,7 +1152,9 @@ mod ddc {
                 panic!("Wrong event type");
             }
 
-            if let Event::ReporterRemoved(ReporterRemoved { reporter }) = decode_event(&raw_events[1]) {
+            if let Event::ReporterRemoved(ReporterRemoved { reporter }) =
+                decode_event(&raw_events[1])
+            {
                 assert_eq!(reporter, new_reporter);
             } else {
                 panic!("Wrong event type");
@@ -1081,20 +1192,22 @@ mod ddc {
             contract.add_ddc_node(p2p_id.clone(), url.clone()).unwrap();
 
             // Should be in the list
-            assert_eq!(contract.get_all_ddc_nodes(), vec![
-                DDCNode {
+            assert_eq!(
+                contract.get_all_ddc_nodes(),
+                vec![DDCNode {
                     p2p_id: p2p_id.clone(),
                     url: url.clone()
-                },
-            ]);
+                },]
+            );
 
             // Should emit event
             let raw_events = recorded_events().collect::<Vec<_>>();
             assert_eq!(1, raw_events.len());
             if let Event::DDCNodeAdded(DDCNodeAdded {
                 p2p_id: event_p2p_id,
-                url: event_url
-            }) = decode_event(&raw_events[0]) {
+                url: event_url,
+            }) = decode_event(&raw_events[0])
+            {
                 assert_eq!(event_p2p_id, p2p_id);
                 assert_eq!(event_url, url);
             } else {
@@ -1148,8 +1261,9 @@ mod ddc {
             let raw_events = recorded_events().collect::<Vec<_>>();
             assert_eq!(2, raw_events.len());
             if let Event::DDCNodeRemoved(DDCNodeRemoved {
-                p2p_id: event_p2p_id
-            }) = decode_event(&raw_events[1]) {
+                p2p_id: event_p2p_id,
+            }) = decode_event(&raw_events[1])
+            {
                 assert_eq!(event_p2p_id, p2p_id);
             } else {
                 panic!("Wrong event type")
@@ -1162,7 +1276,10 @@ mod ddc {
             let mut contract = make_contract();
             let accounts = default_accounts::<DefaultEnvironment>().unwrap();
             let app_id = accounts.alice;
-            let metrics = MetricValue { stored_bytes: 99999, requests: 10 };
+            let metrics = MetricValue {
+                stored_bytes: 99999,
+                requests: 10,
+            };
 
             let some_day = 0;
             let ms_per_day = 24 * 3600 * 1000;
@@ -1174,7 +1291,9 @@ mod ddc {
             assert_eq!(contract.is_within_limit(app_id), true);
 
             contract.add_reporter(accounts.alice).unwrap();
-            contract.report_metrics(app_id, today_ms, metrics.stored_bytes, metrics.requests).unwrap();
+            contract
+                .report_metrics(app_id, today_ms, metrics.stored_bytes, metrics.requests)
+                .unwrap();
 
             assert_eq!(contract.is_within_limit(app_id), false)
         }
@@ -1184,7 +1303,10 @@ mod ddc {
             let mut contract = make_contract();
             let accounts = default_accounts::<DefaultEnvironment>().unwrap();
             let app_id = accounts.alice;
-            let metrics = MetricValue { stored_bytes: 5, requests: 10 };
+            let metrics = MetricValue {
+                stored_bytes: 5,
+                requests: 10,
+            };
             let some_day = 9999;
             let ms_per_day = 24 * 3600 * 1000;
 
@@ -1193,7 +1315,9 @@ mod ddc {
             contract.subscribe(1).unwrap();
 
             contract.add_reporter(accounts.alice).unwrap();
-            contract.report_metrics(app_id, today_ms, metrics.stored_bytes, metrics.requests).unwrap();
+            contract
+                .report_metrics(app_id, today_ms, metrics.stored_bytes, metrics.requests)
+                .unwrap();
 
             assert_eq!(contract.is_within_limit(app_id), true)
         }
