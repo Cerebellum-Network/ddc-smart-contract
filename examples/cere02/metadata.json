@@ -1,7 +1,7 @@
 {
   "metadataVersion": "0.1.0",
   "source": {
-    "hash": "0x4315d7d7dc9d85370f7889ee7c700d826362b1c7c97fa3fb6f5e5ca124e4da6e",
+    "hash": "0x61e810a80bc6587e3aa2e5b8488c9fd015c5a2202b40fd89beb77b0338b65f5d",
     "language": "ink! 3.0.0-rc3",
     "compiler": "rustc 1.53.0-nightly"
   },
@@ -120,7 +120,7 @@
               "displayName": [
                 "Option"
               ],
-              "type": 26
+              "type": 31
             }
           },
           {
@@ -184,6 +184,51 @@
           {
             "docs": [],
             "indexed": true,
+            "name": "p2p_id",
+            "type": {
+              "displayName": [
+                "String"
+              ],
+              "type": 20
+            }
+          },
+          {
+            "docs": [],
+            "indexed": false,
+            "name": "url",
+            "type": {
+              "displayName": [
+                "String"
+              ],
+              "type": 20
+            }
+          }
+        ],
+        "docs": [],
+        "name": "DDCNodeAdded"
+      },
+      {
+        "args": [
+          {
+            "docs": [],
+            "indexed": true,
+            "name": "p2p_id",
+            "type": {
+              "displayName": [
+                "String"
+              ],
+              "type": 20
+            }
+          }
+        ],
+        "docs": [],
+        "name": "DDCNodeRemoved"
+      },
+      {
+        "args": [
+          {
+            "docs": [],
+            "indexed": true,
             "name": "reporter",
             "type": {
               "displayName": [
@@ -200,7 +245,7 @@
               "displayName": [
                 "MetricKey"
               ],
-              "type": 20
+              "type": 24
             }
           },
           {
@@ -211,7 +256,7 @@
               "displayName": [
                 "MetricValue"
               ],
-              "type": 22
+              "type": 26
             }
           }
         ],
@@ -272,7 +317,7 @@
           "displayName": [
             "Result"
           ],
-          "type": 23
+          "type": 27
         },
         "selector": "0x107e33ea"
       },
@@ -321,7 +366,7 @@
           "displayName": [
             "Result"
           ],
-          "type": 23
+          "type": 27
         },
         "selector": "0xa216cc96"
       },
@@ -357,7 +402,7 @@
           "displayName": [
             "Result"
           ],
-          "type": 23
+          "type": 27
         },
         "selector": "0xf41d073f"
       },
@@ -440,7 +485,7 @@
           "displayName": [
             "Result"
           ],
-          "type": 23
+          "type": 27
         },
         "selector": "0x308e4a4c"
       },
@@ -487,7 +532,7 @@
           "displayName": [
             "Result"
           ],
-          "type": 23
+          "type": 27
         },
         "selector": "0xe42d276d"
       },
@@ -602,7 +647,7 @@
           "displayName": [
             "Result"
           ],
-          "type": 23
+          "type": 27
         },
         "selector": "0xfb968a8f"
       },
@@ -654,7 +699,7 @@
           "displayName": [
             "Result"
           ],
-          "type": 23
+          "type": 27
         },
         "selector": "0x5bc40db0"
       },
@@ -680,9 +725,120 @@
           "displayName": [
             "Result"
           ],
-          "type": 23
+          "type": 27
         },
         "selector": "0x38623849"
+      },
+      {
+        "args": [],
+        "docs": [
+          " Return the list of all DDC nodes"
+        ],
+        "mutates": false,
+        "name": [
+          "get_all_ddc_nodes"
+        ],
+        "payable": false,
+        "returnType": {
+          "displayName": [
+            "Vec"
+          ],
+          "type": 29
+        },
+        "selector": "0xe6c98b60"
+      },
+      {
+        "args": [
+          {
+            "name": "p2p_id",
+            "type": {
+              "displayName": [
+                "String"
+              ],
+              "type": 20
+            }
+          },
+          {
+            "name": "url",
+            "type": {
+              "displayName": [
+                "String"
+              ],
+              "type": 20
+            }
+          }
+        ],
+        "docs": [
+          " Add DDC node to the list"
+        ],
+        "mutates": true,
+        "name": [
+          "add_ddc_node"
+        ],
+        "payable": false,
+        "returnType": {
+          "displayName": [
+            "Result"
+          ],
+          "type": 27
+        },
+        "selector": "0x11a9e1b9"
+      },
+      {
+        "args": [
+          {
+            "name": "p2p_id",
+            "type": {
+              "displayName": [
+                "String"
+              ],
+              "type": 20
+            }
+          }
+        ],
+        "docs": [
+          " Check if DDC node is in the list"
+        ],
+        "mutates": false,
+        "name": [
+          "is_ddc_node"
+        ],
+        "payable": false,
+        "returnType": {
+          "displayName": [
+            "bool"
+          ],
+          "type": 4
+        },
+        "selector": "0xa8babfa0"
+      },
+      {
+        "args": [
+          {
+            "name": "p2p_id",
+            "type": {
+              "displayName": [
+                "String"
+              ],
+              "type": 20
+            }
+          }
+        ],
+        "docs": [
+          " Removes DDC node from the list"
+        ],
+        "mutates": true,
+        "name": [
+          "remove_ddc_node"
+        ],
+        "payable": false,
+        "returnType": {
+          "displayName": [
+            "Result"
+          ],
+          "type": 27
+        },
+        "selector": "0xe1aa053e"
       },
       {
         "args": [
@@ -706,7 +862,7 @@
           "displayName": [
             "Result"
           ],
-          "type": 25
+          "type": 30
         },
         "selector": "0xa7e90f2c"
       },
@@ -750,7 +906,7 @@
           "displayName": [
             "MetricValue"
           ],
-          "type": 22
+          "type": 26
         },
         "selector": "0x0f49f085"
       },
@@ -803,7 +959,7 @@
           "displayName": [
             "Result"
           ],
-          "type": 23
+          "type": 27
         },
         "selector": "0x35320bbe"
       },
@@ -829,7 +985,7 @@
           "displayName": [
             "Result"
           ],
-          "type": 23
+          "type": 27
         },
         "selector": "0xb269d557"
       },
@@ -1296,12 +1452,92 @@
               ]
             }
           },
+          "name": "ddc_nodes"
+        },
+        {
+          "layout": {
+            "struct": {
+              "fields": [
+                {
+                  "layout": {
+                    "struct": {
+                      "fields": [
+                        {
+                          "layout": {
+                            "cell": {
+                              "key": "0x0c00000005000000000000000000000000000000000000000000000000000000",
+                              "ty": 5
+                            }
+                          },
+                          "name": "header"
+                        },
+                        {
+                          "layout": {
+                            "struct": {
+                              "fields": [
+                                {
+                                  "layout": {
+                                    "cell": {
+                                      "key": "0x0d00000005000000000000000000000000000000000000000000000000000000",
+                                      "ty": 6
+                                    }
+                                  },
+                                  "name": "len"
+                                },
+                                {
+                                  "layout": {
+                                    "array": {
+                                      "cellsPerElem": 1,
+                                      "layout": {
+                                        "cell": {
+                                          "key": "0x0d00000006000000000000000000000000000000000000000000000000000000",
+                                          "ty": 23
+                                        }
+                                      },
+                                      "len": 4294967295,
+                                      "offset": "0x0e00000005000000000000000000000000000000000000000000000000000000"
+                                    }
+                                  },
+                                  "name": "elems"
+                                }
+                              ]
+                            }
+                          },
+                          "name": "entries"
+                        }
+                      ]
+                    }
+                  },
+                  "name": "keys"
+                },
+                {
+                  "layout": {
+                    "hash": {
+                      "layout": {
+                        "cell": {
+                          "key": "0x0e00000006000000000000000000000000000000000000000000000000000000",
+                          "ty": 25
+                        }
+                      },
+                      "offset": "0x0d00000006000000000000000000000000000000000000000000000000000000",
+                      "strategy": {
+                        "hasher": "Blake2x256",
+                        "postfix": "",
+                        "prefix": "0x696e6b20686173686d6170"
+                      }
+                    }
+                  },
+                  "name": "values"
+                }
+              ]
+            }
+          },
           "name": "metrics"
         },
         {
           "layout": {
             "cell": {
-              "key": "0x0c00000005000000000000000000000000000000000000000000000000000000",
+              "key": "0x0e00000006000000000000000000000000000000000000000000000000000000",
               "ty": 16
             }
           },
@@ -1674,6 +1910,96 @@
     },
     {
       "def": {
+        "primitive": "str"
+      }
+    },
+    {
+      "def": {
+        "composite": {
+          "fields": [
+            {
+              "name": "value",
+              "type": 22,
+              "typeName": "V"
+            },
+            {
+              "name": "key_index",
+              "type": 6,
+              "typeName": "KeyIndex"
+            }
+          ]
+        }
+      },
+      "params": [
+        22
+      ],
+      "path": [
+        "ink_storage",
+        "collections",
+        "hashmap",
+        "ValueEntry"
+      ]
+    },
+    {
+      "def": {
+        "composite": {
+          "fields": [
+            {
+              "name": "p2p_id",
+              "type": 20,
+              "typeName": "String"
+            },
+            {
+              "name": "url",
+              "type": 20,
+              "typeName": "String"
+            }
+          ]
+        }
+      },
+      "path": [
+        "ddc",
+        "ddc",
+        "DDCNode"
+      ]
+    },
+    {
+      "def": {
+        "variant": {
+          "variants": [
+            {
+              "fields": [
+                {
+                  "type": 9,
+                  "typeName": "VacantEntry"
+                }
+              ],
+              "name": "Vacant"
+            },
+            {
+              "fields": [
+                {
+                  "type": 24,
+                  "typeName": "T"
+                }
+              ],
+              "name": "Occupied"
+            }
+          ]
+        }
+      },
+      "params": [
+        24
+      ],
+      "path": [
+        "ink_storage",
+        "collections",
+        "stash",
+        "Entry"
+      ]
+    },
+    {
+      "def": {
         "composite": {
           "fields": [
             {
@@ -1701,7 +2027,7 @@
           "fields": [
             {
               "name": "value",
-              "type": 22,
+              "type": 26,
               "typeName": "V"
             },
             {
@@ -1713,7 +2039,7 @@
         }
       },
       "params": [
-        22
+        26
       ],
       "path": [
         "ink_storage",
@@ -1761,7 +2087,7 @@
             {
               "fields": [
                 {
-                  "type": 24,
+                  "type": 28,
                   "typeName": "E"
                 }
               ],
@@ -1772,7 +2098,7 @@
       },
       "params": [
         18,
-        24
+        28
       ],
       "path": [
         "Result"
@@ -1845,12 +2171,19 @@
     },
     {
       "def": {
+        "sequence": {
+          "type": 22
+        }
+      }
+    },
+    {
+      "def": {
         "variant": {
           "variants": [
             {
               "fields": [
                 {
-                  "type": 22,
+                  "type": 26,
                   "typeName": "T"
                 }
               ],
@@ -1859,7 +2192,7 @@
             {
               "fields": [
                 {
-                  "type": 24,
+                  "type": 28,
                   "typeName": "E"
                 }
               ],
@@ -1869,8 +2202,8 @@
         }
       },
       "params": [
-        22,
-        24
+        26,
+        28
       ],
       "path": [
         "Result"
