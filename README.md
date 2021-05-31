@@ -9,6 +9,11 @@ This doc will explain:
 ## Release Notes
 #### vNext
 * ...
+#### v1.1.0
+* Clean up the contract
+* Added DDC Nodes API: add/list/delete
+* Removed revoke_membership
+* Removed token
 #### v1.0.0
 * DDC Smart Contract v1.0.0
     * Basic functionality added
