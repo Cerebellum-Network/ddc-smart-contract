@@ -136,33 +136,28 @@ mod ddc {
             self.env().balance()
         }
 
-        /// Given a destination account, transfer all the contract balance to it
-        /// only contract owner can call this function
-        /// destination account can be the same as the contract owner
-        /// return OK or an error
+        /// As owner, withdraw tokens to the given account. The destination account can be the same
+        /// as the contract owner. Some balance must be left in the contract as subsistence deposit.
         #[ink(message)]
-        pub fn transfer_all_balance(
-            &mut self,
-            destination: AccountId,
-            transaction_fee: Balance,
-        ) -> Result<()> {
-            self.only_not_active()?;
+        pub fn withdraw(&mut self, destination: AccountId, amount: Balance) -> Result<()> {
             let caller = self.env().caller();
             self.only_owner(caller)?;
 
-            if transaction_fee <= 0 {
-                return Err(Error::ZeroFee);
+            if destination == AccountId::default() {
+                return Err(Error::InvalidAccount);
             }
 
-            let contract_bal = self.env().balance();
+            // Check that the amount requested is *strictly* less than the contract balance.
+            // If it is exactly the same, it is probably an error because then the contract
+            // will not have any deposit left for its subsistence.
+            if self.env().balance() <= amount {
+                return Err(Error::InsufficientBalance);
+            }
 
-            match self
-                .env()
-                .transfer(destination, contract_bal - transaction_fee)
-            {
-                Err(_e) => return Err(Error::TransferFailed),
-                Ok(_v) => return Ok(()),
-            };
+            match self.env().transfer(destination, amount) {
+                Err(_e) => Err(Error::TransferFailed),
+                Ok(_v) => Ok(()),
+            }
         }
     }
 
@@ -180,14 +175,6 @@ mod ddc {
                 Ok(())
             } else {
                 return Err(Error::ContractPaused);
-            }
-        }
-
-        fn only_not_active(&self) -> Result<()> {
-            if self.pause == true {
-                Ok(())
-            } else {
-                return Err(Error::ContractActive);
             }
         }
 
@@ -753,7 +740,8 @@ mod ddc {
         InsufficientDeposit,
         TransferFailed,
         ZeroBalance,
-        ZeroFee,
+        InsufficientBalance,
+        InvalidAccount,
         OverLimit,
         TidOutOfBound,
         ContractPaused,
@@ -776,11 +764,11 @@ mod ddc {
 
     #[cfg(test)]
     mod tests {
-        use crate::ddc::Error::OnlyOwner;
+        use crate::ddc::Error::*;
         use ink_env::{
             call, test,
             test::{default_accounts, recorded_events},
-            DefaultEnvironment,
+            AccountId, DefaultEnvironment,
         };
         use ink_lang as ink;
 
@@ -924,38 +912,38 @@ mod ddc {
 
         /// Test the contract owner can transfer all the balance out of the contract after it is paused
         #[ink::test]
-        fn transfer_all_balance_works() {
+        fn withdraw_works() {
             let mut contract = Ddc::new(2, 2000, 2000, 4, 4000, 4000, 8, 8000, 800);
+            let accounts = default_accounts::<DefaultEnvironment>().unwrap();
 
             // Endownment equivalence. Inititalize SC address with balance 1000
-            let contract_id =
-                ink_env::test::get_current_contract_account_id::<ink_env::DefaultEnvironment>();
-            ink_env::test::set_account_balance::<ink_env::DefaultEnvironment>(
-                contract_id.unwrap(),
-                1000,
-            )?;
+            set_balance(contract_id(), 1000);
+            set_balance(accounts.bob, 0);
+            assert_eq!(balance_of(contract_id()), 1000);
 
-            assert_eq!(contract.subscribe(3), Ok(()));
-            assert_eq!(contract.flip_contract_status(), Ok(()));
-            assert_eq!(contract.paused_or_not(), true);
-            assert_eq!(contract.balance_of_contract(), 1000);
+            // Non-owner cannot withdraw.
+            set_caller(accounts.bob);
+            assert_eq!(contract.withdraw(accounts.bob, 200), Err(OnlyOwner));
+            assert_eq!(balance_of(contract_id()), 1000);
+            undo_set_caller(); // Back to Alice owner.
 
-            // Transfer all works
+            // Cannot withdraw to the zero account by mistake.
             assert_eq!(
-                contract.transfer_all_balance(AccountId::from([0x0; 32]), 500),
-                Ok(())
+                contract.withdraw(AccountId::default(), 200),
+                Err(InvalidAccount)
             );
-            assert_eq!(contract.balance_of_contract(), 500);
 
-            // Transfer all not works in case of not owner call
-            let accounts = default_accounts::<DefaultEnvironment>().unwrap();
-            let app_id = accounts.charlie;
-            set_caller(app_id);
+            // Cannot withdraw the entire balance by mistake.
             assert_eq!(
-                contract.transfer_all_balance(AccountId::from([0x0; 32]), 200),
-                Err(OnlyOwner)
+                contract.withdraw(accounts.bob, 1000),
+                Err(InsufficientBalance)
             );
-            assert_eq!(contract.balance_of_contract(), 500);
+
+            // Can withdraw some tokens.
+            assert_eq!(contract.withdraw(accounts.bob, 200), Ok(()));
+            assert_eq!(balance_of(accounts.bob), 200);
+            assert_eq!(balance_of(contract_id()), 800);
+            assert_eq!(contract.balance_of_contract(), 800);
         }
 
         /// Sets the caller
@@ -969,6 +957,23 @@ mod ddc {
                 1000000,
                 test::CallData::new(call::Selector::new([0x00; 4])), // dummy
             );
+        }
+
+        fn undo_set_caller() {
+            test::pop_execution_context();
+        }
+
+        fn balance_of(account: AccountId) -> Balance {
+            test::get_account_balance::<ink_env::DefaultEnvironment>(account).unwrap()
+        }
+
+        fn set_balance(account: AccountId, balance: Balance) {
+            ink_env::test::set_account_balance::<ink_env::DefaultEnvironment>(account, balance)
+                .unwrap();
+        }
+
+        fn contract_id() -> AccountId {
+            ink_env::test::get_current_contract_account_id::<ink_env::DefaultEnvironment>().unwrap()
         }
 
         #[ink::test]
@@ -1111,7 +1116,7 @@ mod ddc {
             // Charlie subscribes for her app. The start date will be 0.
             set_caller(app_id);
             contract.subscribe(1).unwrap();
-            test::pop_execution_context(); // Back to Alice admin.
+            undo_set_caller(); // Back to Alice admin.
 
             // Subscription without metrics.
             assert_eq!(
