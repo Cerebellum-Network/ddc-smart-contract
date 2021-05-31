@@ -141,20 +141,28 @@ mod ddc {
         /// destination account can be the same as the contract owner
         /// return OK or an error
         #[ink(message)]
-        pub fn transfer_all_balance(&mut self, destination: AccountId) -> Result<()> {
+        pub fn transfer_all_balance(
+            &mut self,
+            destination: AccountId,
+            transaction_fee: Balance,
+        ) -> Result<()> {
             self.only_not_active()?;
             let caller = self.env().caller();
             self.only_owner(caller)?;
+
+            if transaction_fee <= 0 {
+                return Err(Error::ZeroFee);
+            }
+
             let contract_bal = self.env().balance();
-            // ink! transfer emit a panic!, the function below doesn't work, at least with this nightly build
-            // self.env().transfer(destination, contract_bal).expect("pay out failure");
 
-            let _result = match self.env().transfer(destination, contract_bal) {
-                Err(_e) => Err(Error::TransferFailed),
-                Ok(_v) => Ok(()),
+            match self
+                .env()
+                .transfer(destination, contract_bal - transaction_fee)
+            {
+                Err(_e) => return Err(Error::TransferFailed),
+                Ok(_v) => return Ok(()),
             };
-
-            Ok(())
         }
     }
 
@@ -745,6 +753,7 @@ mod ddc {
         InsufficientDeposit,
         TransferFailed,
         ZeroBalance,
+        ZeroFee,
         OverLimit,
         TidOutOfBound,
         ContractPaused,
@@ -767,6 +776,7 @@ mod ddc {
 
     #[cfg(test)]
     mod tests {
+        use crate::ddc::Error::OnlyOwner;
         use ink_env::{
             call, test,
             test::{default_accounts, recorded_events},
@@ -916,14 +926,36 @@ mod ddc {
         #[ink::test]
         fn transfer_all_balance_works() {
             let mut contract = Ddc::new(2, 2000, 2000, 4, 4000, 4000, 8, 8000, 800);
+
+            // Endownment equivalence. Inititalize SC address with balance 1000
+            let contract_id =
+                ink_env::test::get_current_contract_account_id::<ink_env::DefaultEnvironment>();
+            ink_env::test::set_account_balance::<ink_env::DefaultEnvironment>(
+                contract_id.unwrap(),
+                1000,
+            )?;
+
             assert_eq!(contract.subscribe(3), Ok(()));
             assert_eq!(contract.flip_contract_status(), Ok(()));
             assert_eq!(contract.paused_or_not(), true);
+            assert_eq!(contract.balance_of_contract(), 1000);
+
+            // Transfer all works
             assert_eq!(
-                contract.transfer_all_balance(AccountId::from([0x0; 32])),
+                contract.transfer_all_balance(AccountId::from([0x0; 32]), 500),
                 Ok(())
             );
-            assert_eq!(contract.balance_of_contract(), 0);
+            assert_eq!(contract.balance_of_contract(), 500);
+
+            // Transfer all not works in case of not owner call
+            let accounts = default_accounts::<DefaultEnvironment>().unwrap();
+            let app_id = accounts.charlie;
+            set_caller(app_id);
+            assert_eq!(
+                contract.transfer_all_balance(AccountId::from([0x0; 32]), 200),
+                Err(OnlyOwner)
+            );
+            assert_eq!(contract.balance_of_contract(), 500);
         }
 
         /// Sets the caller

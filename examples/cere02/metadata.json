@@ -1,7 +1,7 @@
 {
   "metadataVersion": "0.1.0",
   "source": {
-    "hash": "0x61e810a80bc6587e3aa2e5b8488c9fd015c5a2202b40fd89beb77b0338b65f5d",
+    "hash": "0xbc176013decc5cce9a67796ec1b7c9f967198546bdbafc65d8caae7a720cc954",
     "language": "ink! 3.0.0-rc3",
     "compiler": "rustc 1.53.0-nightly"
   },
@@ -22,7 +22,7 @@
               "displayName": [
                 "Balance"
               ],
-              "type": 8
+              "type": 9
             }
           },
           {
@@ -31,7 +31,7 @@
               "displayName": [
                 "u128"
               ],
-              "type": 8
+              "type": 9
             }
           },
           {
@@ -40,7 +40,7 @@
               "displayName": [
                 "u128"
               ],
-              "type": 8
+              "type": 9
             }
           },
           {
@@ -49,7 +49,7 @@
               "displayName": [
                 "Balance"
               ],
-              "type": 8
+              "type": 9
             }
           },
           {
@@ -58,7 +58,7 @@
               "displayName": [
                 "u128"
               ],
-              "type": 8
+              "type": 9
             }
           },
           {
@@ -67,7 +67,7 @@
               "displayName": [
                 "u128"
               ],
-              "type": 8
+              "type": 9
             }
           },
           {
@@ -76,7 +76,7 @@
               "displayName": [
                 "Balance"
               ],
-              "type": 8
+              "type": 9
             }
           },
           {
@@ -85,7 +85,7 @@
               "displayName": [
                 "u128"
               ],
-              "type": 8
+              "type": 9
             }
           },
           {
@@ -94,13 +94,22 @@
               "displayName": [
                 "u128"
               ],
-              "type": 8
+              "type": 9
+            }
+          },
+          {
+            "name": "symbol",
+            "type": {
+              "displayName": [
+                "String"
+              ],
+              "type": 5
             }
           }
         ],
         "docs": [
           "Constructor that initializes the contract",
-          "Give tier3fee, tier3limit, tier2fee, tier2limit, tier1fee, and tier1 limit to initialize"
+          "Give tier3fee, tier3limit, tier2fee, tier2limit, tier1fee, tier1 limit, and a symbol to initialize"
         ],
         "name": [
           "new"
@@ -120,7 +129,7 @@
               "displayName": [
                 "Option"
               ],
-              "type": 31
+              "type": 27
             }
           },
           {
@@ -131,7 +140,7 @@
               "displayName": [
                 "Balance"
               ],
-              "type": 8
+              "type": 9
             }
           }
         ],
@@ -184,51 +193,6 @@
           {
             "docs": [],
             "indexed": true,
-            "name": "p2p_id",
-            "type": {
-              "displayName": [
-                "String"
-              ],
-              "type": 20
-            }
-          },
-          {
-            "docs": [],
-            "indexed": false,
-            "name": "url",
-            "type": {
-              "displayName": [
-                "String"
-              ],
-              "type": 20
-            }
-          }
-        ],
-        "docs": [],
-        "name": "DDCNodeAdded"
-      },
-      {
-        "args": [
-          {
-            "docs": [],
-            "indexed": true,
-            "name": "p2p_id",
-            "type": {
-              "displayName": [
-                "String"
-              ],
-              "type": 20
-            }
-          }
-        ],
-        "docs": [],
-        "name": "DDCNodeRemoved"
-      },
-      {
-        "args": [
-          {
-            "docs": [],
-            "indexed": true,
             "name": "reporter",
             "type": {
               "displayName": [
@@ -245,7 +209,7 @@
               "displayName": [
                 "MetricKey"
               ],
-              "type": 24
+              "type": 21
             }
           },
           {
@@ -256,7 +220,7 @@
               "displayName": [
                 "MetricValue"
               ],
-              "type": 26
+              "type": 23
             }
           }
         ],
@@ -284,7 +248,7 @@
               "displayName": [
                 "u64"
               ],
-              "type": 16
+              "type": 17
             }
           }
         ],
@@ -317,7 +281,7 @@
           "displayName": [
             "Result"
           ],
-          "type": 27
+          "type": 24
         },
         "selector": "0x107e33ea"
       },
@@ -335,9 +299,27 @@
           "displayName": [
             "Balance"
           ],
-          "type": 8
+          "type": 9
         },
         "selector": "0x1c18c110"
+      },
+      {
+        "args": [],
+        "docs": [
+          " Return the contract symbol"
+        ],
+        "mutates": false,
+        "name": [
+          "token_symbol"
+        ],
+        "payable": false,
+        "returnType": {
+          "displayName": [
+            "String"
+          ],
+          "type": 5
+        },
+        "selector": "0xd733ea17"
       },
       {
         "args": [
@@ -348,6 +330,15 @@
                 "AccountId"
               ],
               "type": 1
+            }
+          },
+          {
+            "name": "transaction_fee",
+            "type": {
+              "displayName": [
+                "Balance"
+              ],
+              "type": 9
             }
           }
         ],
@@ -366,9 +357,39 @@
           "displayName": [
             "Result"
           ],
-          "type": 27
+          "type": 24
         },
         "selector": "0xa216cc96"
+      },
+      {
+        "args": [
+          {
+            "name": "member",
+            "type": {
+              "displayName": [
+                "AccountId"
+              ],
+              "type": 1
+            }
+          }
+        ],
+        "docs": [
+          " given an account id, revoke its membership by clearing its balance;",
+          " only the contract owner can call this function",
+          " return ok or error"
+        ],
+        "mutates": true,
+        "name": [
+          "revoke_membership"
+        ],
+        "payable": false,
+        "returnType": {
+          "displayName": [
+            "Result"
+          ],
+          "type": 24
+        },
+        "selector": "0x75754820"
       },
       {
         "args": [],
@@ -402,7 +423,7 @@
           "displayName": [
             "Result"
           ],
-          "type": 27
+          "type": 24
         },
         "selector": "0xf41d073f"
       },
@@ -414,7 +435,7 @@
               "displayName": [
                 "u128"
               ],
-              "type": 8
+              "type": 9
             }
           }
         ],
@@ -431,7 +452,7 @@
           "displayName": [
             "Balance"
           ],
-          "type": 8
+          "type": 9
         },
         "selector": "0xd9e1c06a"
       },
@@ -447,7 +468,7 @@
           "displayName": [
             "Vec"
           ],
-          "type": 11
+          "type": 12
         },
         "selector": "0x89d28b25"
       },
@@ -459,7 +480,7 @@
               "displayName": [
                 "u128"
               ],
-              "type": 8
+              "type": 9
             }
           },
           {
@@ -468,7 +489,7 @@
               "displayName": [
                 "Balance"
               ],
-              "type": 8
+              "type": 9
             }
           }
         ],
@@ -485,7 +506,7 @@
           "displayName": [
             "Result"
           ],
-          "type": 27
+          "type": 24
         },
         "selector": "0x308e4a4c"
       },
@@ -497,7 +518,7 @@
               "displayName": [
                 "u128"
               ],
-              "type": 8
+              "type": 9
             }
           },
           {
@@ -506,7 +527,7 @@
               "displayName": [
                 "u128"
               ],
-              "type": 8
+              "type": 9
             }
           },
           {
@@ -515,7 +536,7 @@
               "displayName": [
                 "u128"
               ],
-              "type": 8
+              "type": 9
             }
           }
         ],
@@ -532,7 +553,7 @@
           "displayName": [
             "Result"
           ],
-          "type": 27
+          "type": 24
         },
         "selector": "0xe42d276d"
       },
@@ -561,7 +582,7 @@
           "displayName": [
             "Balance"
           ],
-          "type": 8
+          "type": 9
         },
         "selector": "0x0f755a56"
       },
@@ -589,7 +610,7 @@
           "displayName": [
             "u128"
           ],
-          "type": 8
+          "type": 9
         },
         "selector": "0x1d525bff"
       },
@@ -617,7 +638,7 @@
           "displayName": [
             "Vec"
           ],
-          "type": 11
+          "type": 12
         },
         "selector": "0xe0116f7d"
       },
@@ -629,7 +650,7 @@
               "displayName": [
                 "u128"
               ],
-              "type": 8
+              "type": 9
             }
           }
         ],
@@ -647,7 +668,7 @@
           "displayName": [
             "Result"
           ],
-          "type": 27
+          "type": 24
         },
         "selector": "0xfb968a8f"
       },
@@ -699,7 +720,7 @@
           "displayName": [
             "Result"
           ],
-          "type": 27
+          "type": 24
         },
         "selector": "0x5bc40db0"
       },
@@ -725,120 +746,9 @@
           "displayName": [
             "Result"
           ],
-          "type": 27
+          "type": 24
         },
         "selector": "0x38623849"
-      },
-      {
-        "args": [],
-        "docs": [
-          " Return the list of all DDC nodes"
-        ],
-        "mutates": false,
-        "name": [
-          "get_all_ddc_nodes"
-        ],
-        "payable": false,
-        "returnType": {
-          "displayName": [
-            "Vec"
-          ],
-          "type": 29
-        },
-        "selector": "0xe6c98b60"
-      },
-      {
-        "args": [
-          {
-            "name": "p2p_id",
-            "type": {
-              "displayName": [
-                "String"
-              ],
-              "type": 20
-            }
-          },
-          {
-            "name": "url",
-            "type": {
-              "displayName": [
-                "String"
-              ],
-              "type": 20
-            }
-          }
-        ],
-        "docs": [
-          " Add DDC node to the list"
-        ],
-        "mutates": true,
-        "name": [
-          "add_ddc_node"
-        ],
-        "payable": false,
-        "returnType": {
-          "displayName": [
-            "Result"
-          ],
-          "type": 27
-        },
-        "selector": "0x11a9e1b9"
-      },
-      {
-        "args": [
-          {
-            "name": "p2p_id",
-            "type": {
-              "displayName": [
-                "String"
-              ],
-              "type": 20
-            }
-          }
-        ],
-        "docs": [
-          " Check if DDC node is in the list"
-        ],
-        "mutates": false,
-        "name": [
-          "is_ddc_node"
-        ],
-        "payable": false,
-        "returnType": {
-          "displayName": [
-            "bool"
-          ],
-          "type": 4
-        },
-        "selector": "0xa8babfa0"
-      },
-      {
-        "args": [
-          {
-            "name": "p2p_id",
-            "type": {
-              "displayName": [
-                "String"
-              ],
-              "type": 20
-            }
-          }
-        ],
-        "docs": [
-          " Removes DDC node from the list"
-        ],
-        "mutates": true,
-        "name": [
-          "remove_ddc_node"
-        ],
-        "payable": false,
-        "returnType": {
-          "displayName": [
-            "Result"
-          ],
-          "type": 27
-        },
-        "selector": "0xe1aa053e"
       },
       {
         "args": [
@@ -862,7 +772,7 @@
           "displayName": [
             "Result"
           ],
-          "type": 30
+          "type": 26
         },
         "selector": "0xa7e90f2c"
       },
@@ -883,7 +793,7 @@
               "displayName": [
                 "u64"
               ],
-              "type": 16
+              "type": 17
             }
           },
           {
@@ -892,7 +802,7 @@
               "displayName": [
                 "u64"
               ],
-              "type": 16
+              "type": 17
             }
           }
         ],
@@ -906,7 +816,7 @@
           "displayName": [
             "MetricValue"
           ],
-          "type": 26
+          "type": 23
         },
         "selector": "0x0f49f085"
       },
@@ -927,7 +837,7 @@
               "displayName": [
                 "u64"
               ],
-              "type": 16
+              "type": 17
             }
           },
           {
@@ -936,7 +846,7 @@
               "displayName": [
                 "u128"
               ],
-              "type": 8
+              "type": 9
             }
           },
           {
@@ -945,7 +855,7 @@
               "displayName": [
                 "u128"
               ],
-              "type": 8
+              "type": 9
             }
           }
         ],
@@ -959,7 +869,7 @@
           "displayName": [
             "Result"
           ],
-          "type": 27
+          "type": 24
         },
         "selector": "0x35320bbe"
       },
@@ -971,7 +881,7 @@
               "displayName": [
                 "u64"
               ],
-              "type": 16
+              "type": 17
             }
           }
         ],
@@ -985,7 +895,7 @@
           "displayName": [
             "Result"
           ],
-          "type": 27
+          "type": 24
         },
         "selector": "0xb269d557"
       },
@@ -1001,7 +911,7 @@
           "displayName": [
             "u64"
           ],
-          "type": 16
+          "type": 17
         },
         "selector": "0xace4ecb3"
       },
@@ -1056,6 +966,15 @@
         },
         {
           "layout": {
+            "cell": {
+              "key": "0x0200000000000000000000000000000000000000000000000000000000000000",
+              "ty": 5
+            }
+          },
+          "name": "symbol"
+        },
+        {
+          "layout": {
             "struct": {
               "fields": [
                 {
@@ -1065,8 +984,8 @@
                         {
                           "layout": {
                             "cell": {
-                              "key": "0x0200000000000000000000000000000000000000000000000000000000000000",
-                              "ty": 5
+                              "key": "0x0300000000000000000000000000000000000000000000000000000000000000",
+                              "ty": 6
                             }
                           },
                           "name": "header"
@@ -1078,8 +997,8 @@
                                 {
                                   "layout": {
                                     "cell": {
-                                      "key": "0x0300000000000000000000000000000000000000000000000000000000000000",
-                                      "ty": 6
+                                      "key": "0x0400000000000000000000000000000000000000000000000000000000000000",
+                                      "ty": 7
                                     }
                                   },
                                   "name": "len"
@@ -1090,12 +1009,12 @@
                                       "cellsPerElem": 1,
                                       "layout": {
                                         "cell": {
-                                          "key": "0x0300000001000000000000000000000000000000000000000000000000000000",
-                                          "ty": 7
+                                          "key": "0x0400000001000000000000000000000000000000000000000000000000000000",
+                                          "ty": 8
                                         }
                                       },
                                       "len": 4294967295,
-                                      "offset": "0x0400000000000000000000000000000000000000000000000000000000000000"
+                                      "offset": "0x0500000000000000000000000000000000000000000000000000000000000000"
                                     }
                                   },
                                   "name": "elems"
@@ -1115,11 +1034,11 @@
                     "hash": {
                       "layout": {
                         "cell": {
-                          "key": "0x0400000001000000000000000000000000000000000000000000000000000000",
-                          "ty": 10
+                          "key": "0x0500000001000000000000000000000000000000000000000000000000000000",
+                          "ty": 11
                         }
                       },
-                      "offset": "0x0300000001000000000000000000000000000000000000000000000000000000",
+                      "offset": "0x0400000001000000000000000000000000000000000000000000000000000000",
                       "strategy": {
                         "hasher": "Blake2x256",
                         "postfix": "",
@@ -1145,8 +1064,8 @@
                         {
                           "layout": {
                             "cell": {
-                              "key": "0x0400000001000000000000000000000000000000000000000000000000000000",
-                              "ty": 5
+                              "key": "0x0500000001000000000000000000000000000000000000000000000000000000",
+                              "ty": 6
                             }
                           },
                           "name": "header"
@@ -1158,8 +1077,8 @@
                                 {
                                   "layout": {
                                     "cell": {
-                                      "key": "0x0500000001000000000000000000000000000000000000000000000000000000",
-                                      "ty": 6
+                                      "key": "0x0600000001000000000000000000000000000000000000000000000000000000",
+                                      "ty": 7
                                     }
                                   },
                                   "name": "len"
@@ -1170,12 +1089,12 @@
                                       "cellsPerElem": 1,
                                       "layout": {
                                         "cell": {
-                                          "key": "0x0500000002000000000000000000000000000000000000000000000000000000",
-                                          "ty": 12
+                                          "key": "0x0600000002000000000000000000000000000000000000000000000000000000",
+                                          "ty": 13
                                         }
                                       },
                                       "len": 4294967295,
-                                      "offset": "0x0600000001000000000000000000000000000000000000000000000000000000"
+                                      "offset": "0x0700000001000000000000000000000000000000000000000000000000000000"
                                     }
                                   },
                                   "name": "elems"
@@ -1195,11 +1114,11 @@
                     "hash": {
                       "layout": {
                         "cell": {
-                          "key": "0x0600000002000000000000000000000000000000000000000000000000000000",
-                          "ty": 13
+                          "key": "0x0700000002000000000000000000000000000000000000000000000000000000",
+                          "ty": 14
                         }
                       },
-                      "offset": "0x0500000002000000000000000000000000000000000000000000000000000000",
+                      "offset": "0x0600000002000000000000000000000000000000000000000000000000000000",
                       "strategy": {
                         "hasher": "Blake2x256",
                         "postfix": "",
@@ -1225,8 +1144,8 @@
                         {
                           "layout": {
                             "cell": {
-                              "key": "0x0600000002000000000000000000000000000000000000000000000000000000",
-                              "ty": 5
+                              "key": "0x0700000002000000000000000000000000000000000000000000000000000000",
+                              "ty": 6
                             }
                           },
                           "name": "header"
@@ -1238,8 +1157,8 @@
                                 {
                                   "layout": {
                                     "cell": {
-                                      "key": "0x0700000002000000000000000000000000000000000000000000000000000000",
-                                      "ty": 6
+                                      "key": "0x0800000002000000000000000000000000000000000000000000000000000000",
+                                      "ty": 7
                                     }
                                   },
                                   "name": "len"
@@ -1250,12 +1169,12 @@
                                       "cellsPerElem": 1,
                                       "layout": {
                                         "cell": {
-                                          "key": "0x0700000003000000000000000000000000000000000000000000000000000000",
-                                          "ty": 12
+                                          "key": "0x0800000003000000000000000000000000000000000000000000000000000000",
+                                          "ty": 13
                                         }
                                       },
                                       "len": 4294967295,
-                                      "offset": "0x0800000002000000000000000000000000000000000000000000000000000000"
+                                      "offset": "0x0900000002000000000000000000000000000000000000000000000000000000"
                                     }
                                   },
                                   "name": "elems"
@@ -1275,11 +1194,11 @@
                     "hash": {
                       "layout": {
                         "cell": {
-                          "key": "0x0800000003000000000000000000000000000000000000000000000000000000",
-                          "ty": 14
+                          "key": "0x0900000003000000000000000000000000000000000000000000000000000000",
+                          "ty": 15
                         }
                       },
-                      "offset": "0x0700000003000000000000000000000000000000000000000000000000000000",
+                      "offset": "0x0800000003000000000000000000000000000000000000000000000000000000",
                       "strategy": {
                         "hasher": "Blake2x256",
                         "postfix": "",
@@ -1305,8 +1224,8 @@
                         {
                           "layout": {
                             "cell": {
-                              "key": "0x0800000003000000000000000000000000000000000000000000000000000000",
-                              "ty": 5
+                              "key": "0x0900000003000000000000000000000000000000000000000000000000000000",
+                              "ty": 6
                             }
                           },
                           "name": "header"
@@ -1318,8 +1237,8 @@
                                 {
                                   "layout": {
                                     "cell": {
-                                      "key": "0x0900000003000000000000000000000000000000000000000000000000000000",
-                                      "ty": 6
+                                      "key": "0x0a00000003000000000000000000000000000000000000000000000000000000",
+                                      "ty": 7
                                     }
                                   },
                                   "name": "len"
@@ -1330,12 +1249,12 @@
                                       "cellsPerElem": 1,
                                       "layout": {
                                         "cell": {
-                                          "key": "0x0900000004000000000000000000000000000000000000000000000000000000",
-                                          "ty": 12
+                                          "key": "0x0a00000004000000000000000000000000000000000000000000000000000000",
+                                          "ty": 13
                                         }
                                       },
                                       "len": 4294967295,
-                                      "offset": "0x0a00000003000000000000000000000000000000000000000000000000000000"
+                                      "offset": "0x0b00000003000000000000000000000000000000000000000000000000000000"
                                     }
                                   },
                                   "name": "elems"
@@ -1355,11 +1274,11 @@
                     "hash": {
                       "layout": {
                         "cell": {
-                          "key": "0x0a00000004000000000000000000000000000000000000000000000000000000",
-                          "ty": 17
+                          "key": "0x0b00000004000000000000000000000000000000000000000000000000000000",
+                          "ty": 18
                         }
                       },
-                      "offset": "0x0900000004000000000000000000000000000000000000000000000000000000",
+                      "offset": "0x0a00000004000000000000000000000000000000000000000000000000000000",
                       "strategy": {
                         "hasher": "Blake2x256",
                         "postfix": "",
@@ -1385,8 +1304,8 @@
                         {
                           "layout": {
                             "cell": {
-                              "key": "0x0a00000004000000000000000000000000000000000000000000000000000000",
-                              "ty": 5
+                              "key": "0x0b00000004000000000000000000000000000000000000000000000000000000",
+                              "ty": 6
                             }
                           },
                           "name": "header"
@@ -1398,8 +1317,8 @@
                                 {
                                   "layout": {
                                     "cell": {
-                                      "key": "0x0b00000004000000000000000000000000000000000000000000000000000000",
-                                      "ty": 6
+                                      "key": "0x0c00000004000000000000000000000000000000000000000000000000000000",
+                                      "ty": 7
                                     }
                                   },
                                   "name": "len"
@@ -1410,12 +1329,12 @@
                                       "cellsPerElem": 1,
                                       "layout": {
                                         "cell": {
-                                          "key": "0x0b00000005000000000000000000000000000000000000000000000000000000",
-                                          "ty": 19
+                                          "key": "0x0c00000005000000000000000000000000000000000000000000000000000000",
+                                          "ty": 20
                                         }
                                       },
                                       "len": 4294967295,
-                                      "offset": "0x0c00000004000000000000000000000000000000000000000000000000000000"
+                                      "offset": "0x0d00000004000000000000000000000000000000000000000000000000000000"
                                     }
                                   },
                                   "name": "elems"
@@ -1435,91 +1354,11 @@
                     "hash": {
                       "layout": {
                         "cell": {
-                          "key": "0x0c00000005000000000000000000000000000000000000000000000000000000",
-                          "ty": 21
+                          "key": "0x0d00000005000000000000000000000000000000000000000000000000000000",
+                          "ty": 22
                         }
                       },
-                      "offset": "0x0b00000005000000000000000000000000000000000000000000000000000000",
-                      "strategy": {
-                        "hasher": "Blake2x256",
-                        "postfix": "",
-                        "prefix": "0x696e6b20686173686d6170"
-                      }
-                    }
-                  },
-                  "name": "values"
-                }
-              ]
-            }
-          },
-          "name": "ddc_nodes"
-        },
-        {
-          "layout": {
-            "struct": {
-              "fields": [
-                {
-                  "layout": {
-                    "struct": {
-                      "fields": [
-                        {
-                          "layout": {
-                            "cell": {
-                              "key": "0x0c00000005000000000000000000000000000000000000000000000000000000",
-                              "ty": 5
-                            }
-                          },
-                          "name": "header"
-                        },
-                        {
-                          "layout": {
-                            "struct": {
-                              "fields": [
-                                {
-                                  "layout": {
-                                    "cell": {
-                                      "key": "0x0d00000005000000000000000000000000000000000000000000000000000000",
-                                      "ty": 6
-                                    }
-                                  },
-                                  "name": "len"
-                                },
-                                {
-                                  "layout": {
-                                    "array": {
-                                      "cellsPerElem": 1,
-                                      "layout": {
-                                        "cell": {
-                                          "key": "0x0d00000006000000000000000000000000000000000000000000000000000000",
-                                          "ty": 23
-                                        }
-                                      },
-                                      "len": 4294967295,
-                                      "offset": "0x0e00000005000000000000000000000000000000000000000000000000000000"
-                                    }
-                                  },
-                                  "name": "elems"
-                                }
-                              ]
-                            }
-                          },
-                          "name": "entries"
-                        }
-                      ]
-                    }
-                  },
-                  "name": "keys"
-                },
-                {
-                  "layout": {
-                    "hash": {
-                      "layout": {
-                        "cell": {
-                          "key": "0x0e00000006000000000000000000000000000000000000000000000000000000",
-                          "ty": 25
-                        }
-                      },
-                      "offset": "0x0d00000006000000000000000000000000000000000000000000000000000000",
+                      "offset": "0x0c00000005000000000000000000000000000000000000000000000000000000",
                       "strategy": {
                         "hasher": "Blake2x256",
                         "postfix": "",
@@ -1537,8 +1376,8 @@
         {
           "layout": {
             "cell": {
-              "key": "0x0e00000006000000000000000000000000000000000000000000000000000000",
-              "ty": 16
+              "key": "0x0d00000005000000000000000000000000000000000000000000000000000000",
+              "ty": 17
             }
           },
           "name": "current_period_ms"
@@ -1584,21 +1423,26 @@
     },
     {
       "def": {
+        "primitive": "str"
+      }
+    },
+    {
+      "def": {
         "composite": {
           "fields": [
             {
               "name": "last_vacant",
-              "type": 6,
+              "type": 7,
               "typeName": "Index"
             },
             {
               "name": "len",
-              "type": 6,
+              "type": 7,
               "typeName": "u32"
             },
             {
               "name": "len_entries",
-              "type": 6,
+              "type": 7,
               "typeName": "u32"
             }
           ]
@@ -1623,7 +1467,7 @@
             {
               "fields": [
                 {
-                  "type": 9,
+                  "type": 10,
                   "typeName": "VacantEntry"
                 }
               ],
@@ -1632,7 +1476,7 @@
             {
               "fields": [
                 {
-                  "type": 8,
+                  "type": 9,
                   "typeName": "T"
                 }
               ],
@@ -1642,7 +1486,7 @@
         }
       },
       "params": [
-        8
+        9
       ],
       "path": [
         "ink_storage",
@@ -1662,12 +1506,12 @@
           "fields": [
             {
               "name": "next",
-              "type": 6,
+              "type": 7,
               "typeName": "Index"
             },
             {
               "name": "prev",
-              "type": 6,
+              "type": 7,
               "typeName": "Index"
             }
           ]
@@ -1686,19 +1530,19 @@
           "fields": [
             {
               "name": "value",
-              "type": 11,
+              "type": 12,
               "typeName": "V"
             },
             {
               "name": "key_index",
-              "type": 6,
+              "type": 7,
               "typeName": "KeyIndex"
             }
           ]
         }
       },
       "params": [
-        11
+        12
       ],
       "path": [
         "ink_storage",
@@ -1710,7 +1554,7 @@
     {
       "def": {
         "sequence": {
-          "type": 8
+          "type": 9
         }
       }
     },
@@ -1721,7 +1565,7 @@
             {
               "fields": [
                 {
-                  "type": 9,
+                  "type": 10,
                   "typeName": "VacantEntry"
                 }
               ],
@@ -1755,19 +1599,19 @@
           "fields": [
             {
               "name": "value",
-              "type": 8,
+              "type": 9,
               "typeName": "V"
             },
             {
               "name": "key_index",
-              "type": 6,
+              "type": 7,
               "typeName": "KeyIndex"
             }
           ]
         }
       },
       "params": [
-        8
+        9
       ],
       "path": [
         "ink_storage",
@@ -1782,19 +1626,19 @@
           "fields": [
             {
               "name": "value",
-              "type": 15,
+              "type": 16,
               "typeName": "V"
             },
             {
               "name": "key_index",
-              "type": 6,
+              "type": 7,
               "typeName": "KeyIndex"
             }
           ]
         }
       },
       "params": [
-        15
+        16
       ],
       "path": [
         "ink_storage",
@@ -1809,22 +1653,22 @@
           "fields": [
             {
               "name": "start_date_ms",
-              "type": 16,
+              "type": 17,
               "typeName": "u64"
             },
             {
               "name": "end_date_ms",
-              "type": 16,
+              "type": 17,
               "typeName": "u64"
             },
             {
               "name": "tier_id",
-              "type": 8,
+              "type": 9,
               "typeName": "u128"
             },
             {
               "name": "balance",
-              "type": 8,
+              "type": 9,
               "typeName": "Balance"
             }
           ]
@@ -1847,19 +1691,19 @@
           "fields": [
             {
               "name": "value",
-              "type": 18,
+              "type": 19,
               "typeName": "V"
             },
             {
               "name": "key_index",
-              "type": 6,
+              "type": 7,
               "typeName": "KeyIndex"
             }
           ]
         }
       },
       "params": [
-        18
+        19
       ],
       "path": [
         "ink_storage",
@@ -1880,7 +1724,7 @@
             {
               "fields": [
                 {
-                  "type": 9,
+                  "type": 10,
                   "typeName": "VacantEntry"
                 }
               ],
@@ -1889,7 +1733,7 @@
             {
               "fields": [
                 {
-                  "type": 20,
+                  "type": 21,
                   "typeName": "T"
                 }
               ],
@@ -1899,97 +1743,7 @@
         }
       },
       "params": [
-        20
-      ],
-      "path": [
-        "ink_storage",
-        "collections",
-        "stash",
-        "Entry"
-      ]
-    },
-    {
-      "def": {
-        "primitive": "str"
-      }
-    },
-    {
-      "def": {
-        "composite": {
-          "fields": [
-            {
-              "name": "value",
-              "type": 22,
-              "typeName": "V"
-            },
-            {
-              "name": "key_index",
-              "type": 6,
-              "typeName": "KeyIndex"
-            }
-          ]
-        }
-      },
-      "params": [
-        22
-      ],
-      "path": [
-        "ink_storage",
-        "collections",
-        "hashmap",
-        "ValueEntry"
-      ]
-    },
-    {
-      "def": {
-        "composite": {
-          "fields": [
-            {
-              "name": "p2p_id",
-              "type": 20,
-              "typeName": "String"
-            },
-            {
-              "name": "url",
-              "type": 20,
-              "typeName": "String"
-            }
-          ]
-        }
-      },
-      "path": [
-        "ddc",
-        "ddc",
-        "DDCNode"
-      ]
-    },
-    {
-      "def": {
-        "variant": {
-          "variants": [
-            {
-              "fields": [
-                {
-                  "type": 9,
-                  "typeName": "VacantEntry"
-                }
-              ],
-              "name": "Vacant"
-            },
-            {
-              "fields": [
-                {
-                  "type": 24,
-                  "typeName": "T"
-                }
-              ],
-              "name": "Occupied"
-            }
-          ]
-        }
-      },
-      "params": [
-        24
+        21
       ],
       "path": [
         "ink_storage",
@@ -2009,7 +1763,7 @@
             },
             {
               "name": "day_of_month",
-              "type": 16,
+              "type": 17,
               "typeName": "u64"
             }
           ]
@@ -2027,19 +1781,19 @@
           "fields": [
             {
               "name": "value",
-              "type": 26,
+              "type": 23,
               "typeName": "V"
             },
             {
               "name": "key_index",
-              "type": 6,
+              "type": 7,
               "typeName": "KeyIndex"
             }
           ]
         }
       },
       "params": [
-        26
+        23
       ],
       "path": [
         "ink_storage",
@@ -2054,12 +1808,12 @@
           "fields": [
             {
               "name": "stored_bytes",
-              "type": 8,
+              "type": 9,
               "typeName": "u128"
             },
             {
               "name": "requests",
-              "type": 8,
+              "type": 9,
               "typeName": "u128"
             }
           ]
@@ -2078,7 +1832,7 @@
             {
               "fields": [
                 {
-                  "type": 18,
+                  "type": 19,
                   "typeName": "T"
                 }
               ],
@@ -2087,7 +1841,7 @@
             {
               "fields": [
                 {
-                  "type": 28,
+                  "type": 25,
                   "typeName": "E"
                 }
               ],
@@ -2097,8 +1851,8 @@
         }
       },
       "params": [
-        18,
-        28
+        19,
+        25
       ],
       "path": [
         "Result"
@@ -2138,26 +1892,30 @@
             },
             {
               "discriminant": 7,
-              "name": "OverLimit"
+              "name": "ZeroFee"
             },
             {
               "discriminant": 8,
-              "name": "TidOutOfBound"
+              "name": "OverLimit"
             },
             {
               "discriminant": 9,
-              "name": "ContractPaused"
+              "name": "TidOutOfBound"
             },
             {
               "discriminant": 10,
-              "name": "ContractActive"
+              "name": "ContractPaused"
             },
             {
               "discriminant": 11,
-              "name": "UnexpectedTimestamp"
+              "name": "ContractActive"
             },
             {
               "discriminant": 12,
+              "name": "UnexpectedTimestamp"
+            },
+            {
+              "discriminant": 13,
               "name": "NoSubscription"
             }
           ]
@@ -2171,19 +1929,12 @@
     },
     {
       "def": {
-        "sequence": {
-          "type": 22
-        }
-      }
-    },
-    {
-      "def": {
         "variant": {
           "variants": [
             {
               "fields": [
                 {
-                  "type": 26,
+                  "type": 23,
                   "typeName": "T"
                 }
               ],
@@ -2192,7 +1943,7 @@
             {
               "fields": [
                 {
-                  "type": 28,
+                  "type": 25,
                   "typeName": "E"
                 }
               ],
@@ -2202,8 +1953,8 @@
         }
       },
       "params": [
-        26,
-        28
+        23,
+        25
       ],
       "path": [
         "Result"
