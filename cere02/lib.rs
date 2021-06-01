@@ -37,7 +37,7 @@ mod ddc {
         ddc_nodes: StorageHashMap<String, DDCNode>,
 
         // -- Metrics Reporting --
-        pub metrics: StorageHashMap<MetricKey, MetricValue>,
+        pub metrics: StorageHashMap<AccountId, StorageHashMap<MetricKey, MetricValue>>,
         current_period_ms: u64,
     }
 
@@ -562,6 +562,8 @@ mod ddc {
     }
 
     // ---- Metrics Reporting ----
+    const METRICS_DIFF_THRESHOLD_PERCENT: u8 = 1;
+
     #[derive(
         Default, Clone, PartialEq, Eq, PartialOrd, Ord, Encode, Decode, SpreadLayout, PackedLayout,
     )]
@@ -622,6 +624,13 @@ mod ddc {
 
             let now_ms = Self::env().block_timestamp() as u64;
             let metrics = self.metrics_for_period(app_id, subscription.start_date_ms, now_ms);
+
+            for reporter in self.reporters.keys() {
+                // Fetch metrics for each day for a specific app in the interval from the specific reporter
+            }
+
+            // Get median for each day metric from all reporters
+
             Ok(metrics)
         }
 
@@ -685,7 +694,14 @@ mod ddc {
             }
             */
 
-            self.metrics.insert(key.clone(), metrics.clone());
+            if self.metrics.contains_key(&reporter) {
+                let reporter_metrics = self.metrics.get(&reporter);
+                reporter_metrics.insert(key.clone(), metrics.clone());
+            } else {
+                let mut reporter_metrics = StorageHashMap::new();
+                reporter_metrics.insert(key.clone(), metrics.clone());
+                self.metrics.insert(reporter, reporter_metrics);
+            }
 
             self.env().emit_event(NewMetric {
                 reporter,
