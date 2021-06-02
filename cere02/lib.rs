@@ -11,6 +11,7 @@ mod ddc {
         lazy::Lazy,
         traits::{PackedLayout, SpreadLayout},
     };
+    use median::Filter as MedianFilter;
     use scale::{Decode, Encode};
 
     // ---- Storage ----
@@ -37,7 +38,7 @@ mod ddc {
         ddc_nodes: StorageHashMap<String, DDCNode>,
 
         // -- Metrics Reporting --
-        pub metrics: StorageHashMap<AccountId, StorageHashMap<MetricKey, MetricValue>>,
+        pub metrics: StorageHashMap<MetricKey, MetricValue>,
         current_period_ms: u64,
     }
 
@@ -562,13 +563,12 @@ mod ddc {
     }
 
     // ---- Metrics Reporting ----
-    const METRICS_DIFF_THRESHOLD_PERCENT: u8 = 1;
-
     #[derive(
         Default, Clone, PartialEq, Eq, PartialOrd, Ord, Encode, Decode, SpreadLayout, PackedLayout,
     )]
     #[cfg_attr(feature = "std", derive(Debug, scale_info::TypeInfo))]
     pub struct MetricKey {
+        reporter: AccountId,
         app_id: AccountId,
         day_of_month: u64,
     }
@@ -614,6 +614,8 @@ mod ddc {
         start_ms: u64,
     }
 
+    const MEDIAN_BUFFER_SIZE: usize = 10;
+
     impl Ddc {
         #[ink(message)]
         pub fn metrics_since_subscription(&self, app_id: AccountId) -> Result<MetricValue> {
@@ -624,13 +626,6 @@ mod ddc {
 
             let now_ms = Self::env().block_timestamp() as u64;
             let metrics = self.metrics_for_period(app_id, subscription.start_date_ms, now_ms);
-
-            for reporter in self.reporters.keys() {
-                // Fetch metrics for each day for a specific app in the interval from the specific reporter
-            }
-
-            // Get median for each day metric from all reporters
-
             Ok(metrics)
         }
 
@@ -651,14 +646,34 @@ mod ddc {
 
             for day in period_start_days..=now_days {
                 let day_of_month = day % 31;
-                let day_key = MetricKey {
-                    app_id,
-                    day_of_month,
+
+                let mut median_day_metric = MetricValue {
+                    stored_bytes: 0,
+                    requests: 0,
                 };
-                if let Some(day_metrics) = self.metrics.get(&day_key) {
-                    month_metrics.add_assign(day_metrics);
+
+                // The median filter helps to ignore abnormal values
+                let mut filter_bytes = MedianFilter::new(MEDIAN_BUFFER_SIZE);
+                let mut filter_requests = MedianFilter::new(MEDIAN_BUFFER_SIZE);
+
+                for reporter in self.reporters.keys() {
+                    let day_key = MetricKey {
+                        reporter: *reporter,
+                        app_id,
+                        day_of_month,
+                    };
+
+                    if let Some(reporter_day_metric) = self.metrics.get(&day_key) {
+                        median_day_metric.stored_bytes =
+                            filter_bytes.consume(reporter_day_metric.stored_bytes);
+                        median_day_metric.requests =
+                            filter_requests.consume(reporter_day_metric.requests);
+                    }
                 }
+
+                month_metrics.add_assign(&median_day_metric);
             }
+
             month_metrics
         }
 
@@ -678,6 +693,7 @@ mod ddc {
             let day_of_month = day % 31;
 
             let key = MetricKey {
+                reporter,
                 app_id,
                 day_of_month,
             };
@@ -694,14 +710,7 @@ mod ddc {
             }
             */
 
-            if self.metrics.contains_key(&reporter) {
-                let reporter_metrics = self.metrics.get(&reporter);
-                reporter_metrics.insert(key.clone(), metrics.clone());
-            } else {
-                let mut reporter_metrics = StorageHashMap::new();
-                reporter_metrics.insert(key.clone(), metrics.clone());
-                self.metrics.insert(reporter, reporter_metrics);
-            }
+            self.metrics.insert(key.clone(), metrics.clone());
 
             self.env().emit_event(NewMetric {
                 reporter,
@@ -1016,18 +1025,21 @@ mod ddc {
 
             let today_ms = some_day * ms_per_day; // Midnight time on some day.
             let today_key = MetricKey {
+                reporter: reporter_id,
                 app_id,
                 day_of_month: some_day % 31,
             };
 
             let yesterday_ms = (some_day - 1) * ms_per_day; // Midnight time on some day.
             let yesterday_key = MetricKey {
+                reporter: reporter_id,
                 app_id,
                 day_of_month: (some_day - 1) % 31,
             };
 
             let next_month_ms = (some_day + 31) * ms_per_day; // Midnight time on some day.
             let next_month_key = MetricKey {
+                reporter: reporter_id,
                 app_id,
                 day_of_month: (some_day + 31) % 31,
             };
@@ -1111,6 +1123,7 @@ mod ddc {
 
             // Some other account has no metrics.
             let other_key = MetricKey {
+                reporter: reporter_id,
                 app_id: accounts.bob,
                 day_of_month: 0,
             };
