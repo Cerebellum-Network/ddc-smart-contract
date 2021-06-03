@@ -1,12 +1,11 @@
-name: Publish image
+name: Build and Push release image
 on:
   release:
     types:
       - published
 
 env:
-  ECR_REPOSITORY: cere-enterprise-smart-contracts
-  PACKAGE_NAME: smart-contracts
+  ECR_REPOSITORY: crb-smart-contracts
 jobs:
   build-and-push:
     runs-on: ubuntu-18.04
@@ -24,10 +23,10 @@ jobs:
       - name: Login to Amazon ECR
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v1
-      - name: Pull image from ECR and tag name
+      - name: Build and push release image
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
         run: |
-          docker pull $ECR_REGISTRY/$ECR_REPOSITORY:$GITHUB_SHA
-          docker image tag $ECR_REGISTRY/$ECR_REPOSITORY:$GITHUB_SHA $ECR_REGISTRY/$ECR_REPOSITORY:${GITHUB_REF##*/}
-          docker image tag $ECR_REGISTRY/$ECR_REPOSITORY:$GITHUB_SHA $ECR_REGISTRY/$ECR_REPOSITORY::latest
+          docker build . -t $ECR_REGISTRY/$ECR_REPOSITORY:${GITHUB_REF##*/}
+          echo "::set-output name=image::$ECR_REGISTRY/$ECR_REPOSITORY:${GITHUB_REF##*/}"
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:${GITHUB_REF##*/}
