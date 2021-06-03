@@ -2,13 +2,13 @@
 ARG RUST_VERSION=1.52.1
 FROM rust:$RUST_VERSION as builder
 
-RUN apt-get update -y && \
-    apt-get upgrade -y && \
-	apt-get dist-upgrade -y
+RUN apt-get -y update && \
+    apt-get -y upgrade && \
+    apt-get install -y binaryen wget
 
 WORKDIR /smart-contracts
-COPY /cere01 /smart-contracts/cere01
-COPY /cere02 /smart-contracts/cere02
+COPY ./cere01 /smart-contracts/cere01
+COPY ./cere02 /smart-contracts/cere02
 
 # Install all dependencies
 ARG CARGO_CONTRACT_VERSION=0.12.1
@@ -18,9 +18,7 @@ RUN rustup default stable && \
 	rustup component add rust-src --toolchain nightly && \
 	rustup target add wasm32-unknown-unknown --toolchain stable && \
 	cargo install cargo-contract --vers ^$CARGO_CONTRACT_VERSION --force --locked
-RUN	apt install -y binaryen && \
-	apt install -y wget && \
-	wget http://ftp.us.debian.org/debian/pool/main/libx/libxcrypt/libcrypt1_4.4.18-4_amd64.deb && \
+RUN	wget http://ftp.us.debian.org/debian/pool/main/libx/libxcrypt/libcrypt1_4.4.18-4_amd64.deb && \
 	dpkg -i libcrypt1_4.4.18-4_amd64.deb && \
 	wget http://ftp.us.debian.org/debian/pool/main/g/gcc-10/gcc-10-base_10.2.1-6_amd64.deb && \
 	dpkg -i gcc-10-base_10.2.1-6_amd64.deb && \
