@@ -87,8 +87,8 @@ mod ddc {
 
             service_v.insert(3, t3);
 
-            // TODO(Aurel): check the unit is milliseconds (not documented).
-            let today_ms = (Self::env().block_timestamp() as u64) % MS_PER_DAY;
+            let now: u64 = Self::env().block_timestamp(); // Epoch in milisecond
+            let today_ms = now - now % MS_PER_DAY; // Beginning of deploy date in Epoch milisecond
 
             let instance = Self {
                 owner: Lazy::new(caller),
