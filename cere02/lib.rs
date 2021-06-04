@@ -419,14 +419,14 @@ mod ddc {
             if subscription_opt.is_none() || subscription_opt.unwrap().end_date_ms < now {
                 subscription = AppSubscription {
                     start_date_ms: now,
-                    end_date_ms: now + 31 * MS_PER_DAY,
+                    end_date_ms: now + PERIOD_MS,
                     tier_id,
                     balance: value,
                 };
             } else {
                 subscription = subscription_opt.unwrap().clone();
 
-                subscription.end_date_ms += 31 * MS_PER_DAY;
+                subscription.end_date_ms += PERIOD_MS;
                 subscription.balance = subscription.balance + value;
             }
 
@@ -568,7 +568,7 @@ mod ddc {
     #[cfg_attr(feature = "std", derive(Debug, scale_info::TypeInfo))]
     pub struct MetricKey {
         app_id: AccountId,
-        day_of_month: u64,
+        day_of_period: u64,
     }
 
     #[derive(
@@ -576,6 +576,7 @@ mod ddc {
     )]
     #[cfg_attr(feature = "std", derive(Debug, scale_info::TypeInfo))]
     pub struct MetricValue {
+        start_ms: u64,
         stored_bytes: u128,
         requests: u128,
     }
@@ -584,15 +585,6 @@ mod ddc {
         pub fn add_assign(&mut self, other: &Self) {
             self.stored_bytes += other.stored_bytes;
             self.requests += other.requests;
-        }
-
-        pub fn max_assign(&mut self, other: &Self) {
-            if self.stored_bytes < other.stored_bytes {
-                self.stored_bytes = other.stored_bytes;
-            }
-            if self.requests < other.requests {
-                self.requests = other.requests;
-            }
         }
     }
 
@@ -629,28 +621,44 @@ mod ddc {
         pub fn metrics_for_period(
             &self,
             app_id: AccountId,
-            start_date_ms: u64,
+            subscription_start_ms: u64,
             now_ms: u64,
         ) -> MetricValue {
             // The start date may be several month away. When did the current period start?
+            let period_start_ms = get_period_start_ms(subscription_start_ms, now_ms);
+            let period_start_days = period_start_ms / MS_PER_DAY;
             let now_days = now_ms / MS_PER_DAY;
-            let start_days = start_date_ms / MS_PER_DAY;
-            let period_elapsed_days = (now_days - start_days) % 31;
-            let period_start_days = now_days - period_elapsed_days;
 
-            let mut month_metrics = MetricValue::default();
+            let mut period_metrics = MetricValue {
+                start_ms: period_start_ms,
+                stored_bytes: 0,
+                requests: 0,
+            };
 
             for day in period_start_days..=now_days {
-                let day_of_month = day % 31;
-                let day_key = MetricKey {
-                    app_id,
-                    day_of_month,
-                };
-                if let Some(day_metrics) = self.metrics.get(&day_key) {
-                    month_metrics.add_assign(day_metrics);
+                if let Some(day_metrics) = self.metrics_for_day(app_id, day) {
+                    period_metrics.add_assign(day_metrics);
                 }
             }
-            month_metrics
+            period_metrics
+        }
+
+        fn metrics_for_day(&self, app_id: AccountId, day: u64) -> Option<&MetricValue> {
+            let day_of_period = day % PERIOD_DAYS;
+            let day_key = MetricKey {
+                app_id,
+                day_of_period,
+            };
+            let day_metrics = self.metrics.get(&day_key);
+
+            // Ignore out-of-date metrics from a previous period.
+            if let Some(day_metrics) = day_metrics {
+                if day_metrics.start_ms != day * MS_PER_DAY {
+                    return None;
+                }
+            }
+
+            day_metrics
         }
 
         #[ink(message)]
@@ -666,24 +674,17 @@ mod ddc {
 
             enforce_time_is_start_of_day(day_start_ms)?;
             let day = day_start_ms / MS_PER_DAY;
-            let day_of_month = day % 31;
+            let day_of_month = day % PERIOD_DAYS;
 
             let key = MetricKey {
                 app_id,
-                day_of_month,
+                day_of_period: day_of_month,
             };
             let metrics = MetricValue {
+                start_ms: day_start_ms,
                 stored_bytes,
                 requests,
             };
-
-            /* TODO(Aurel): support starting a new month, and enable this block.
-            // If key exists, take the maximum of each metric value.
-            let mut metrics = metrics;
-            if let Some(previous) = self.metrics.get(&key) {
-                metrics.max_assign(previous);
-            }
-            */
 
             self.metrics.insert(key.clone(), metrics.clone());
 
@@ -717,15 +718,14 @@ mod ddc {
 
         #[ink(message)]
         pub fn is_within_limit(&self, app_id: AccountId) -> bool {
-            let metrics: MetricValue = self.metrics_since_subscription(app_id).unwrap();
+            let metrics = match self.metrics_since_subscription(app_id) {
+                Err(_) => return false,
+                Ok(metrics) => metrics,
+            };
             let current_tier_limit = self.tier_limit_of(app_id);
-            if metrics.requests > current_tier_limit[0]
-                || metrics.stored_bytes > current_tier_limit[1]
-            {
-                return false;
-            }
-
-            true
+            let requests_ok = metrics.requests <= current_tier_limit[0];
+            let bytes_ok = metrics.stored_bytes <= current_tier_limit[1];
+            requests_ok && bytes_ok
         }
     }
 
@@ -753,6 +753,15 @@ mod ddc {
     pub type Result<T> = core::result::Result<T, Error>;
 
     const MS_PER_DAY: u64 = 24 * 3600 * 1000;
+    const PERIOD_DAYS: u64 = 31;
+    const PERIOD_MS: u64 = PERIOD_DAYS * MS_PER_DAY;
+
+    fn get_period_start_ms(subscription_start_ms: u64, now_ms: u64) -> u64 {
+        let total_elapsed = now_ms - subscription_start_ms;
+        let elapsed_in_current_period = total_elapsed % PERIOD_MS;
+        let period_start = now_ms - elapsed_in_current_period;
+        period_start
+    }
 
     fn enforce_time_is_start_of_day(ms: u64) -> Result<()> {
         if ms % MS_PER_DAY == 0 {
@@ -983,37 +992,43 @@ mod ddc {
             let reporter_id = accounts.alice;
             let app_id = accounts.charlie;
 
-            let metrics = MetricValue {
+            let mut metrics = MetricValue {
                 stored_bytes: 11,
                 requests: 12,
+                start_ms: 0,
             };
-            let big_metrics = MetricValue {
+            let mut big_metrics = MetricValue {
                 stored_bytes: 100,
                 requests: 300,
+                start_ms: 0,
             };
-            let double_big_metrics = MetricValue {
+            let mut double_big_metrics = MetricValue {
                 stored_bytes: 200,
                 requests: 600,
+                start_ms: 0,
             };
+            // Note: the values of start_ms will be updated to use in assert_eq!
+
             let some_day = 9999;
             let ms_per_day = 24 * 3600 * 1000;
+            let period_start_ms = some_day / 31 * 31 * ms_per_day;
 
             let today_ms = some_day * ms_per_day; // Midnight time on some day.
             let today_key = MetricKey {
                 app_id,
-                day_of_month: some_day % 31,
+                day_of_period: some_day % 31,
             };
 
             let yesterday_ms = (some_day - 1) * ms_per_day; // Midnight time on some day.
             let yesterday_key = MetricKey {
                 app_id,
-                day_of_month: (some_day - 1) % 31,
+                day_of_period: (some_day - 1) % 31,
             };
 
             let next_month_ms = (some_day + 31) * ms_per_day; // Midnight time on some day.
             let next_month_key = MetricKey {
                 app_id,
-                day_of_month: (some_day + 31) % 31,
+                day_of_period: (some_day + 31) % 31,
             };
 
             // Unauthorized report, we are not a reporter.
@@ -1024,7 +1039,11 @@ mod ddc {
             assert_eq!(contract.metrics.get(&today_key), None);
             assert_eq!(
                 contract.metrics_for_period(app_id, 0, today_ms),
-                MetricValue::default()
+                MetricValue {
+                    start_ms: period_start_ms,
+                    stored_bytes: 0,
+                    requests: 0
+                }
             );
 
             // Authorize our admin account to be a reporter too.
@@ -1048,10 +1067,14 @@ mod ddc {
                     big_metrics.requests,
                 )
                 .unwrap();
+
             contract
                 .report_metrics(app_id, today_ms, metrics.stored_bytes, metrics.requests)
                 .unwrap();
+
+            big_metrics.start_ms = yesterday_ms;
             assert_eq!(contract.metrics.get(&yesterday_key), Some(&big_metrics));
+            metrics.start_ms = today_ms;
             assert_eq!(contract.metrics.get(&today_key), Some(&metrics));
 
             // Update with bigger metrics.
@@ -1063,19 +1086,24 @@ mod ddc {
                     big_metrics.requests,
                 )
                 .unwrap();
+
+            big_metrics.start_ms = today_ms;
             assert_eq!(contract.metrics.get(&today_key), Some(&big_metrics));
 
             // The metrics for the month is yesterday + today, both big_metrics now.
+            double_big_metrics.start_ms = period_start_ms;
             assert_eq!(
-                contract.metrics_for_period(app_id, 0, today_ms),
+                contract.metrics_for_period(app_id, period_start_ms, today_ms),
                 double_big_metrics
             );
+            double_big_metrics.start_ms = yesterday_ms;
             assert_eq!(
                 contract.metrics_for_period(app_id, yesterday_ms, today_ms),
                 double_big_metrics
             );
 
             // If the app start date was today, then its metrics would be only today.
+            big_metrics.start_ms = today_ms;
             assert_eq!(
                 contract.metrics_for_period(app_id, today_ms, today_ms),
                 big_metrics
@@ -1091,12 +1119,13 @@ mod ddc {
                     metrics.requests,
                 )
                 .unwrap();
+            metrics.start_ms = next_month_ms;
             assert_eq!(contract.metrics.get(&next_month_key), Some(&metrics));
 
             // Some other account has no metrics.
             let other_key = MetricKey {
                 app_id: accounts.bob,
-                day_of_month: 0,
+                day_of_period: 0,
             };
             assert_eq!(contract.metrics.get(&other_key), None);
         }
@@ -1122,6 +1151,7 @@ mod ddc {
             assert_eq!(
                 contract.metrics_since_subscription(app_id),
                 Ok(MetricValue {
+                    start_ms: 0,
                     stored_bytes: 0,
                     requests: 0
                 })
@@ -1133,6 +1163,7 @@ mod ddc {
             assert_eq!(
                 contract.metrics_since_subscription(app_id),
                 Ok(MetricValue {
+                    start_ms: 0,
                     stored_bytes: 12,
                     requests: 34
                 })
@@ -1314,6 +1345,7 @@ mod ddc {
             let accounts = default_accounts::<DefaultEnvironment>().unwrap();
             let app_id = accounts.alice;
             let metrics = MetricValue {
+                start_ms: 0,
                 stored_bytes: 99999,
                 requests: 10,
             };
@@ -1341,6 +1373,7 @@ mod ddc {
             let accounts = default_accounts::<DefaultEnvironment>().unwrap();
             let app_id = accounts.alice;
             let metrics = MetricValue {
+                start_ms: 0,
                 stored_bytes: 5,
                 requests: 10,
             };
