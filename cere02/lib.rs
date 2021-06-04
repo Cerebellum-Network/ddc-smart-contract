@@ -11,7 +11,6 @@ mod ddc {
         lazy::Lazy,
         traits::{PackedLayout, SpreadLayout},
     };
-    use median::Filter as MedianFilter;
     use scale::{Decode, Encode};
 
     // ---- Storage ----
@@ -614,8 +613,6 @@ mod ddc {
         start_ms: u64,
     }
 
-    const MEDIAN_BUFFER_SIZE: usize = 10;
-
     impl Ddc {
         #[ink(message)]
         pub fn metrics_since_subscription(&self, app_id: AccountId) -> Result<MetricValue> {
@@ -652,9 +649,8 @@ mod ddc {
                     requests: 0,
                 };
 
-                // The median filter helps to ignore abnormal values
-                let mut filter_bytes = MedianFilter::new(MEDIAN_BUFFER_SIZE);
-                let mut filter_requests = MedianFilter::new(MEDIAN_BUFFER_SIZE);
+                let mut day_stored_bytes: Vec<u128> = Vec::new();
+                let mut day_reqests: Vec<u128> = Vec::new();
 
                 for reporter in self.reporters.keys() {
                     let day_key = MetricKey {
@@ -664,11 +660,24 @@ mod ddc {
                     };
 
                     if let Some(reporter_day_metric) = self.metrics.get(&day_key) {
-                        median_day_metric.stored_bytes =
-                            filter_bytes.consume(reporter_day_metric.stored_bytes);
-                        median_day_metric.requests =
-                            filter_requests.consume(reporter_day_metric.requests);
+                        day_stored_bytes.push(reporter_day_metric.stored_bytes);
+                        day_reqests.push(reporter_day_metric.requests);
                     }
+                }
+
+                // vec::sort_unstable is faster, it doesn't preserve the order of equal elements
+                day_stored_bytes.sort_unstable();
+                day_reqests.sort_unstable();
+
+                let median_stored_bytes_key = day_stored_bytes.len() / 2 - (day_stored_bytes.len() != 0 && day_stored_bytes.len() % 2 == 0) as usize;
+                let median_reqests_key = day_reqests.len() / 2 - (day_reqests.len() != 0 && day_reqests.len() % 2 == 0) as usize;
+
+                if let Some(median_stored_bytes) = day_stored_bytes.get(median_stored_bytes_key) {
+                    median_day_metric.stored_bytes = median_stored_bytes.clone();
+                }
+
+                if let Some(median_reqests) = day_reqests.get(median_reqests_key) {
+                    median_day_metric.requests = median_reqests.clone();
                 }
 
                 month_metrics.add_assign(&median_day_metric);
@@ -1233,7 +1242,7 @@ mod ddc {
             contract.report_metrics(django, day1_ms, 1, 3).unwrap();
             contract.report_metrics(eve, day1_ms, 5, 4).unwrap();
             contract.report_metrics(frank, day1_ms, 7, 5).unwrap();
-        
+
             undo_set_caller();
 
             set_caller(frank);
