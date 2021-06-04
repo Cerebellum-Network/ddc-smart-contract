@@ -56,6 +56,13 @@ This doc will explain:
     ```
     * Upload `ddc.wasm` and `metadata.json` using a block viewer (like [Cere Testnet](https://block-viewer.cere.network/?rpc=wss%3A%2F%2Frpc.testnet.cere.network%3A9945#/contracts))
 
+## Get artifacts (cere02.wasm and metadata.json) from docker image 
+
+```
+ docker run -v $PWD:/smart-contracts --rm -ti $ECR_REGISTRY/crb-smart-contracts:$SMART_CONTRACT_VERSION bash -c "cp -r ./cere02/target/ink/cere02.wasm ./artifacts/"
+ docker run -v $PWD:/smart-contracts --rm -ti $ECR_REGISTRY/crb-smart-contracts:$SMART_CONTRACT_VERSION bash -c "cp -r ./cere02/target/ink/metadata.json ./artifacts/"
+```
+
 ## Deploy Smart Contract and test it
 In order to deploy and test Smart Contract use [Quick Start Guide](https://github.com/Cerebellum-Network/private-standalone-network-node/blob/dev/docs/tutorial.md#quick-start-guide).
 
