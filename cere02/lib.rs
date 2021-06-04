@@ -581,7 +581,7 @@ mod ddc {
     #[cfg_attr(feature = "std", derive(Debug, scale_info::TypeInfo))]
     pub struct MetricKeyDDN {
         ddn_id: Vec<u8>,
-        day_of_month: u64,
+        day_of_period: u64,
     }
 
     #[derive(
@@ -685,26 +685,48 @@ mod ddc {
 
         #[ink(message)]
         pub fn metrics_for_ddn(&self, ddn_id: Vec<u8>) -> Vec<MetricValue> {
-            let mut month_metrics: Vec<MetricValue> = Vec::new();
+            let now_ms = Self::env().block_timestamp() as u64;
+            self.metrics_for_ddn_at_time(ddn_id, now_ms)
+        }
 
-            for day_of_month in 0..31 {
-                let day_key = MetricKeyDDN {
-                    ddn_id: ddn_id.clone(),
-                    day_of_month,
-                };
-                let mut item = MetricValue {
-                    stored_bytes: 0,
-                    requests: 0,
-                };
+        pub fn metrics_for_ddn_at_time(&self, ddn_id: Vec<u8>, now_ms: u64) -> Vec<MetricValue> {
+            let mut period_metrics: Vec<MetricValue> = Vec::with_capacity(PERIOD_DAYS as usize);
 
-                if let Some(value) = self.metrics_ddn.get(&day_key) {
-                    item = value.clone();
-                }
+            let last_day = now_ms / MS_PER_DAY + 1; // non-inclusive.
+            let first_day = if last_day >= PERIOD_DAYS {
+                last_day - PERIOD_DAYS
+            } else {
+                0
+            };
 
-                month_metrics.push(item.clone());
+            for day in first_day..last_day {
+                let metrics = self.metrics_for_ddn_day(ddn_id.clone(), day);
+                period_metrics.push(metrics);
             }
 
-            month_metrics
+            period_metrics
+        }
+
+        fn metrics_for_ddn_day(&self, ddn_id: Vec<u8>, day: u64) -> MetricValue {
+            let day_of_period = day % PERIOD_DAYS;
+            let day_key = MetricKeyDDN {
+                ddn_id,
+                day_of_period,
+            };
+            let start_ms = day * MS_PER_DAY;
+
+            let day_metrics = self.metrics_ddn.get(&day_key);
+            match day_metrics {
+                // Return metrics that exists and is not outdated.
+                Some(metrics) if metrics.start_ms == start_ms => metrics.clone(),
+
+                // Otherwise, return 0 for missing or outdated metrics from a previous period.
+                _ => MetricValue {
+                    start_ms,
+                    stored_bytes: 0,
+                    requests: 0,
+                },
+            }
         }
 
         #[ink(message)]
@@ -720,11 +742,11 @@ mod ddc {
 
             enforce_time_is_start_of_day(day_start_ms)?;
             let day = day_start_ms / MS_PER_DAY;
-            let day_of_month = day % PERIOD_DAYS;
+            let day_of_period = day % PERIOD_DAYS;
 
             let key = MetricKey {
                 app_id,
-                day_of_period: day_of_month,
+                day_of_period,
             };
             let metrics = MetricValue {
                 start_ms: day_start_ms,
@@ -756,13 +778,14 @@ mod ddc {
 
             enforce_time_is_start_of_day(day_start_ms)?;
             let day = day_start_ms / MS_PER_DAY;
-            let day_of_month = day % 31;
+            let day_of_period = day % PERIOD_DAYS;
 
             let key = MetricKeyDDN {
                 ddn_id,
-                day_of_month,
+                day_of_period,
             };
             let metrics = MetricValue {
+                start_ms: day_start_ms,
                 stored_bytes,
                 requests,
             };
@@ -1478,10 +1501,9 @@ mod ddc {
             let mut contract = make_contract();
             let accounts = default_accounts::<DefaultEnvironment>().unwrap();
 
-            let some_day = 9999;
-            let ms_per_day = 24 * 3600 * 1000;
+            let first_day = 1000;
 
-            let today_ms = some_day * ms_per_day;
+            let today_ms = (first_day + 17) * MS_PER_DAY;
             let ddn_id = b"12D3KooWPfi9EtgoZHFnHh1at85mdZJtj7L8n94g6LFk6e8EEk2b".to_vec();
             let stored_bytes = 99;
             let requests = 999;
@@ -1491,20 +1513,25 @@ mod ddc {
                 .report_metrics_ddn(ddn_id.clone(), today_ms, stored_bytes, requests)
                 .unwrap();
 
-            let result = contract.metrics_for_ddn(ddn_id);
+            let last_day_inclusive = first_day + 30;
+            let now_ms = last_day_inclusive * MS_PER_DAY + 12345;
+            let result = contract.metrics_for_ddn_at_time(ddn_id, now_ms);
 
             let mut expected = vec![
                 MetricValue {
+                    start_ms: 0,
                     stored_bytes: 0,
                     requests: 0,
                 };
                 31
             ];
 
-            expected[17] = MetricValue {
-                stored_bytes,
-                requests,
-            };
+            for i in 0..31 {
+                expected[i].start_ms = (first_day + i as u64) * MS_PER_DAY;
+            }
+
+            expected[17].stored_bytes = stored_bytes;
+            expected[17].requests = requests;
 
             assert_eq!(result, expected);
         }
