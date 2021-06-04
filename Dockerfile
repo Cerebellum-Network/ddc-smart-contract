@@ -39,5 +39,5 @@ RUN cargo +nightly test && \
 # ===== SECOND STAGE ======
 FROM phusion/baseimage:0.11
 WORKDIR /smart-contracts
-COPY --from=builder /smart-contracts/cere02/target/ink/cere02.wasm /smart-contracts/artifacts
+COPY --from=builder /smart-contracts/cere02/target/ink/ddc.wasm /smart-contracts/artifacts
 COPY --from=builder /smart-contracts/cere02/target/ink/metadata.json /smart-contracts/artifacts
