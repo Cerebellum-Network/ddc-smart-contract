@@ -39,6 +39,8 @@ mod ddc {
         // -- Metrics Reporting --
         pub metrics: StorageHashMap<MetricKey, MetricValue>,
         current_period_ms: u64,
+
+        pub metrics_ddn: StorageHashMap<MetricKeyDDN, MetricValue>,
     }
 
     impl Ddc {
@@ -98,6 +100,7 @@ mod ddc {
                 reporters: StorageHashMap::new(),
                 ddc_nodes: StorageHashMap::new(),
                 metrics: StorageHashMap::new(),
+                metrics_ddn: StorageHashMap::new(),
                 current_period_ms: today_ms,
                 pause: false,
             };
@@ -576,6 +579,16 @@ mod ddc {
         day_of_month: u64,
     }
 
+    // ---- Metric per DDN ----
+    #[derive(
+        Default, Clone, PartialEq, Eq, PartialOrd, Ord, Encode, Decode, SpreadLayout, PackedLayout,
+    )]
+    #[cfg_attr(feature = "std", derive(Debug, scale_info::TypeInfo))]
+    pub struct MetricKeyDDN {
+        ddn_id: Vec<u8>,
+        day_of_month: u64,
+    }
+
     #[derive(
         Default, Clone, PartialEq, Eq, PartialOrd, Ord, Encode, Decode, SpreadLayout, PackedLayout,
     )]
@@ -607,6 +620,15 @@ mod ddc {
         reporter: AccountId,
         #[ink(topic)]
         key: MetricKey,
+        metrics: MetricValue,
+    }
+
+    #[ink(event)]
+    pub struct NewMetricDDN {
+        #[ink(topic)]
+        reporter: AccountId,
+        #[ink(topic)]
+        key: MetricKeyDDN,
         metrics: MetricValue,
     }
 
@@ -659,6 +681,26 @@ mod ddc {
         }
 
         #[ink(message)]
+        pub fn metrics_for_ddn(&self, ddn_id: Vec<u8>) -> Vec<MetricValue> {
+            let mut month_metrics: Vec<MetricValue> = Vec::new();
+
+            for day_of_month in 0..31 {
+                let day_key = MetricKeyDDN { ddn_id: ddn_id.clone(), day_of_month };
+
+                if let Some(value) = self.metrics_ddn.get(&day_key) {
+                    // Skip empty values
+                    if value.stored_bytes == 0 && value.requests == 0  {
+                        continue;
+                    }
+
+                    month_metrics.push(value.clone());
+                }
+            }
+
+            month_metrics
+        }
+
+        #[ink(message)]
         pub fn report_metrics(
             &mut self,
             app_id: AccountId,
@@ -693,6 +735,41 @@ mod ddc {
             self.metrics.insert(key.clone(), metrics.clone());
 
             self.env().emit_event(NewMetric {
+                reporter,
+                key,
+                metrics,
+            });
+
+            Ok(())
+        }
+
+        #[ink(message)]
+        pub fn report_metrics_ddn(
+            &mut self,
+            ddn_id: Vec<u8>,
+            day_start_ms: u64,
+            stored_bytes: u128,
+            requests: u128,
+        ) -> Result<()> {
+            let reporter = self.env().caller();
+            self.only_reporter(&reporter)?;
+
+            enforce_time_is_start_of_day(day_start_ms)?;
+            let day = day_start_ms / MS_PER_DAY;
+            let day_of_month = day % 31;
+
+            let key = MetricKeyDDN {
+                ddn_id,
+                day_of_month,
+            };
+            let metrics = MetricValue {
+                stored_bytes,
+                requests,
+            };
+
+            self.metrics_ddn.insert(key.clone(), metrics.clone());
+
+            self.env().emit_event(NewMetricDDN {
                 reporter,
                 key,
                 metrics,
