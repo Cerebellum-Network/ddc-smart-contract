@@ -638,10 +638,10 @@ mod ddc {
     /// Get median value from a vector
     fn get_median<T: Clone + Ord>(source: Vec<T>) -> Option<T> {
         let length = source.len();
-        let mut sorted_source = source.clone();
+        let mut sorted_source = source;
         // sort_unstable is faster, it doesn't preserve the order of equal elements
         sorted_source.sort_unstable();
-        let index_correction = length!= 0 && length % 2 == 0;
+        let index_correction = length != 0 && length % 2 == 0;
         let median_index = length / 2 - index_correction as usize;
         sorted_source.get(median_index).cloned()
     }
@@ -1495,239 +1495,401 @@ mod ddc {
             undo_set_caller();
 
             // Bob
-            assert_eq!(contract.metrics_for_period(bob, day1_ms, day1_ms), MetricValue {
-                stored_bytes: 8,
-                requests: 1,
-            });
-            assert_eq!(contract.metrics_for_period(bob, day2_ms, day2_ms), MetricValue {
-                stored_bytes: 4,
-                requests: 1,
-            });
-            assert_eq!(contract.metrics_for_period(bob, day3_ms, day3_ms), MetricValue {
-                stored_bytes: 10,
-                requests: 1,
-            });
-            assert_eq!(contract.metrics_for_period(bob, day4_ms, day4_ms), MetricValue {
-                stored_bytes: 20,
-                requests: 1,
-            });
-            assert_eq!(contract.metrics_for_period(bob, day5_ms, day5_ms), MetricValue {
-                stored_bytes: 2,
-                requests: 1,
-            });
+            assert_eq!(
+                contract.metrics_for_period(bob, day1_ms, day1_ms),
+                MetricValue {
+                    stored_bytes: 8,
+                    requests: 1,
+                }
+            );
+            assert_eq!(
+                contract.metrics_for_period(bob, day2_ms, day2_ms),
+                MetricValue {
+                    stored_bytes: 4,
+                    requests: 1,
+                }
+            );
+            assert_eq!(
+                contract.metrics_for_period(bob, day3_ms, day3_ms),
+                MetricValue {
+                    stored_bytes: 10,
+                    requests: 1,
+                }
+            );
+            assert_eq!(
+                contract.metrics_for_period(bob, day4_ms, day4_ms),
+                MetricValue {
+                    stored_bytes: 20,
+                    requests: 1,
+                }
+            );
+            assert_eq!(
+                contract.metrics_for_period(bob, day5_ms, day5_ms),
+                MetricValue {
+                    stored_bytes: 2,
+                    requests: 1,
+                }
+            );
 
-            assert_eq!(contract.metrics_for_period(bob, 0, day5_ms), MetricValue {
-                stored_bytes: 44,
-                requests: 5,
-            });
-            assert_eq!(contract.metrics_for_period(bob, day1_ms, day2_ms), MetricValue {
-                stored_bytes: 12,
-                requests: 2,
-            });
-            assert_eq!(contract.metrics_for_period(bob, day1_ms, day3_ms), MetricValue {
-                stored_bytes: 22,
-                requests: 3,
-            });
-            assert_eq!(contract.metrics_for_period(bob, day2_ms, day5_ms), MetricValue {
-                stored_bytes: 36,
-                requests: 4,
-            });
+            assert_eq!(
+                contract.metrics_for_period(bob, 0, day5_ms),
+                MetricValue {
+                    stored_bytes: 44,
+                    requests: 5,
+                }
+            );
+            assert_eq!(
+                contract.metrics_for_period(bob, day1_ms, day2_ms),
+                MetricValue {
+                    stored_bytes: 12,
+                    requests: 2,
+                }
+            );
+            assert_eq!(
+                contract.metrics_for_period(bob, day1_ms, day3_ms),
+                MetricValue {
+                    stored_bytes: 22,
+                    requests: 3,
+                }
+            );
+            assert_eq!(
+                contract.metrics_for_period(bob, day2_ms, day5_ms),
+                MetricValue {
+                    stored_bytes: 36,
+                    requests: 4,
+                }
+            );
 
             // Charlie
-            assert_eq!(contract.metrics_for_period(charlie, day1_ms, day1_ms), MetricValue {
-                stored_bytes: 4,
-                requests: 2,
-            });
-            assert_eq!(contract.metrics_for_period(charlie, day2_ms, day2_ms), MetricValue {
-                stored_bytes: 4,
-                requests: 2,
-            });
-            assert_eq!(contract.metrics_for_period(charlie, day3_ms, day3_ms), MetricValue {
-                stored_bytes: 2,
-                requests: 2,
-            });
-            assert_eq!(contract.metrics_for_period(charlie, day4_ms, day4_ms), MetricValue {
-                stored_bytes: 5,
-                requests: 2,
-            });
-            assert_eq!(contract.metrics_for_period(charlie, day5_ms, day5_ms), MetricValue {
-                stored_bytes: 10,
-                requests: 2,
-            });
+            assert_eq!(
+                contract.metrics_for_period(charlie, day1_ms, day1_ms),
+                MetricValue {
+                    stored_bytes: 4,
+                    requests: 2,
+                }
+            );
+            assert_eq!(
+                contract.metrics_for_period(charlie, day2_ms, day2_ms),
+                MetricValue {
+                    stored_bytes: 4,
+                    requests: 2,
+                }
+            );
+            assert_eq!(
+                contract.metrics_for_period(charlie, day3_ms, day3_ms),
+                MetricValue {
+                    stored_bytes: 2,
+                    requests: 2,
+                }
+            );
+            assert_eq!(
+                contract.metrics_for_period(charlie, day4_ms, day4_ms),
+                MetricValue {
+                    stored_bytes: 5,
+                    requests: 2,
+                }
+            );
+            assert_eq!(
+                contract.metrics_for_period(charlie, day5_ms, day5_ms),
+                MetricValue {
+                    stored_bytes: 10,
+                    requests: 2,
+                }
+            );
 
-            assert_eq!(contract.metrics_for_period(charlie, 0, day5_ms), MetricValue {
-                stored_bytes: 25,
-                requests: 10,
-            });
-            assert_eq!(contract.metrics_for_period(charlie, day1_ms, day2_ms), MetricValue {
-                stored_bytes: 8,
-                requests: 4,
-            });
-            assert_eq!(contract.metrics_for_period(charlie, day1_ms, day3_ms), MetricValue {
-                stored_bytes: 10,
-                requests: 6,
-            });
-            assert_eq!(contract.metrics_for_period(charlie, day2_ms, day5_ms), MetricValue {
-                stored_bytes: 21,
-                requests: 8,
-            });
+            assert_eq!(
+                contract.metrics_for_period(charlie, 0, day5_ms),
+                MetricValue {
+                    stored_bytes: 25,
+                    requests: 10,
+                }
+            );
+            assert_eq!(
+                contract.metrics_for_period(charlie, day1_ms, day2_ms),
+                MetricValue {
+                    stored_bytes: 8,
+                    requests: 4,
+                }
+            );
+            assert_eq!(
+                contract.metrics_for_period(charlie, day1_ms, day3_ms),
+                MetricValue {
+                    stored_bytes: 10,
+                    requests: 6,
+                }
+            );
+            assert_eq!(
+                contract.metrics_for_period(charlie, day2_ms, day5_ms),
+                MetricValue {
+                    stored_bytes: 21,
+                    requests: 8,
+                }
+            );
 
             // Django
-            assert_eq!(contract.metrics_for_period(django, day1_ms, day1_ms), MetricValue {
-                stored_bytes: 1,
-                requests: 3,
-            });
-            assert_eq!(contract.metrics_for_period(django, day2_ms, day2_ms), MetricValue {
-                stored_bytes: 5,
-                requests: 3,
-            });
-            assert_eq!(contract.metrics_for_period(django, day3_ms, day3_ms), MetricValue {
-                stored_bytes: 8,
-                requests: 3,
-            });
-            assert_eq!(contract.metrics_for_period(django, day4_ms, day4_ms), MetricValue {
-                stored_bytes: 2,
-                requests: 3,
-            });
-            assert_eq!(contract.metrics_for_period(django, day5_ms, day5_ms), MetricValue {
-                stored_bytes: 2,
-                requests: 3,
-            });
+            assert_eq!(
+                contract.metrics_for_period(django, day1_ms, day1_ms),
+                MetricValue {
+                    stored_bytes: 1,
+                    requests: 3,
+                }
+            );
+            assert_eq!(
+                contract.metrics_for_period(django, day2_ms, day2_ms),
+                MetricValue {
+                    stored_bytes: 5,
+                    requests: 3,
+                }
+            );
+            assert_eq!(
+                contract.metrics_for_period(django, day3_ms, day3_ms),
+                MetricValue {
+                    stored_bytes: 8,
+                    requests: 3,
+                }
+            );
+            assert_eq!(
+                contract.metrics_for_period(django, day4_ms, day4_ms),
+                MetricValue {
+                    stored_bytes: 2,
+                    requests: 3,
+                }
+            );
+            assert_eq!(
+                contract.metrics_for_period(django, day5_ms, day5_ms),
+                MetricValue {
+                    stored_bytes: 2,
+                    requests: 3,
+                }
+            );
 
-            assert_eq!(contract.metrics_for_period(django, 0, day5_ms), MetricValue {
-                stored_bytes: 18,
-                requests: 15,
-            });
-            assert_eq!(contract.metrics_for_period(django, day1_ms, day2_ms), MetricValue {
-                stored_bytes: 6,
-                requests: 6,
-            });
-            assert_eq!(contract.metrics_for_period(django, day1_ms, day3_ms), MetricValue {
-                stored_bytes: 14,
-                requests: 9,
-            });
-            assert_eq!(contract.metrics_for_period(django, day2_ms, day5_ms), MetricValue {
-                stored_bytes: 17,
-                requests: 12,
-            });
+            assert_eq!(
+                contract.metrics_for_period(django, 0, day5_ms),
+                MetricValue {
+                    stored_bytes: 18,
+                    requests: 15,
+                }
+            );
+            assert_eq!(
+                contract.metrics_for_period(django, day1_ms, day2_ms),
+                MetricValue {
+                    stored_bytes: 6,
+                    requests: 6,
+                }
+            );
+            assert_eq!(
+                contract.metrics_for_period(django, day1_ms, day3_ms),
+                MetricValue {
+                    stored_bytes: 14,
+                    requests: 9,
+                }
+            );
+            assert_eq!(
+                contract.metrics_for_period(django, day2_ms, day5_ms),
+                MetricValue {
+                    stored_bytes: 17,
+                    requests: 12,
+                }
+            );
 
             // Eve
-            assert_eq!(contract.metrics_for_period(eve, day1_ms, day1_ms), MetricValue {
-                stored_bytes: 5,
-                requests: 4,
-            });
-            assert_eq!(contract.metrics_for_period(eve, day2_ms, day2_ms), MetricValue {
-                stored_bytes: 5,
-                requests: 4,
-            });
-            assert_eq!(contract.metrics_for_period(eve, day3_ms, day3_ms), MetricValue {
-                stored_bytes: 6,
-                requests: 4,
-            });
-            assert_eq!(contract.metrics_for_period(eve, day4_ms, day4_ms), MetricValue {
-                stored_bytes: 4,
-                requests: 4,
-            });
-            assert_eq!(contract.metrics_for_period(eve, day5_ms, day5_ms), MetricValue {
-                stored_bytes: 1,
-                requests: 4,
-            });
+            assert_eq!(
+                contract.metrics_for_period(eve, day1_ms, day1_ms),
+                MetricValue {
+                    stored_bytes: 5,
+                    requests: 4,
+                }
+            );
+            assert_eq!(
+                contract.metrics_for_period(eve, day2_ms, day2_ms),
+                MetricValue {
+                    stored_bytes: 5,
+                    requests: 4,
+                }
+            );
+            assert_eq!(
+                contract.metrics_for_period(eve, day3_ms, day3_ms),
+                MetricValue {
+                    stored_bytes: 6,
+                    requests: 4,
+                }
+            );
+            assert_eq!(
+                contract.metrics_for_period(eve, day4_ms, day4_ms),
+                MetricValue {
+                    stored_bytes: 4,
+                    requests: 4,
+                }
+            );
+            assert_eq!(
+                contract.metrics_for_period(eve, day5_ms, day5_ms),
+                MetricValue {
+                    stored_bytes: 1,
+                    requests: 4,
+                }
+            );
 
-            assert_eq!(contract.metrics_for_period(eve, 0, day5_ms), MetricValue {
-                stored_bytes: 21,
-                requests: 20,
-            });
-            assert_eq!(contract.metrics_for_period(eve, day1_ms, day2_ms), MetricValue {
-                stored_bytes: 10,
-                requests: 8,
-            });
-            assert_eq!(contract.metrics_for_period(eve, day1_ms, day3_ms), MetricValue {
-                stored_bytes: 16,
-                requests: 12,
-            });
-            assert_eq!(contract.metrics_for_period(eve, day2_ms, day5_ms), MetricValue {
-                stored_bytes: 16,
-                requests: 16,
-            });
+            assert_eq!(
+                contract.metrics_for_period(eve, 0, day5_ms),
+                MetricValue {
+                    stored_bytes: 21,
+                    requests: 20,
+                }
+            );
+            assert_eq!(
+                contract.metrics_for_period(eve, day1_ms, day2_ms),
+                MetricValue {
+                    stored_bytes: 10,
+                    requests: 8,
+                }
+            );
+            assert_eq!(
+                contract.metrics_for_period(eve, day1_ms, day3_ms),
+                MetricValue {
+                    stored_bytes: 16,
+                    requests: 12,
+                }
+            );
+            assert_eq!(
+                contract.metrics_for_period(eve, day2_ms, day5_ms),
+                MetricValue {
+                    stored_bytes: 16,
+                    requests: 16,
+                }
+            );
 
             // Frank
-            assert_eq!(contract.metrics_for_period(frank, day1_ms, day1_ms), MetricValue {
-                stored_bytes: 7,
-                requests: 5,
-            });
-            assert_eq!(contract.metrics_for_period(frank, day2_ms, day2_ms), MetricValue {
-                stored_bytes: 10,
-                requests: 5,
-            });
-            assert_eq!(contract.metrics_for_period(frank, day3_ms, day3_ms), MetricValue {
-                stored_bytes: 2,
-                requests: 5,
-            });
-            assert_eq!(contract.metrics_for_period(frank, day4_ms, day4_ms), MetricValue {
-                stored_bytes: 10,
-                requests: 5,
-            });
-            assert_eq!(contract.metrics_for_period(frank, day5_ms, day5_ms), MetricValue {
-                stored_bytes: 2,
-                requests: 5,
-            });
+            assert_eq!(
+                contract.metrics_for_period(frank, day1_ms, day1_ms),
+                MetricValue {
+                    stored_bytes: 7,
+                    requests: 5,
+                }
+            );
+            assert_eq!(
+                contract.metrics_for_period(frank, day2_ms, day2_ms),
+                MetricValue {
+                    stored_bytes: 10,
+                    requests: 5,
+                }
+            );
+            assert_eq!(
+                contract.metrics_for_period(frank, day3_ms, day3_ms),
+                MetricValue {
+                    stored_bytes: 2,
+                    requests: 5,
+                }
+            );
+            assert_eq!(
+                contract.metrics_for_period(frank, day4_ms, day4_ms),
+                MetricValue {
+                    stored_bytes: 10,
+                    requests: 5,
+                }
+            );
+            assert_eq!(
+                contract.metrics_for_period(frank, day5_ms, day5_ms),
+                MetricValue {
+                    stored_bytes: 2,
+                    requests: 5,
+                }
+            );
 
-            assert_eq!(contract.metrics_for_period(frank, 0, day5_ms), MetricValue {
-                stored_bytes: 31,
-                requests: 25,
-            });
-            assert_eq!(contract.metrics_for_period(frank, day1_ms, day2_ms), MetricValue {
-                stored_bytes: 17,
-                requests: 10,
-            });
-            assert_eq!(contract.metrics_for_period(frank, day1_ms, day3_ms), MetricValue {
-                stored_bytes: 19,
-                requests: 15,
-            });
-            assert_eq!(contract.metrics_for_period(frank, day2_ms, day5_ms), MetricValue {
-                stored_bytes: 24,
-                requests: 20,
-            });
+            assert_eq!(
+                contract.metrics_for_period(frank, 0, day5_ms),
+                MetricValue {
+                    stored_bytes: 31,
+                    requests: 25,
+                }
+            );
+            assert_eq!(
+                contract.metrics_for_period(frank, day1_ms, day2_ms),
+                MetricValue {
+                    stored_bytes: 17,
+                    requests: 10,
+                }
+            );
+            assert_eq!(
+                contract.metrics_for_period(frank, day1_ms, day3_ms),
+                MetricValue {
+                    stored_bytes: 19,
+                    requests: 15,
+                }
+            );
+            assert_eq!(
+                contract.metrics_for_period(frank, day2_ms, day5_ms),
+                MetricValue {
+                    stored_bytes: 24,
+                    requests: 20,
+                }
+            );
 
             // Alice
-            assert_eq!(contract.metrics_for_period(alice, day1_ms, day1_ms), MetricValue {
-                stored_bytes: 2,
-                requests: 6,
-            });
-            assert_eq!(contract.metrics_for_period(alice, day2_ms, day2_ms), MetricValue {
-                stored_bytes: 0,
-                requests: 6,
-            });
-            assert_eq!(contract.metrics_for_period(alice, day3_ms, day3_ms), MetricValue {
-                stored_bytes: 7,
-                requests: 6,
-            });
-            assert_eq!(contract.metrics_for_period(alice, day4_ms, day4_ms), MetricValue {
-                stored_bytes: 2,
-                requests: 6,
-            });
+            assert_eq!(
+                contract.metrics_for_period(alice, day1_ms, day1_ms),
+                MetricValue {
+                    stored_bytes: 2,
+                    requests: 6,
+                }
+            );
+            assert_eq!(
+                contract.metrics_for_period(alice, day2_ms, day2_ms),
+                MetricValue {
+                    stored_bytes: 0,
+                    requests: 6,
+                }
+            );
+            assert_eq!(
+                contract.metrics_for_period(alice, day3_ms, day3_ms),
+                MetricValue {
+                    stored_bytes: 7,
+                    requests: 6,
+                }
+            );
+            assert_eq!(
+                contract.metrics_for_period(alice, day4_ms, day4_ms),
+                MetricValue {
+                    stored_bytes: 2,
+                    requests: 6,
+                }
+            );
             // no metrics
-            assert_eq!(contract.metrics_for_period(alice, day5_ms, day5_ms), MetricValue {
-                stored_bytes: 0,
-                requests: 0, 
-            });
+            assert_eq!(
+                contract.metrics_for_period(alice, day5_ms, day5_ms),
+                MetricValue {
+                    stored_bytes: 0,
+                    requests: 0,
+                }
+            );
 
-            assert_eq!(contract.metrics_for_period(alice, 0, day5_ms), MetricValue {
-                stored_bytes: 11,
-                requests: 24,
-            });
-            assert_eq!(contract.metrics_for_period(alice, day1_ms, day2_ms), MetricValue {
-                stored_bytes: 2,
-                requests: 12,
-            });
-            assert_eq!(contract.metrics_for_period(alice, day1_ms, day3_ms), MetricValue {
-                stored_bytes: 9,
-                requests: 18,
-            });
-            assert_eq!(contract.metrics_for_period(alice, day2_ms, day5_ms), MetricValue {
-                stored_bytes: 9,
-                requests: 18,
-            });
+            assert_eq!(
+                contract.metrics_for_period(alice, 0, day5_ms),
+                MetricValue {
+                    stored_bytes: 11,
+                    requests: 24,
+                }
+            );
+            assert_eq!(
+                contract.metrics_for_period(alice, day1_ms, day2_ms),
+                MetricValue {
+                    stored_bytes: 2,
+                    requests: 12,
+                }
+            );
+            assert_eq!(
+                contract.metrics_for_period(alice, day1_ms, day3_ms),
+                MetricValue {
+                    stored_bytes: 9,
+                    requests: 18,
+                }
+            );
+            assert_eq!(
+                contract.metrics_for_period(alice, day2_ms, day5_ms),
+                MetricValue {
+                    stored_bytes: 9,
+                    requests: 18,
+                }
+            );
         }
 
         #[ink::test]
