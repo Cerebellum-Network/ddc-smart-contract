@@ -931,14 +931,14 @@ mod ddc {
 
             let mut subscription = contract.subscriptions.get(&payer).unwrap();
 
-            assert_eq!(subscription.end_date_ms, 31 * MS_PER_DAY);
+            assert_eq!(subscription.end_date_ms, PERIOD_MS);
             assert_eq!(subscription.balance, 500);
 
             contract.subscribe(3).unwrap();
 
             subscription = contract.subscriptions.get(&payer).unwrap();
 
-            assert_eq!(subscription.end_date_ms, 31 * MS_PER_DAY * 2);
+            assert_eq!(subscription.end_date_ms, PERIOD_MS * 2);
             assert_eq!(subscription.balance, 1000);
 
             // assert_eq!(contract.balance_of(payer), 2);
@@ -1114,25 +1114,24 @@ mod ddc {
             // Note: the values of start_ms will be updated to use in assert_eq!
 
             let some_day = 9999;
-            let ms_per_day = 24 * 3600 * 1000;
-            let period_start_ms = some_day / 31 * 31 * ms_per_day;
+            let period_start_ms = some_day / PERIOD_DAYS * PERIOD_MS;
 
-            let today_ms = some_day * ms_per_day; // Midnight time on some day.
+            let today_ms = some_day * MS_PER_DAY; // Midnight time on some day.
             let today_key = MetricKey {
                 app_id,
-                day_of_period: some_day % 31,
+                day_of_period: some_day % PERIOD_DAYS,
             };
 
-            let yesterday_ms = (some_day - 1) * ms_per_day; // Midnight time on some day.
+            let yesterday_ms = (some_day - 1) * MS_PER_DAY; // Midnight time on some day.
             let yesterday_key = MetricKey {
                 app_id,
-                day_of_period: (some_day - 1) % 31,
+                day_of_period: (some_day - 1) % PERIOD_DAYS,
             };
 
-            let next_month_ms = (some_day + 31) * ms_per_day; // Midnight time on some day.
+            let next_month_ms = (some_day + PERIOD_DAYS) * MS_PER_DAY; // Midnight time on some day.
             let next_month_key = MetricKey {
                 app_id,
-                day_of_period: (some_day + 31) % 31,
+                day_of_period: (some_day + PERIOD_DAYS) % PERIOD_DAYS,
             };
 
             // Unauthorized report, we are not a reporter.
@@ -1513,7 +1512,7 @@ mod ddc {
                 .report_metrics_ddn(ddn_id.clone(), today_ms, stored_bytes, requests)
                 .unwrap();
 
-            let last_day_inclusive = first_day + 30;
+            let last_day_inclusive = first_day + PERIOD_DAYS - 1;
             let now_ms = last_day_inclusive * MS_PER_DAY + 12345;
             let result = contract.metrics_for_ddn_at_time(ddn_id, now_ms);
 
@@ -1523,10 +1522,10 @@ mod ddc {
                     stored_bytes: 0,
                     requests: 0,
                 };
-                31
+                PERIOD_DAYS as usize
             ];
 
-            for i in 0..31 {
+            for i in 0..PERIOD_DAYS as usize {
                 expected[i].start_ms = (first_day + i as u64) * MS_PER_DAY;
             }
 
