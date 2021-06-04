@@ -709,7 +709,13 @@ mod ddc {
         }
 
         #[ink(message)]
-        pub fn get_current_period_ms(&self, reporter_id: AccountId) -> u64 {
+        pub fn get_current_period_ms(&self) -> u64 {
+            let caller = self.env().caller();
+            self.get_current_period_ms_of(caller)
+        }
+
+        #[ink(message)]
+        pub fn get_current_period_ms_of(&self, reporter_id: AccountId) -> u64 {
             let current_period_ms = self.current_period_ms.get(&reporter_id);
             match current_period_ms {
                 None => {
@@ -1164,9 +1170,9 @@ mod ddc {
             assert_eq!(err, Err(Error::UnexpectedTimestamp));
 
             // Finalize today to change the current period.
-            assert_eq!(contract.get_current_period_ms(accounts.alice), 0);
+            assert_eq!(contract.get_current_period_ms(), 0);
             contract.finalize_metric_period(yesterday_ms).unwrap();
-            assert_eq!(contract.get_current_period_ms(accounts.alice), today_ms);
+            assert_eq!(contract.get_current_period_ms(), today_ms);
         }
 
         #[ink::test]
@@ -1182,25 +1188,29 @@ mod ddc {
             contract.add_reporter(accounts.bob).unwrap();
 
             // Initial values are the current day (0 because that is the current time in the test env).
-            assert_eq!(contract.get_current_period_ms(accounts.alice), 0);
-            assert_eq!(contract.get_current_period_ms(accounts.bob), 0);
+            assert_eq!(contract.get_current_period_ms_of(accounts.alice), 0);
+            assert_eq!(contract.get_current_period_ms_of(accounts.bob), 0);
+            assert_eq!(contract.get_current_period_ms(), 0); // of caller Alice
 
-            // As Alice.
+            // Alice finalizes day 0.
             contract.finalize_metric_period(day0).unwrap();
-            assert_eq!(contract.get_current_period_ms(accounts.alice), day1); // +1 day.
-            assert_eq!(contract.get_current_period_ms(accounts.bob), 0); // No change.
+            assert_eq!(contract.get_current_period_ms_of(accounts.alice), day1); // After day0.
+            assert_eq!(contract.get_current_period_ms_of(accounts.bob), 0); // No change.
+            assert_eq!(contract.get_current_period_ms(), day1); // of caller Alice
 
-            // As Bob.
+            // Bob finalizes day 1.
             set_caller(accounts.bob);
             contract.finalize_metric_period(day1).unwrap();
-            assert_eq!(contract.get_current_period_ms(accounts.alice), day1); // No change.
-            assert_eq!(contract.get_current_period_ms(accounts.bob), day2); // +1 day.
+            assert_eq!(contract.get_current_period_ms_of(accounts.alice), day1); // No change.
+            assert_eq!(contract.get_current_period_ms_of(accounts.bob), day2); // After day1.
+            assert_eq!(contract.get_current_period_ms(), day2); // of caller Bob
             undo_set_caller();
 
-            // As Alice again.
+            // Alice finalizes day 1.
             contract.finalize_metric_period(day1).unwrap();
-            assert_eq!(contract.get_current_period_ms(accounts.alice), day2); // +1 day.
-            assert_eq!(contract.get_current_period_ms(accounts.bob), day2); // No change.
+            assert_eq!(contract.get_current_period_ms_of(accounts.alice), day2); // After day1.
+            assert_eq!(contract.get_current_period_ms_of(accounts.bob), day2); // No change.
+            assert_eq!(contract.get_current_period_ms(), day2); // of caller Alice
         }
 
         fn decode_event(event: &ink_env::test::EmittedEvent) -> Event {
