@@ -1,7 +1,7 @@
 {
   "metadataVersion": "0.1.0",
   "source": {
-    "hash": "0xa4ec5595c4e6fb12ad3336e3335f32e1b204e76a4e4b98c146b2c5ad5146c9ad",
+    "hash": "0x5fe14ca559fb111564bb277f6386870533948d21ad3199b277addb1d43ccad71",
     "language": "ink! 3.0.0-rc3",
     "compiler": "rustc 1.53.0-nightly"
   },
@@ -388,17 +388,24 @@
               ],
               "type": 1
             }
+          },
+          {
+            "name": "amount",
+            "type": {
+              "displayName": [
+                "Balance"
+              ],
+              "type": 8
+            }
           }
         ],
         "docs": [
-          " Given a destination account, transfer all the contract balance to it",
-          " only contract owner can call this function",
-          " destination account can be the same as the contract owner",
-          " return OK or an error"
+          " As owner, withdraw tokens to the given account. The destination account can be the same",
+          " as the contract owner. Some balance must be left in the contract as subsistence deposit."
         ],
         "mutates": true,
         "name": [
-          "transfer_all_balance"
+          "withdraw"
         ],
         "payable": false,
         "returnType": {
@@ -407,7 +414,7 @@
           ],
           "type": 30
         },
-        "selector": "0xa216cc96"
+        "selector": "0x410fcc9d"
       },
       {
         "args": [],
@@ -2401,26 +2408,34 @@
             },
             {
               "discriminant": 7,
-              "name": "OverLimit"
+              "name": "InsufficientBalance"
             },
             {
               "discriminant": 8,
-              "name": "TidOutOfBound"
+              "name": "InvalidAccount"
             },
             {
               "discriminant": 9,
-              "name": "ContractPaused"
+              "name": "OverLimit"
             },
             {
               "discriminant": 10,
-              "name": "ContractActive"
+              "name": "TidOutOfBound"
             },
             {
               "discriminant": 11,
-              "name": "UnexpectedTimestamp"
+              "name": "ContractPaused"
             },
             {
               "discriminant": 12,
+              "name": "ContractActive"
+            },
+            {
+              "discriminant": 13,
+              "name": "UnexpectedTimestamp"
+            },
+            {
+              "discriminant": 14,
               "name": "NoSubscription"
             }
           ]
