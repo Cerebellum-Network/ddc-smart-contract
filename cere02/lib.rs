@@ -38,7 +38,7 @@ mod ddc {
 
         // -- Metrics Reporting --
         pub metrics: StorageHashMap<MetricKey, MetricValue>,
-        current_period_ms: u64,
+        current_period_ms: StorageHashMap<AccountId, u64>,
     }
 
     impl Ddc {
@@ -87,9 +87,6 @@ mod ddc {
 
             service_v.insert(3, t3);
 
-            let now: u64 = Self::env().block_timestamp(); // Epoch in milisecond
-            let today_ms = now - now % MS_PER_DAY; // Beginning of deploy date in Epoch milisecond
-
             let instance = Self {
                 owner: Lazy::new(caller),
                 service: service_v,
@@ -98,7 +95,7 @@ mod ddc {
                 reporters: StorageHashMap::new(),
                 ddc_nodes: StorageHashMap::new(),
                 metrics: StorageHashMap::new(),
-                current_period_ms: today_ms,
+                current_period_ms: StorageHashMap::new(),
                 pause: false,
             };
             instance
@@ -702,7 +699,8 @@ mod ddc {
             self.only_reporter(&reporter)?;
 
             enforce_time_is_start_of_day(start_ms)?;
-            self.current_period_ms = start_ms + MS_PER_DAY;
+            let next_period_ms = start_ms + MS_PER_DAY;
+            self.current_period_ms.insert(reporter, next_period_ms);
 
             self.env()
                 .emit_event(MetricPeriodFinalized { reporter, start_ms });
@@ -711,8 +709,16 @@ mod ddc {
         }
 
         #[ink(message)]
-        pub fn get_current_period_ms(&self) -> u64 {
-            self.current_period_ms
+        pub fn get_current_period_ms(&self, reporter_id: AccountId) -> u64 {
+            let current_period_ms = self.current_period_ms.get(&reporter_id);
+            match current_period_ms {
+                None => {
+                    let now: u64 = Self::env().block_timestamp(); // Epoch in milisecond
+                    let today_ms = now - now % MS_PER_DAY; // The beginning of today
+                    today_ms
+                }
+                Some(current_period_ms) => *current_period_ms,
+            }
         }
 
         #[ink(message)]
@@ -1157,9 +1163,44 @@ mod ddc {
             let err = contract.finalize_metric_period(yesterday_ms + 1);
             assert_eq!(err, Err(Error::UnexpectedTimestamp));
 
-            // Finalize today.
+            // Finalize today to change the current period.
+            assert_eq!(contract.get_current_period_ms(accounts.alice), 0);
             contract.finalize_metric_period(yesterday_ms).unwrap();
-            assert_eq!(contract.get_current_period_ms(), today_ms);
+            assert_eq!(contract.get_current_period_ms(accounts.alice), today_ms);
+        }
+
+        #[ink::test]
+        fn get_current_period_ms_works() {
+            let mut contract = make_contract();
+            let accounts = default_accounts::<DefaultEnvironment>().unwrap();
+            let day0 = 9999 * MS_PER_DAY; // Midnight time on some day.
+            let day1 = day0 + MS_PER_DAY;
+            let day2 = day1 + MS_PER_DAY;
+
+            // Authorize our accounts to be a reporters.
+            contract.add_reporter(accounts.alice).unwrap();
+            contract.add_reporter(accounts.bob).unwrap();
+
+            // Initial values are the current day (0 because that is the current time in the test env).
+            assert_eq!(contract.get_current_period_ms(accounts.alice), 0);
+            assert_eq!(contract.get_current_period_ms(accounts.bob), 0);
+
+            // As Alice.
+            contract.finalize_metric_period(day0).unwrap();
+            assert_eq!(contract.get_current_period_ms(accounts.alice), day1); // +1 day.
+            assert_eq!(contract.get_current_period_ms(accounts.bob), 0); // No change.
+
+            // As Bob.
+            set_caller(accounts.bob);
+            contract.finalize_metric_period(day1).unwrap();
+            assert_eq!(contract.get_current_period_ms(accounts.alice), day1); // No change.
+            assert_eq!(contract.get_current_period_ms(accounts.bob), day2); // +1 day.
+            undo_set_caller();
+
+            // As Alice again.
+            contract.finalize_metric_period(day1).unwrap();
+            assert_eq!(contract.get_current_period_ms(accounts.alice), day2); // +1 day.
+            assert_eq!(contract.get_current_period_ms(accounts.bob), day2); // No change.
         }
 
         fn decode_event(event: &ink_env::test::EmittedEvent) -> Event {
