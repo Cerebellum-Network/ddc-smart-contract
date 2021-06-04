@@ -674,7 +674,7 @@ mod ddc {
                 let mut day_reqests: Vec<u128> = Vec::new();
 
                 for reporter in self.reporters.keys() {
-                    let reporter_day_metric = self.metrics_for_day(reporter, app_id, day);
+                    let reporter_day_metric = self.metrics_for_day(reporter.clone(), app_id, day);
                     if let Some(reporter_day_metric) = reporter_day_metric {
                         day_stored_bytes.push(reporter_day_metric.stored_bytes);
                         day_reqests.push(reporter_day_metric.requests);
@@ -1307,14 +1307,18 @@ mod ddc {
             let day1_alice_django_key = MetricKey {
                 reporter: alice,
                 app_id: django,
-                day_of_month: day1 % 31,
+                day_of_period: day1 % PERIOD_DAYS,
             };
 
             // No metric yet.
             assert_eq!(contract.metrics.get(&day1_alice_django_key), None);
             assert_eq!(
-                contract.metrics_for_period(django, 0, day5_ms),
-                MetricValue::default()
+                contract.metrics_for_period(django, day1_ms, day5_ms),
+                MetricValue {
+                    start_ms: day1_ms,
+                    stored_bytes: 0,
+                    requests: 0
+                }
             );
 
             // bob day1: [0, 6, 8, 8, 100] -> 8
@@ -1553,6 +1557,7 @@ mod ddc {
             assert_eq!(
                 contract.metrics_for_period(bob, day1_ms, day1_ms),
                 MetricValue {
+                    start_ms: day1_ms,
                     stored_bytes: 8,
                     requests: 1,
                 }
@@ -1560,6 +1565,7 @@ mod ddc {
             assert_eq!(
                 contract.metrics_for_period(bob, day2_ms, day2_ms),
                 MetricValue {
+                    start_ms: day2_ms,
                     stored_bytes: 4,
                     requests: 1,
                 }
@@ -1567,6 +1573,7 @@ mod ddc {
             assert_eq!(
                 contract.metrics_for_period(bob, day3_ms, day3_ms),
                 MetricValue {
+                    start_ms: day3_ms,
                     stored_bytes: 10,
                     requests: 1,
                 }
@@ -1574,6 +1581,7 @@ mod ddc {
             assert_eq!(
                 contract.metrics_for_period(bob, day4_ms, day4_ms),
                 MetricValue {
+                    start_ms: day4_ms,
                     stored_bytes: 20,
                     requests: 1,
                 }
@@ -1581,14 +1589,16 @@ mod ddc {
             assert_eq!(
                 contract.metrics_for_period(bob, day5_ms, day5_ms),
                 MetricValue {
+                    start_ms: day5_ms,
                     stored_bytes: 2,
                     requests: 1,
                 }
             );
 
             assert_eq!(
-                contract.metrics_for_period(bob, 0, day5_ms),
+                contract.metrics_for_period(bob, day1_ms, day5_ms),
                 MetricValue {
+                    start_ms: day1_ms,
                     stored_bytes: 44,
                     requests: 5,
                 }
@@ -1596,6 +1606,7 @@ mod ddc {
             assert_eq!(
                 contract.metrics_for_period(bob, day1_ms, day2_ms),
                 MetricValue {
+                    start_ms: day1_ms,
                     stored_bytes: 12,
                     requests: 2,
                 }
@@ -1603,6 +1614,7 @@ mod ddc {
             assert_eq!(
                 contract.metrics_for_period(bob, day1_ms, day3_ms),
                 MetricValue {
+                    start_ms: day1_ms,
                     stored_bytes: 22,
                     requests: 3,
                 }
@@ -1610,6 +1622,7 @@ mod ddc {
             assert_eq!(
                 contract.metrics_for_period(bob, day2_ms, day5_ms),
                 MetricValue {
+                    start_ms: day2_ms,
                     stored_bytes: 36,
                     requests: 4,
                 }
@@ -1619,6 +1632,7 @@ mod ddc {
             assert_eq!(
                 contract.metrics_for_period(charlie, day1_ms, day1_ms),
                 MetricValue {
+                    start_ms: day1_ms,
                     stored_bytes: 4,
                     requests: 2,
                 }
@@ -1626,6 +1640,7 @@ mod ddc {
             assert_eq!(
                 contract.metrics_for_period(charlie, day2_ms, day2_ms),
                 MetricValue {
+                    start_ms: day2_ms,
                     stored_bytes: 4,
                     requests: 2,
                 }
@@ -1633,6 +1648,7 @@ mod ddc {
             assert_eq!(
                 contract.metrics_for_period(charlie, day3_ms, day3_ms),
                 MetricValue {
+                    start_ms: day3_ms,
                     stored_bytes: 2,
                     requests: 2,
                 }
@@ -1640,6 +1656,7 @@ mod ddc {
             assert_eq!(
                 contract.metrics_for_period(charlie, day4_ms, day4_ms),
                 MetricValue {
+                    start_ms: day4_ms,
                     stored_bytes: 5,
                     requests: 2,
                 }
@@ -1647,14 +1664,16 @@ mod ddc {
             assert_eq!(
                 contract.metrics_for_period(charlie, day5_ms, day5_ms),
                 MetricValue {
+                    start_ms: day5_ms,
                     stored_bytes: 10,
                     requests: 2,
                 }
             );
 
             assert_eq!(
-                contract.metrics_for_period(charlie, 0, day5_ms),
+                contract.metrics_for_period(charlie, day1_ms, day5_ms),
                 MetricValue {
+                    start_ms: day1_ms,
                     stored_bytes: 25,
                     requests: 10,
                 }
@@ -1662,6 +1681,7 @@ mod ddc {
             assert_eq!(
                 contract.metrics_for_period(charlie, day1_ms, day2_ms),
                 MetricValue {
+                    start_ms: day1_ms,
                     stored_bytes: 8,
                     requests: 4,
                 }
@@ -1669,6 +1689,7 @@ mod ddc {
             assert_eq!(
                 contract.metrics_for_period(charlie, day1_ms, day3_ms),
                 MetricValue {
+                    start_ms: day1_ms,
                     stored_bytes: 10,
                     requests: 6,
                 }
@@ -1676,6 +1697,7 @@ mod ddc {
             assert_eq!(
                 contract.metrics_for_period(charlie, day2_ms, day5_ms),
                 MetricValue {
+                    start_ms: day2_ms,
                     stored_bytes: 21,
                     requests: 8,
                 }
@@ -1685,6 +1707,7 @@ mod ddc {
             assert_eq!(
                 contract.metrics_for_period(django, day1_ms, day1_ms),
                 MetricValue {
+                    start_ms: day1_ms,
                     stored_bytes: 1,
                     requests: 3,
                 }
@@ -1692,6 +1715,7 @@ mod ddc {
             assert_eq!(
                 contract.metrics_for_period(django, day2_ms, day2_ms),
                 MetricValue {
+                    start_ms: day2_ms,
                     stored_bytes: 5,
                     requests: 3,
                 }
@@ -1699,6 +1723,7 @@ mod ddc {
             assert_eq!(
                 contract.metrics_for_period(django, day3_ms, day3_ms),
                 MetricValue {
+                    start_ms: day3_ms,
                     stored_bytes: 8,
                     requests: 3,
                 }
@@ -1706,6 +1731,7 @@ mod ddc {
             assert_eq!(
                 contract.metrics_for_period(django, day4_ms, day4_ms),
                 MetricValue {
+                    start_ms: day4_ms,
                     stored_bytes: 2,
                     requests: 3,
                 }
@@ -1713,14 +1739,16 @@ mod ddc {
             assert_eq!(
                 contract.metrics_for_period(django, day5_ms, day5_ms),
                 MetricValue {
+                    start_ms: day5_ms,
                     stored_bytes: 2,
                     requests: 3,
                 }
             );
 
             assert_eq!(
-                contract.metrics_for_period(django, 0, day5_ms),
+                contract.metrics_for_period(django, day1_ms, day5_ms),
                 MetricValue {
+                    start_ms: day1_ms,
                     stored_bytes: 18,
                     requests: 15,
                 }
@@ -1728,6 +1756,7 @@ mod ddc {
             assert_eq!(
                 contract.metrics_for_period(django, day1_ms, day2_ms),
                 MetricValue {
+                    start_ms: day1_ms,
                     stored_bytes: 6,
                     requests: 6,
                 }
@@ -1735,6 +1764,7 @@ mod ddc {
             assert_eq!(
                 contract.metrics_for_period(django, day1_ms, day3_ms),
                 MetricValue {
+                    start_ms: day1_ms,
                     stored_bytes: 14,
                     requests: 9,
                 }
@@ -1742,6 +1772,7 @@ mod ddc {
             assert_eq!(
                 contract.metrics_for_period(django, day2_ms, day5_ms),
                 MetricValue {
+                    start_ms: day2_ms,
                     stored_bytes: 17,
                     requests: 12,
                 }
@@ -1751,6 +1782,7 @@ mod ddc {
             assert_eq!(
                 contract.metrics_for_period(eve, day1_ms, day1_ms),
                 MetricValue {
+                    start_ms: day1_ms,
                     stored_bytes: 5,
                     requests: 4,
                 }
@@ -1758,6 +1790,7 @@ mod ddc {
             assert_eq!(
                 contract.metrics_for_period(eve, day2_ms, day2_ms),
                 MetricValue {
+                    start_ms: day2_ms,
                     stored_bytes: 5,
                     requests: 4,
                 }
@@ -1765,6 +1798,7 @@ mod ddc {
             assert_eq!(
                 contract.metrics_for_period(eve, day3_ms, day3_ms),
                 MetricValue {
+                    start_ms: day3_ms,
                     stored_bytes: 6,
                     requests: 4,
                 }
@@ -1772,6 +1806,7 @@ mod ddc {
             assert_eq!(
                 contract.metrics_for_period(eve, day4_ms, day4_ms),
                 MetricValue {
+                    start_ms: day4_ms,
                     stored_bytes: 4,
                     requests: 4,
                 }
@@ -1779,14 +1814,16 @@ mod ddc {
             assert_eq!(
                 contract.metrics_for_period(eve, day5_ms, day5_ms),
                 MetricValue {
+                    start_ms: day5_ms,
                     stored_bytes: 1,
                     requests: 4,
                 }
             );
 
             assert_eq!(
-                contract.metrics_for_period(eve, 0, day5_ms),
+                contract.metrics_for_period(eve, day1_ms, day5_ms),
                 MetricValue {
+                    start_ms: day1_ms,
                     stored_bytes: 21,
                     requests: 20,
                 }
@@ -1794,6 +1831,7 @@ mod ddc {
             assert_eq!(
                 contract.metrics_for_period(eve, day1_ms, day2_ms),
                 MetricValue {
+                    start_ms: day1_ms,
                     stored_bytes: 10,
                     requests: 8,
                 }
@@ -1801,6 +1839,7 @@ mod ddc {
             assert_eq!(
                 contract.metrics_for_period(eve, day1_ms, day3_ms),
                 MetricValue {
+                    start_ms: day1_ms,
                     stored_bytes: 16,
                     requests: 12,
                 }
@@ -1808,6 +1847,7 @@ mod ddc {
             assert_eq!(
                 contract.metrics_for_period(eve, day2_ms, day5_ms),
                 MetricValue {
+                    start_ms: day2_ms,
                     stored_bytes: 16,
                     requests: 16,
                 }
@@ -1817,6 +1857,7 @@ mod ddc {
             assert_eq!(
                 contract.metrics_for_period(frank, day1_ms, day1_ms),
                 MetricValue {
+                    start_ms: day1_ms,
                     stored_bytes: 7,
                     requests: 5,
                 }
@@ -1824,6 +1865,7 @@ mod ddc {
             assert_eq!(
                 contract.metrics_for_period(frank, day2_ms, day2_ms),
                 MetricValue {
+                    start_ms: day2_ms,
                     stored_bytes: 10,
                     requests: 5,
                 }
@@ -1831,6 +1873,7 @@ mod ddc {
             assert_eq!(
                 contract.metrics_for_period(frank, day3_ms, day3_ms),
                 MetricValue {
+                    start_ms: day3_ms,
                     stored_bytes: 2,
                     requests: 5,
                 }
@@ -1838,6 +1881,7 @@ mod ddc {
             assert_eq!(
                 contract.metrics_for_period(frank, day4_ms, day4_ms),
                 MetricValue {
+                    start_ms: day4_ms,
                     stored_bytes: 10,
                     requests: 5,
                 }
@@ -1845,14 +1889,16 @@ mod ddc {
             assert_eq!(
                 contract.metrics_for_period(frank, day5_ms, day5_ms),
                 MetricValue {
+                    start_ms: day5_ms,
                     stored_bytes: 2,
                     requests: 5,
                 }
             );
 
             assert_eq!(
-                contract.metrics_for_period(frank, 0, day5_ms),
+                contract.metrics_for_period(frank, day1_ms, day5_ms),
                 MetricValue {
+                    start_ms: day1_ms,
                     stored_bytes: 31,
                     requests: 25,
                 }
@@ -1860,6 +1906,7 @@ mod ddc {
             assert_eq!(
                 contract.metrics_for_period(frank, day1_ms, day2_ms),
                 MetricValue {
+                    start_ms: day1_ms,
                     stored_bytes: 17,
                     requests: 10,
                 }
@@ -1867,6 +1914,7 @@ mod ddc {
             assert_eq!(
                 contract.metrics_for_period(frank, day1_ms, day3_ms),
                 MetricValue {
+                    start_ms: day1_ms,
                     stored_bytes: 19,
                     requests: 15,
                 }
@@ -1874,6 +1922,7 @@ mod ddc {
             assert_eq!(
                 contract.metrics_for_period(frank, day2_ms, day5_ms),
                 MetricValue {
+                    start_ms: day2_ms,
                     stored_bytes: 24,
                     requests: 20,
                 }
@@ -1883,6 +1932,7 @@ mod ddc {
             assert_eq!(
                 contract.metrics_for_period(alice, day1_ms, day1_ms),
                 MetricValue {
+                    start_ms: day1_ms,
                     stored_bytes: 2,
                     requests: 6,
                 }
@@ -1890,6 +1940,7 @@ mod ddc {
             assert_eq!(
                 contract.metrics_for_period(alice, day2_ms, day2_ms),
                 MetricValue {
+                    start_ms: day2_ms,
                     stored_bytes: 0,
                     requests: 6,
                 }
@@ -1897,6 +1948,7 @@ mod ddc {
             assert_eq!(
                 contract.metrics_for_period(alice, day3_ms, day3_ms),
                 MetricValue {
+                    start_ms: day3_ms,
                     stored_bytes: 7,
                     requests: 6,
                 }
@@ -1904,6 +1956,7 @@ mod ddc {
             assert_eq!(
                 contract.metrics_for_period(alice, day4_ms, day4_ms),
                 MetricValue {
+                    start_ms: day4_ms,
                     stored_bytes: 2,
                     requests: 6,
                 }
@@ -1912,14 +1965,16 @@ mod ddc {
             assert_eq!(
                 contract.metrics_for_period(alice, day5_ms, day5_ms),
                 MetricValue {
+                    start_ms: day5_ms,
                     stored_bytes: 0,
                     requests: 0,
                 }
             );
 
             assert_eq!(
-                contract.metrics_for_period(alice, 0, day5_ms),
+                contract.metrics_for_period(alice, day1_ms, day5_ms),
                 MetricValue {
+                    start_ms: day1_ms,
                     stored_bytes: 11,
                     requests: 24,
                 }
@@ -1927,6 +1982,7 @@ mod ddc {
             assert_eq!(
                 contract.metrics_for_period(alice, day1_ms, day2_ms),
                 MetricValue {
+                    start_ms: day1_ms,
                     stored_bytes: 2,
                     requests: 12,
                 }
@@ -1934,6 +1990,7 @@ mod ddc {
             assert_eq!(
                 contract.metrics_for_period(alice, day1_ms, day3_ms),
                 MetricValue {
+                    start_ms: day1_ms,
                     stored_bytes: 9,
                     requests: 18,
                 }
@@ -1941,6 +1998,7 @@ mod ddc {
             assert_eq!(
                 contract.metrics_for_period(alice, day2_ms, day5_ms),
                 MetricValue {
+                    start_ms: day2_ms,
                     stored_bytes: 9,
                     requests: 18,
                 }
