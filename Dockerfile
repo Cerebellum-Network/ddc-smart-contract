@@ -32,12 +32,12 @@ RUN	wget http://ftp.us.debian.org/debian/pool/main/libx/libxcrypt/libcrypt1_4.4.
 	dpkg -i binaryen_99-3_amd64.deb
 
 # Run tests and build
-WORKDIR /smart-contracts/cere01
+WORKDIR /smart-contracts/cere02
 RUN cargo +nightly test && \
 	cargo +nightly contract build
 
 # ===== SECOND STAGE ======
 FROM phusion/baseimage:0.11
 WORKDIR /smart-contracts
-COPY --from=builder /smart-contracts/cere01/target/ink/cere01.wasm /smart-contracts/artifacts
-COPY --from=builder /smart-contracts/cere01/target/ink/metadata.json /smart-contracts/artifacts
+COPY --from=builder /smart-contracts/cere02/target/ink/cere02.wasm /smart-contracts/artifacts
+COPY --from=builder /smart-contracts/cere02/target/ink/metadata.json /smart-contracts/artifacts
