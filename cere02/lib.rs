@@ -32,13 +32,14 @@ mod ddc {
 
         // -- Admin: Reporters --
         reporters: StorageHashMap<AccountId, ()>,
+        current_period_ms: StorageHashMap<AccountId, u64>,
 
         // -- DDC Nodes --
         ddc_nodes: StorageHashMap<String, DDCNode>,
 
         // -- Metrics Reporting --
         pub metrics: StorageHashMap<MetricKey, MetricValue>,
-        current_period_ms: StorageHashMap<AccountId, u64>,
+        pub metrics_ddn: StorageHashMap<MetricKeyDDN, MetricValue>,
     }
 
     impl Ddc {
@@ -93,9 +94,10 @@ mod ddc {
                 balances: StorageHashMap::new(),
                 subscriptions: StorageHashMap::new(),
                 reporters: StorageHashMap::new(),
+                current_period_ms: StorageHashMap::new(),
                 ddc_nodes: StorageHashMap::new(),
                 metrics: StorageHashMap::new(),
-                current_period_ms: StorageHashMap::new(),
+                metrics_ddn: StorageHashMap::new(),
                 pause: false,
             };
             instance
@@ -568,6 +570,16 @@ mod ddc {
         day_of_month: u64,
     }
 
+    // ---- Metric per DDN ----
+    #[derive(
+        Default, Clone, PartialEq, Eq, PartialOrd, Ord, Encode, Decode, SpreadLayout, PackedLayout,
+    )]
+    #[cfg_attr(feature = "std", derive(Debug, scale_info::TypeInfo))]
+    pub struct MetricKeyDDN {
+        ddn_id: Vec<u8>,
+        day_of_month: u64,
+    }
+
     #[derive(
         Default, Clone, PartialEq, Eq, PartialOrd, Ord, Encode, Decode, SpreadLayout, PackedLayout,
     )]
@@ -599,6 +611,15 @@ mod ddc {
         reporter: AccountId,
         #[ink(topic)]
         key: MetricKey,
+        metrics: MetricValue,
+    }
+
+    #[ink(event)]
+    pub struct NewMetricDDN {
+        #[ink(topic)]
+        reporter: AccountId,
+        #[ink(topic)]
+        key: MetricKeyDDN,
         metrics: MetricValue,
     }
 
@@ -651,6 +672,30 @@ mod ddc {
         }
 
         #[ink(message)]
+        pub fn metrics_for_ddn(&self, ddn_id: Vec<u8>) -> Vec<MetricValue> {
+            let mut month_metrics: Vec<MetricValue> = Vec::new();
+
+            for day_of_month in 0..31 {
+                let day_key = MetricKeyDDN {
+                    ddn_id: ddn_id.clone(),
+                    day_of_month,
+                };
+                let mut item = MetricValue {
+                    stored_bytes: 0,
+                    requests: 0,
+                };
+
+                if let Some(value) = self.metrics_ddn.get(&day_key) {
+                    item = value.clone();
+                }
+
+                month_metrics.push(item.clone());
+            }
+
+            month_metrics
+        }
+
+        #[ink(message)]
         pub fn report_metrics(
             &mut self,
             app_id: AccountId,
@@ -685,6 +730,41 @@ mod ddc {
             self.metrics.insert(key.clone(), metrics.clone());
 
             self.env().emit_event(NewMetric {
+                reporter,
+                key,
+                metrics,
+            });
+
+            Ok(())
+        }
+
+        #[ink(message)]
+        pub fn report_metrics_ddn(
+            &mut self,
+            ddn_id: Vec<u8>,
+            day_start_ms: u64,
+            stored_bytes: u128,
+            requests: u128,
+        ) -> Result<()> {
+            let reporter = self.env().caller();
+            self.only_reporter(&reporter)?;
+
+            enforce_time_is_start_of_day(day_start_ms)?;
+            let day = day_start_ms / MS_PER_DAY;
+            let day_of_month = day % 31;
+
+            let key = MetricKeyDDN {
+                ddn_id,
+                day_of_month,
+            };
+            let metrics = MetricValue {
+                stored_bytes,
+                requests,
+            };
+
+            self.metrics_ddn.insert(key.clone(), metrics.clone());
+
+            self.env().emit_event(NewMetricDDN {
                 reporter,
                 key,
                 metrics,
@@ -1408,6 +1488,42 @@ mod ddc {
                 .unwrap();
 
             assert_eq!(contract.is_within_limit(app_id), true)
+        }
+
+        #[ink::test]
+        fn report_metrics_ddn_works() {
+            let mut contract = make_contract();
+            let accounts = default_accounts::<DefaultEnvironment>().unwrap();
+
+            let some_day = 9999;
+            let ms_per_day = 24 * 3600 * 1000;
+
+            let today_ms = some_day * ms_per_day;
+            let ddn_id = b"12D3KooWPfi9EtgoZHFnHh1at85mdZJtj7L8n94g6LFk6e8EEk2b".to_vec();
+            let stored_bytes = 99;
+            let requests = 999;
+
+            contract.add_reporter(accounts.alice).unwrap();
+            contract
+                .report_metrics_ddn(ddn_id.clone(), today_ms, stored_bytes, requests)
+                .unwrap();
+
+            let result = contract.metrics_for_ddn(ddn_id);
+
+            let mut expected = vec![
+                MetricValue {
+                    stored_bytes: 0,
+                    requests: 0,
+                };
+                31
+            ];
+
+            expected[17] = MetricValue {
+                stored_bytes,
+                requests,
+            };
+
+            assert_eq!(result, expected);
         }
     }
 }
