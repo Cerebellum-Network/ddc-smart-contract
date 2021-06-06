@@ -355,9 +355,35 @@ mod ddc {
     #[cfg_attr(feature = "std", derive(Debug, scale_info::TypeInfo))]
     pub struct AppSubscription {
         start_date_ms: u64,
-        end_date_ms: u64,
         tier_id: u128,
+
         balance: Balance,
+        last_update_ms: u64, // initially creation time
+    }
+
+    fn get_end_date_ms(subscription) {
+        price_of_time = get price from subscription.tier
+        prepaid_time = subscription.balance / price_of_time
+        subscription.last_update_ms + prepaid_time
+    }
+
+    fn get_consumed_balance(subscription) {
+        duration_consumed = now - subscription.last_update_ms
+        price_of_time = get price from subscription.tier
+        balance_consumed = duration_consumed * price of time
+        return balance_consumed
+    }
+
+    fn actualize_subscription(&mut subscription) {
+        consumed = get_consumed_balance(subscription)
+        check underflow
+        subscription.balance -= consumed
+        subscription.last_update_ms = now
+    }
+
+    fn set_tier(subscription, new tier) {
+        actualize_subscription(&mut subscription)
+        sub.tier_id = new_tier
     }
 
     impl Ddc {
@@ -416,18 +442,23 @@ mod ddc {
             let now = Self::env().block_timestamp();
             let mut subscription: AppSubscription;
 
-            if subscription_opt.is_none() || subscription_opt.unwrap().end_date_ms < now {
+            if subscription_opt.is_none() || subscription_opt.unwrap().get_end_date_ms() < now {
                 subscription = AppSubscription {
                     start_date_ms: now,
                     end_date_ms: now + PERIOD_MS,
                     tier_id,
+
+                    last_update_ms: now,
                     balance: value,
                 };
             } else {
                 subscription = subscription_opt.unwrap().clone();
 
-                subscription.end_date_ms += PERIOD_MS;
                 subscription.balance = subscription.balance + value;
+
+                if tier is different {
+                    set_tier(new tier)
+                }
             }
 
             self.subscriptions.insert(payer, subscription);
@@ -437,6 +468,15 @@ mod ddc {
             });
 
             return Ok(());
+        }
+
+
+        fn refund() {
+            subscription = get subscription of caller
+            consumed_balance = get_consumed_balance(subscription)
+            check underflow
+            to_refund = sub.balance - consumed_balance
+            transfer(caller, to_refund)
         }
     }
 
