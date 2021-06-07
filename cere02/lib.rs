@@ -681,15 +681,13 @@ mod ddc {
 
             for day_of_month in 0..31 {
                 let day_key = MetricKeyDDN { ddn_id: ddn_id.clone(), day_of_month };
+                let mut item = MetricValue {stored_bytes: 0, requests: 0};
 
                 if let Some(value) = self.metrics_ddn.get(&day_key) {
-                    // Skip empty values
-                    if value.stored_bytes == 0 && value.requests == 0  {
-                        continue;
-                    }
-
-                    month_metrics.push(value.clone());
+                    item = value.clone();
                 }
+
+                month_metrics.push(item.clone());
             }
 
             month_metrics
@@ -1434,6 +1432,36 @@ mod ddc {
                 .unwrap();
 
             assert_eq!(contract.is_within_limit(app_id), true)
+        }
+
+        #[ink::test]
+        fn report_metrics_ddn_works() {
+            let mut contract = make_contract();
+            let accounts = default_accounts::<DefaultEnvironment>().unwrap();
+
+            let some_day = 9999;
+            let ms_per_day = 24 * 3600 * 1000;
+
+            let today_ms = some_day * ms_per_day;
+            let ddn_id = b"12D3KooWPfi9EtgoZHFnHh1at85mdZJtj7L8n94g6LFk6e8EEk2b".to_vec();
+            let stored_bytes = 99;
+            let requests = 999;
+
+            contract.add_reporter(accounts.alice).unwrap();
+            contract
+                .report_metrics_ddn(ddn_id.clone(), today_ms, stored_bytes, requests)
+                .unwrap();
+
+            let result = contract.metrics_for_ddn(ddn_id);
+
+            let mut expected = vec!(MetricValue {
+                stored_bytes: 0,
+                requests: 0,
+            }; 31);
+
+            expected[17] = MetricValue {stored_bytes, requests};
+
+            assert_eq!(result, expected);
         }
     }
 }
