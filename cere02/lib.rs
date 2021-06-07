@@ -680,8 +680,14 @@ mod ddc {
             let mut month_metrics: Vec<MetricValue> = Vec::new();
 
             for day_of_month in 0..31 {
-                let day_key = MetricKeyDDN { ddn_id: ddn_id.clone(), day_of_month };
-                let mut item = MetricValue {stored_bytes: 0, requests: 0};
+                let day_key = MetricKeyDDN {
+                    ddn_id: ddn_id.clone(),
+                    day_of_month,
+                };
+                let mut item = MetricValue {
+                    stored_bytes: 0,
+                    requests: 0,
+                };
 
                 if let Some(value) = self.metrics_ddn.get(&day_key) {
                     item = value.clone();
@@ -1454,12 +1460,18 @@ mod ddc {
 
             let result = contract.metrics_for_ddn(ddn_id);
 
-            let mut expected = vec!(MetricValue {
-                stored_bytes: 0,
-                requests: 0,
-            }; 31);
+            let mut expected = vec![
+                MetricValue {
+                    stored_bytes: 0,
+                    requests: 0,
+                };
+                31
+            ];
 
-            expected[17] = MetricValue {stored_bytes, requests};
+            expected[17] = MetricValue {
+                stored_bytes,
+                requests,
+            };
 
             assert_eq!(result, expected);
         }
