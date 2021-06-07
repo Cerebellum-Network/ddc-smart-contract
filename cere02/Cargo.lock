@@ -283,7 +283,6 @@ dependencies = [
  "ink_prelude",
  "ink_primitives",
  "ink_storage",
- "median",
  "parity-scale-codec",
  "scale-info",
 ]
@@ -601,15 +600,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "51b9bbe6c47d51fc3e1a9b945965946b4c44142ab8792c50835a980d362c2710"
 dependencies = [
  "cfg-if 1.0.0",
-]
-
-[[package]]
-name = "median"
-version = "0.3.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "993f81eac178937d7d54dc7ba7bddd70a526bca92b36d95016add46f59d19754"
-dependencies = [
- "generic-array",
 ]
 
 [[package]]

@@ -612,7 +612,7 @@ mod ddc {
         reporter: AccountId,
         start_ms: u64,
     }
-    
+
     /// Get median value from a vector
     fn get_median<T: Clone + Ord>(source: Vec<T>) -> Option<T> {
         let length = source.len();
@@ -1219,7 +1219,6 @@ mod ddc {
             contract.report_metrics(charlie, day1_ms, 1, 2).unwrap();
             contract.report_metrics(django, day1_ms, 1, 3).unwrap();
             contract.report_metrics(eve, day1_ms, 5, 4).unwrap();
-            // contract.report_metrics(frank, day1_ms, 10, 5).unwrap();
             undo_set_caller();
 
             set_caller(django);
@@ -1243,8 +1242,6 @@ mod ddc {
             contract.report_metrics(bob, day1_ms, 100, 1).unwrap();
             contract.report_metrics(charlie, day1_ms, 5, 2).unwrap();
             contract.report_metrics(django, day1_ms, 1, 3).unwrap();
-            // contract.report_metrics(eve, day1_ms, 8, 4).unwrap();
-            // contract.report_metrics(frank, day1_ms, 10, 5).unwrap();
             undo_set_caller();
 
             // Day 2
@@ -1277,15 +1274,12 @@ mod ddc {
             contract.report_metrics(charlie, day2_ms, 4, 2).unwrap();
             contract.report_metrics(django, day2_ms, 5, 3).unwrap();
             contract.report_metrics(eve, day2_ms, 5, 4).unwrap();
-            // contract.report_metrics(frank, day2_ms, 10, 5).unwrap();
             undo_set_caller();
 
             set_caller(frank);
             contract.report_metrics(bob, day2_ms, 4, 1).unwrap();
             contract.report_metrics(charlie, day2_ms, 2, 2).unwrap();
             contract.report_metrics(django, day2_ms, 5, 3).unwrap();
-            // contract.report_metrics(eve, day2_ms, 8, 4).unwrap();
-            // contract.report_metrics(frank, day2_ms, 10, 5).unwrap();
             undo_set_caller();
 
             // Day3
@@ -1302,7 +1296,6 @@ mod ddc {
             contract.report_metrics(charlie, day3_ms, 2, 2).unwrap();
             contract.report_metrics(django, day3_ms, 8, 3).unwrap();
             contract.report_metrics(eve, day3_ms, 6, 4).unwrap();
-            // contract.report_metrics(frank, day3_ms, 10, 5).unwrap();
             undo_set_caller();
 
             set_caller(django);
@@ -1317,7 +1310,6 @@ mod ddc {
             contract.report_metrics(bob, day3_ms, 10, 1).unwrap();
             contract.report_metrics(charlie, day3_ms, 2, 2).unwrap();
             contract.report_metrics(django, day3_ms, 8, 3).unwrap();
-            // contract.report_metrics(eve, day3_ms, 8, 4).unwrap();
             contract.report_metrics(frank, day3_ms, 2, 5).unwrap();
             undo_set_caller();
 
@@ -1326,8 +1318,6 @@ mod ddc {
             contract.report_metrics(charlie, day3_ms, 2, 2).unwrap();
             contract.report_metrics(django, day3_ms, 1, 3).unwrap();
             contract.report_metrics(eve, day3_ms, 10, 4).unwrap();
-            // contract.report_metrics(frank, day3_ms, 10, 5).unwrap();
-
             undo_set_caller();
 
             // Day 4
@@ -1335,7 +1325,6 @@ mod ddc {
             contract.report_metrics(bob, day4_ms, 80, 1).unwrap();
             contract.report_metrics(charlie, day4_ms, 5, 2).unwrap();
             contract.report_metrics(django, day4_ms, 10, 3).unwrap();
-            // contract.report_metrics(eve, day4_ms, 8, 4).unwrap();
             contract.report_metrics(frank, day4_ms, 20, 5).unwrap();
             undo_set_caller();
 
@@ -1360,15 +1349,12 @@ mod ddc {
             contract.report_metrics(charlie, day4_ms, 5, 2).unwrap();
             contract.report_metrics(django, day4_ms, 2, 3).unwrap();
             contract.report_metrics(eve, day4_ms, 6, 4).unwrap();
-            //contract.report_metrics(frank, day4_ms, 10, 5).unwrap();
             undo_set_caller();
 
             set_caller(frank);
             contract.report_metrics(bob, day4_ms, 16, 1).unwrap();
             contract.report_metrics(charlie, day4_ms, 4, 2).unwrap();
-            // contract.report_metrics(django, day4_ms, 6, 3).unwrap();
             contract.report_metrics(eve, day4_ms, 10, 4).unwrap();
-            //contract.report_metrics(frank, day4_ms, 10, 5).unwrap();
             undo_set_caller();
 
             // Day 5
@@ -1384,7 +1370,6 @@ mod ddc {
             contract.report_metrics(bob, day5_ms, 0, 1).unwrap();
             contract.report_metrics(charlie, day5_ms, 10, 2).unwrap();
             contract.report_metrics(django, day5_ms, 2, 3).unwrap();
-            // contract.report_metrics(eve, day5_ms, 8, 4).unwrap();
             contract.report_metrics(frank, day5_ms, 2, 5).unwrap();
             undo_set_caller();
 
@@ -1401,15 +1386,12 @@ mod ddc {
             contract.report_metrics(charlie, day5_ms, 0, 2).unwrap();
             contract.report_metrics(django, day5_ms, 2, 3).unwrap();
             contract.report_metrics(eve, day5_ms, 1, 4).unwrap();
-            //contract.report_metrics(frank, day5_ms, 10, 5).unwrap();
             undo_set_caller();
 
             set_caller(frank);
             contract.report_metrics(bob, day5_ms, 2, 1).unwrap();
             contract.report_metrics(charlie, day5_ms, 0, 2).unwrap();
-            // contract.report_metrics(django, day5_ms, 6, 3).unwrap();
             contract.report_metrics(eve, day5_ms, 1, 4).unwrap();
-            //contract.report_metrics(frank, day5_ms, 10, 5).unwrap();
             undo_set_caller();
 
             // Bob
@@ -1645,21 +1627,6 @@ mod ddc {
                 stored_bytes: 24,
                 requests: 20,
             });
-
-            /*
-            let metric_key = MetricKey {
-                reporter: bob,
-                app_id: charlie,
-                day_of_month: day1 % 31,
-            };
-
-            let metric_value = MetricValue {
-                stored_bytes: 5,
-                requests: 3,
-            };
-
-            assert_eq!(contract.metrics.get(&metric_key), Some(&metric_value));
-             */
         }
 
         #[ink::test]
