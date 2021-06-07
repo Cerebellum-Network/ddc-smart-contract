@@ -612,6 +612,17 @@ mod ddc {
         reporter: AccountId,
         start_ms: u64,
     }
+    
+    /// Get median value from a vector
+    fn get_median<T: Clone + Ord>(source: Vec<T>) -> Option<T> {
+        let length = source.len();
+        let mut sorted_source = source.clone();
+        // sort_unstable is faster, it doesn't preserve the order of equal elements
+        sorted_source.sort_unstable();
+        let index_correction = length!= 0 && length % 2 == 0;
+        let median_index = length / 2 - index_correction as usize;
+        sorted_source.get(median_index).cloned()
+    }
 
     impl Ddc {
         #[ink(message)]
@@ -644,43 +655,26 @@ mod ddc {
             for day in period_start_days..=now_days {
                 let day_of_month = day % 31;
 
-                let mut median_day_metric = MetricValue {
-                    stored_bytes: 0,
-                    requests: 0,
-                };
-
                 let mut day_stored_bytes: Vec<u128> = Vec::new();
                 let mut day_reqests: Vec<u128> = Vec::new();
 
                 for reporter in self.reporters.keys() {
-                    let day_key = MetricKey {
-                        reporter: *reporter,
+                    let reporter_day_key = MetricKey {
+                        reporter: reporter.clone(),
                         app_id,
                         day_of_month,
                     };
 
-                    if let Some(reporter_day_metric) = self.metrics.get(&day_key) {
+                    if let Some(reporter_day_metric) = self.metrics.get(&reporter_day_key) {
                         day_stored_bytes.push(reporter_day_metric.stored_bytes);
                         day_reqests.push(reporter_day_metric.requests);
                     }
                 }
 
-                // vec::sort_unstable is faster, it doesn't preserve the order of equal elements
-                day_stored_bytes.sort_unstable();
-                day_reqests.sort_unstable();
-
-                let median_stored_bytes_key = day_stored_bytes.len() / 2 - (day_stored_bytes.len() != 0 && day_stored_bytes.len() % 2 == 0) as usize;
-                let median_reqests_key = day_reqests.len() / 2 - (day_reqests.len() != 0 && day_reqests.len() % 2 == 0) as usize;
-
-                if let Some(median_stored_bytes) = day_stored_bytes.get(median_stored_bytes_key) {
-                    median_day_metric.stored_bytes = median_stored_bytes.clone();
-                }
-
-                if let Some(median_reqests) = day_reqests.get(median_reqests_key) {
-                    median_day_metric.requests = median_reqests.clone();
-                }
-
-                month_metrics.add_assign(&median_day_metric);
+                month_metrics.add_assign(&MetricValue {
+                    stored_bytes: get_median(day_stored_bytes).unwrap_or(0),
+                    requests: get_median(day_reqests).unwrap_or(0),
+                });
             }
 
             month_metrics
