@@ -1005,6 +1005,12 @@ mod ddc {
         }
 
         #[ink::test]
+        fn get_median_works() {
+            let vec = vec![7, 1, 7, 9999, 9, 7, 0];
+            assert_eq!(get_median(vec), Some(7));
+        }
+
+        #[ink::test]
         fn report_metrics_works() {
             let mut contract = make_contract();
             let accounts = default_accounts::<DefaultEnvironment>().unwrap();
