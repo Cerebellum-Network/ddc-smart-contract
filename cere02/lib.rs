@@ -1205,6 +1205,12 @@ mod ddc {
             // frank day4: [0, 10, 20] -> 10
             // frank day5: [1, 2, 3] -> 2
 
+            // alice day1: [2, 5] -> 2
+            // alice day2: [0, 10] -> 0
+            // alice day3: [7, 7] -> 7
+            // alice day4: [2] - 2
+            // alice day5: [] - 0
+
             // Day 1
             set_caller(bob);
             contract.report_metrics(bob, day1_ms, 8, 1).unwrap();
@@ -1212,6 +1218,7 @@ mod ddc {
             contract.report_metrics(django, day1_ms, 1, 3).unwrap();
             contract.report_metrics(eve, day1_ms, 5, 4).unwrap();
             contract.report_metrics(frank, day1_ms, 7, 5).unwrap();
+            contract.report_metrics(alice, day1_ms, 2, 6).unwrap();
             undo_set_caller();
 
             set_caller(charlie);
@@ -1227,6 +1234,7 @@ mod ddc {
             contract.report_metrics(django, day1_ms, 5, 3).unwrap();
             contract.report_metrics(eve, day1_ms, 5, 4).unwrap();
             contract.report_metrics(frank, day1_ms, 7, 5).unwrap();
+            contract.report_metrics(alice, day1_ms, 5, 6).unwrap();
             undo_set_caller();
 
             set_caller(eve);
@@ -1251,6 +1259,7 @@ mod ddc {
             contract.report_metrics(django, day2_ms, 5, 3).unwrap();
             contract.report_metrics(eve, day2_ms, 5, 4).unwrap();
             contract.report_metrics(frank, day2_ms, 0, 5).unwrap();
+            contract.report_metrics(alice, day2_ms, 0, 6).unwrap();
             undo_set_caller();
 
             set_caller(charlie);
@@ -1267,6 +1276,7 @@ mod ddc {
             contract.report_metrics(django, day2_ms, 5, 3).unwrap();
             contract.report_metrics(eve, day2_ms, 5, 4).unwrap();
             contract.report_metrics(frank, day2_ms, 10, 5).unwrap();
+            contract.report_metrics(alice, day2_ms, 10, 6).unwrap();
             undo_set_caller();
 
             set_caller(eve);
@@ -1289,6 +1299,7 @@ mod ddc {
             contract.report_metrics(django, day3_ms, 1000, 3).unwrap();
             contract.report_metrics(eve, day3_ms, 1, 4).unwrap();
             contract.report_metrics(frank, day3_ms, 10, 5).unwrap();
+            contract.report_metrics(alice, day3_ms, 7, 6).unwrap();
             undo_set_caller();
 
             set_caller(charlie);
@@ -1304,6 +1315,7 @@ mod ddc {
             contract.report_metrics(django, day3_ms, 8, 3).unwrap();
             contract.report_metrics(eve, day3_ms, 6, 4).unwrap();
             contract.report_metrics(frank, day3_ms, 2, 5).unwrap();
+            contract.report_metrics(alice, day3_ms, 7, 6).unwrap();
             undo_set_caller();
 
             set_caller(eve);
@@ -1326,6 +1338,7 @@ mod ddc {
             contract.report_metrics(charlie, day4_ms, 5, 2).unwrap();
             contract.report_metrics(django, day4_ms, 10, 3).unwrap();
             contract.report_metrics(frank, day4_ms, 20, 5).unwrap();
+            contract.report_metrics(alice, day4_ms, 2, 6).unwrap();
             undo_set_caller();
 
             set_caller(charlie);
@@ -1395,45 +1408,6 @@ mod ddc {
             undo_set_caller();
 
             // Bob
-            assert_eq!(contract.metrics_for_period(bob, day1_ms, day1_ms), MetricValue {
-                stored_bytes: 8,
-                requests: 1,
-            });
-            assert_eq!(contract.metrics_for_period(bob, day2_ms, day2_ms), MetricValue {
-                stored_bytes: 4,
-                requests: 1,
-            });
-            assert_eq!(contract.metrics_for_period(bob, day3_ms, day3_ms), MetricValue {
-                stored_bytes: 10,
-                requests: 1,
-            });
-            assert_eq!(contract.metrics_for_period(bob, day4_ms, day4_ms), MetricValue {
-                stored_bytes: 20,
-                requests: 1,
-            });
-            assert_eq!(contract.metrics_for_period(bob, day5_ms, day5_ms), MetricValue {
-                stored_bytes: 2,
-                requests: 1,
-            });
-
-            assert_eq!(contract.metrics_for_period(bob, 0, day5_ms), MetricValue {
-                stored_bytes: 44,
-                requests: 5,
-            });
-            assert_eq!(contract.metrics_for_period(bob, day1_ms, day2_ms), MetricValue {
-                stored_bytes: 12,
-                requests: 2,
-            });
-            assert_eq!(contract.metrics_for_period(bob, day1_ms, day3_ms), MetricValue {
-                stored_bytes: 22,
-                requests: 3,
-            });
-            assert_eq!(contract.metrics_for_period(bob, day2_ms, day5_ms), MetricValue {
-                stored_bytes: 36,
-                requests: 4,
-            });
-
-                        // Bob
             assert_eq!(contract.metrics_for_period(bob, day1_ms, day1_ms), MetricValue {
                 stored_bytes: 8,
                 requests: 1,
@@ -1626,6 +1600,46 @@ mod ddc {
             assert_eq!(contract.metrics_for_period(frank, day2_ms, day5_ms), MetricValue {
                 stored_bytes: 24,
                 requests: 20,
+            });
+
+            // Alice
+            assert_eq!(contract.metrics_for_period(alice, day1_ms, day1_ms), MetricValue {
+                stored_bytes: 2,
+                requests: 6,
+            });
+            assert_eq!(contract.metrics_for_period(alice, day2_ms, day2_ms), MetricValue {
+                stored_bytes: 0,
+                requests: 6,
+            });
+            assert_eq!(contract.metrics_for_period(alice, day3_ms, day3_ms), MetricValue {
+                stored_bytes: 7,
+                requests: 6,
+            });
+            assert_eq!(contract.metrics_for_period(alice, day4_ms, day4_ms), MetricValue {
+                stored_bytes: 2,
+                requests: 6,
+            });
+            // no metrics
+            assert_eq!(contract.metrics_for_period(alice, day5_ms, day5_ms), MetricValue {
+                stored_bytes: 0,
+                requests: 0, 
+            });
+
+            assert_eq!(contract.metrics_for_period(alice, 0, day5_ms), MetricValue {
+                stored_bytes: 11,
+                requests: 24,
+            });
+            assert_eq!(contract.metrics_for_period(alice, day1_ms, day2_ms), MetricValue {
+                stored_bytes: 2,
+                requests: 12,
+            });
+            assert_eq!(contract.metrics_for_period(alice, day1_ms, day3_ms), MetricValue {
+                stored_bytes: 9,
+                requests: 18,
+            });
+            assert_eq!(contract.metrics_for_period(alice, day2_ms, day5_ms), MetricValue {
+                stored_bytes: 9,
+                requests: 18,
             });
         }
 
