@@ -1,7 +1,7 @@
 {
   "metadataVersion": "0.1.0",
   "source": {
-    "hash": "0x6dddb34a6f6af484b7cb532db0f0ffc6ce58d5091d096f238b005539a9cfb034",
+    "hash": "0x47ab9fa2e9b0da58e21ae82dc492ba1be8795f8281a897d3112e843a77980b38",
     "language": "ink! 3.0.0-rc3",
     "compiler": "rustc 1.53.0-nightly"
   },
@@ -120,7 +120,7 @@
               "displayName": [
                 "Option"
               ],
-              "type": 31
+              "type": 35
             }
           },
           {
@@ -278,6 +278,45 @@
           },
           {
             "docs": [],
+            "indexed": true,
+            "name": "key",
+            "type": {
+              "displayName": [
+                "MetricKeyDDN"
+              ],
+              "type": 28
+            }
+          },
+          {
+            "docs": [],
+            "indexed": false,
+            "name": "metrics",
+            "type": {
+              "displayName": [
+                "MetricValue"
+              ],
+              "type": 26
+            }
+          }
+        ],
+        "docs": [],
+        "name": "NewMetricDDN"
+      },
+      {
+        "args": [
+          {
+            "docs": [],
+            "indexed": true,
+            "name": "reporter",
+            "type": {
+              "displayName": [
+                "AccountId"
+              ],
+              "type": 1
+            }
+          },
+          {
+            "docs": [],
             "indexed": false,
             "name": "start_ms",
             "type": {
@@ -317,7 +356,7 @@
           "displayName": [
             "Result"
           ],
-          "type": 27
+          "type": 30
         },
         "selector": "0x107e33ea"
       },
@@ -373,7 +412,7 @@
           "displayName": [
             "Result"
           ],
-          "type": 27
+          "type": 30
         },
         "selector": "0x410fcc9d"
       },
@@ -409,7 +448,7 @@
           "displayName": [
             "Result"
           ],
-          "type": 27
+          "type": 30
         },
         "selector": "0xf41d073f"
       },
@@ -492,7 +531,7 @@
           "displayName": [
             "Result"
           ],
-          "type": 27
+          "type": 30
         },
         "selector": "0x308e4a4c"
       },
@@ -539,7 +578,7 @@
           "displayName": [
             "Result"
           ],
-          "type": 27
+          "type": 30
         },
         "selector": "0xe42d276d"
       },
@@ -654,7 +693,7 @@
           "displayName": [
             "Result"
           ],
-          "type": 27
+          "type": 30
         },
         "selector": "0xfb968a8f"
       },
@@ -706,7 +745,7 @@
           "displayName": [
             "Result"
           ],
-          "type": 27
+          "type": 30
         },
         "selector": "0x5bc40db0"
       },
@@ -732,7 +771,7 @@
           "displayName": [
             "Result"
           ],
-          "type": 27
+          "type": 30
         },
         "selector": "0x38623849"
       },
@@ -750,7 +789,7 @@
           "displayName": [
             "Vec"
           ],
-          "type": 29
+          "type": 32
         },
         "selector": "0xe6c98b60"
       },
@@ -787,7 +826,7 @@
           "displayName": [
             "Result"
           ],
-          "type": 27
+          "type": 30
         },
         "selector": "0x11a9e1b9"
       },
@@ -843,7 +882,7 @@
           "displayName": [
             "Result"
           ],
-          "type": 27
+          "type": 30
         },
         "selector": "0xe1aa053e"
       },
@@ -869,7 +908,7 @@
           "displayName": [
             "Result"
           ],
-          "type": 30
+          "type": 33
         },
         "selector": "0xa7e90f2c"
       },
@@ -920,6 +959,32 @@
       {
         "args": [
           {
+            "name": "ddn_id",
+            "type": {
+              "displayName": [
+                "Vec"
+              ],
+              "type": 29
+            }
+          }
+        ],
+        "docs": [],
+        "mutates": false,
+        "name": [
+          "metrics_for_ddn"
+        ],
+        "payable": false,
+        "returnType": {
+          "displayName": [
+            "Vec"
+          ],
+          "type": 34
+        },
+        "selector": "0xe8e28257"
+      },
+      {
+        "args": [
+          {
             "name": "app_id",
             "type": {
               "displayName": [
@@ -966,9 +1031,62 @@
           "displayName": [
             "Result"
           ],
-          "type": 27
+          "type": 30
         },
         "selector": "0x35320bbe"
+      },
+      {
+        "args": [
+          {
+            "name": "ddn_id",
+            "type": {
+              "displayName": [
+                "Vec"
+              ],
+              "type": 29
+            }
+          },
+          {
+            "name": "day_start_ms",
+            "type": {
+              "displayName": [
+                "u64"
+              ],
+              "type": 16
+            }
+          },
+          {
+            "name": "stored_bytes",
+            "type": {
+              "displayName": [
+                "u128"
+              ],
+              "type": 8
+            }
+          },
+          {
+            "name": "requests",
+            "type": {
+              "displayName": [
+                "u128"
+              ],
+              "type": 8
+            }
+          }
+        ],
+        "docs": [],
+        "mutates": true,
+        "name": [
+          "report_metrics_ddn"
+        ],
+        "payable": false,
+        "returnType": {
+          "displayName": [
+            "Result"
+          ],
+          "type": 30
+        },
+        "selector": "0xde028ad8"
       },
       {
         "args": [
@@ -992,7 +1110,7 @@
           "displayName": [
             "Result"
           ],
-          "type": 27
+          "type": 30
         },
         "selector": "0xb269d557"
       },
@@ -1549,6 +1667,86 @@
             }
           },
           "name": "current_period_ms"
+        },
+        {
+          "layout": {
+            "struct": {
+              "fields": [
+                {
+                  "layout": {
+                    "struct": {
+                      "fields": [
+                        {
+                          "layout": {
+                            "cell": {
+                              "key": "0x0f00000006000000000000000000000000000000000000000000000000000000",
+                              "ty": 5
+                            }
+                          },
+                          "name": "header"
+                        },
+                        {
+                          "layout": {
+                            "struct": {
+                              "fields": [
+                                {
+                                  "layout": {
+                                    "cell": {
+                                      "key": "0x1000000006000000000000000000000000000000000000000000000000000000",
+                                      "ty": 6
+                                    }
+                                  },
+                                  "name": "len"
+                                },
+                                {
+                                  "layout": {
+                                    "array": {
+                                      "cellsPerElem": 1,
+                                      "layout": {
+                                        "cell": {
+                                          "key": "0x1000000007000000000000000000000000000000000000000000000000000000",
+                                          "ty": 27
+                                        }
+                                      },
+                                      "len": 4294967295,
+                                      "offset": "0x1100000006000000000000000000000000000000000000000000000000000000"
+                                    }
+                                  },
+                                  "name": "elems"
+                                }
+                              ]
+                            }
+                          },
+                          "name": "entries"
+                        }
+                      ]
+                    }
+                  },
+                  "name": "keys"
+                },
+                {
+                  "layout": {
+                    "hash": {
+                      "layout": {
+                        "cell": {
+                          "key": "0x1100000007000000000000000000000000000000000000000000000000000000",
+                          "ty": 25
+                        }
+                      },
+                      "offset": "0x1000000007000000000000000000000000000000000000000000000000000000",
+                      "strategy": {
+                        "hasher": "Blake2x256",
+                        "postfix": "",
+                        "prefix": "0x696e6b20686173686d6170"
+                      }
+                    }
+                  },
+                  "name": "values"
+                }
+              ]
+            }
+          },
+          "name": "metrics_ddn"
         }
       ]
     }
@@ -2085,6 +2283,71 @@
             {
               "fields": [
                 {
+                  "type": 9,
+                  "typeName": "VacantEntry"
+                }
+              ],
+              "name": "Vacant"
+            },
+            {
+              "fields": [
+                {
+                  "type": 28,
+                  "typeName": "T"
+                }
+              ],
+              "name": "Occupied"
+            }
+          ]
+        }
+      },
+      "params": [
+        28
+      ],
+      "path": [
+        "ink_storage",
+        "collections",
+        "stash",
+        "Entry"
+      ]
+    },
+    {
+      "def": {
+        "composite": {
+          "fields": [
+            {
+              "name": "ddn_id",
+              "type": 29,
+              "typeName": "Vec<u8>"
+            },
+            {
+              "name": "day_of_month",
+              "type": 16,
+              "typeName": "u64"
+            }
+          ]
+        }
+      },
+      "path": [
+        "ddc",
+        "ddc",
+        "MetricKeyDDN"
+      ]
+    },
+    {
+      "def": {
+        "sequence": {
+          "type": 3
+        }
+      }
+    },
+    {
+      "def": {
+        "variant": {
+          "variants": [
+            {
+              "fields": [
+                {
                   "type": 18,
                   "typeName": "T"
                 }
@@ -2094,7 +2357,7 @@
             {
               "fields": [
                 {
-                  "type": 28,
+                  "type": 31,
                   "typeName": "E"
                 }
               ],
@@ -2105,7 +2368,7 @@
       },
       "params": [
         18,
-        28
+        31
       ],
       "path": [
         "Result"
@@ -2207,7 +2470,7 @@
             {
               "fields": [
                 {
-                  "type": 28,
+                  "type": 31,
                   "typeName": "E"
                 }
               ],
@@ -2218,11 +2481,18 @@
       },
       "params": [
         26,
-        28
+        31
       ],
       "path": [
         "Result"
       ]
+    },
+    {
+      "def": {
+        "sequence": {
+          "type": 26
+        }
+      }
     },
     {
       "def": {
