@@ -182,8 +182,7 @@ fn withdraw_works() {
 
 /// Sets the caller
 fn set_caller(caller: AccountId) {
-    let callee =
-        ink_env::account_id::<ink_env::DefaultEnvironment>().unwrap_or([0x0; 32].into());
+    let callee = ink_env::account_id::<ink_env::DefaultEnvironment>().unwrap_or([0x0; 32].into());
     test::push_execution_context::<Environment>(
         caller,
         callee,
@@ -202,8 +201,7 @@ fn balance_of(account: AccountId) -> Balance {
 }
 
 fn set_balance(account: AccountId, balance: Balance) {
-    ink_env::test::set_account_balance::<ink_env::DefaultEnvironment>(account, balance)
-        .unwrap();
+    ink_env::test::set_account_balance::<ink_env::DefaultEnvironment>(account, balance).unwrap();
 }
 
 fn contract_id() -> AccountId {
@@ -283,12 +281,7 @@ fn report_metrics_works() {
     contract.add_reporter(reporter_id).unwrap();
 
     // Wrong day format.
-    let err = contract.report_metrics(
-        app_id,
-        today_ms + 1,
-        metrics.stored_bytes,
-        metrics.requests,
-    );
+    let err = contract.report_metrics(app_id, today_ms + 1, metrics.stored_bytes, metrics.requests);
     assert_eq!(err, Err(Error::UnexpectedTimestamp));
 
     // Store metrics.
@@ -1260,9 +1253,7 @@ fn add_and_remove_reporters_works() {
         panic!("Wrong event type");
     }
 
-    if let Event::ReporterRemoved(ReporterRemoved { reporter }) =
-    decode_event(&raw_events[1])
-    {
+    if let Event::ReporterRemoved(ReporterRemoved { reporter }) = decode_event(&raw_events[1]) {
         assert_eq!(reporter, new_reporter);
     } else {
         panic!("Wrong event type");
@@ -1312,9 +1303,9 @@ fn add_ddc_node_works() {
     let raw_events = recorded_events().collect::<Vec<_>>();
     assert_eq!(1, raw_events.len());
     if let Event::DDCNodeAdded(DDCNodeAdded {
-                                   p2p_id: event_p2p_id,
-                                   url: event_url,
-                               }) = decode_event(&raw_events[0])
+        p2p_id: event_p2p_id,
+        url: event_url,
+    }) = decode_event(&raw_events[0])
     {
         assert_eq!(event_p2p_id, p2p_id);
         assert_eq!(event_url, url);
@@ -1369,8 +1360,8 @@ fn remove_ddc_node_works() {
     let raw_events = recorded_events().collect::<Vec<_>>();
     assert_eq!(2, raw_events.len());
     if let Event::DDCNodeRemoved(DDCNodeRemoved {
-                                     p2p_id: event_p2p_id,
-                                 }) = decode_event(&raw_events[1])
+        p2p_id: event_p2p_id,
+    }) = decode_event(&raw_events[1])
     {
         assert_eq!(event_p2p_id, p2p_id);
     } else {
