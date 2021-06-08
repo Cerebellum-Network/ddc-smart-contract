@@ -658,13 +658,12 @@ mod ddc {
             subscription_start_ms: u64,
             now_ms: u64,
         ) -> MetricValue {
-            // The start date may be several month away. When did the current period start?
-            let period_start_ms = get_period_start_ms(subscription_start_ms, now_ms);
-            let period_start_days = period_start_ms / MS_PER_DAY;
-            let now_days = now_ms / MS_PER_DAY;
+            // The start date may be several months away. When did the current period start?
+            let (period_start_days, now_days) =
+                get_current_period_days(subscription_start_ms, now_ms);
 
             let mut period_metrics = MetricValue {
-                start_ms: period_start_ms,
+                start_ms: period_start_days * MS_PER_DAY,
                 stored_bytes: 0,
                 requests: 0,
             };
@@ -892,11 +891,12 @@ mod ddc {
     const PERIOD_DAYS: u64 = 31;
     const PERIOD_MS: u64 = PERIOD_DAYS * MS_PER_DAY;
 
-    fn get_period_start_ms(subscription_start_ms: u64, now_ms: u64) -> u64 {
-        let total_elapsed = now_ms - subscription_start_ms;
-        let elapsed_in_current_period = total_elapsed % PERIOD_MS;
-        let period_start = now_ms - elapsed_in_current_period;
-        period_start
+    fn get_current_period_days(subscription_start_ms: u64, now_ms: u64) -> (u64, u64) {
+        let now_days = now_ms / MS_PER_DAY;
+        let start_days = subscription_start_ms / MS_PER_DAY;
+        let period_elapsed_days = (now_days - start_days) % PERIOD_DAYS;
+        let period_start_days = now_days - period_elapsed_days;
+        (period_start_days, now_days)
     }
 
     fn enforce_time_is_start_of_day(ms: u64) -> Result<()> {
@@ -1273,6 +1273,43 @@ mod ddc {
                 day_of_period: 0,
             };
             assert_eq!(contract.metrics.get(&other_key), None);
+        }
+
+        #[ink::test]
+        fn get_current_period_days_works() {
+            const D: u64 = 10007; // A random day.
+            let some_time = 12345;
+            let another_time = 67890;
+
+            let check = |subscription_day, period_day, now_day, number_of_days| {
+                assert_eq!(
+                    get_current_period_days(
+                        subscription_day * MS_PER_DAY + some_time,
+                        now_day * MS_PER_DAY + another_time
+                    ),
+                    (period_day, now_day)
+                );
+                // Number of days between period start and now, both inclusive.
+                assert_eq!(1 + now_day - period_day, number_of_days)
+            };
+
+            let is_first_day = 1;
+            let two_days = 2;
+            let full_period = PERIOD_DAYS;
+
+            //    The subscription starts on day D.
+            //    |  When the current period starts (same day as subscription, but in most recent month)
+            //    |  |  The current day (included in the period)
+            //    |  |  |    How many days are included in the period.
+            check(D, D, D, is_first_day); // First day of the first period.
+            check(D, D, D + 1, two_days);
+            check(D, D, D + 30, full_period); // 31st day of the first period.
+
+            check(D, D + 31, D + 31, is_first_day); // First day of the second period.
+            check(D, D + 31, D + 31 + 1, two_days);
+            check(D, D + 31, D + 31 + 30, full_period); // 31st day of the first period.
+
+            check(D, D + 31 + 31, D + 31 + 31, is_first_day); // First day of the third period.
         }
 
         #[ink::test]
