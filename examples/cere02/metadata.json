@@ -1,7 +1,7 @@
 {
   "metadataVersion": "0.1.0",
   "source": {
-    "hash": "0x7b5379e11881fe9f9a906e3f7ee392786977b94db9b19c04bbcd5c4eee71dce9",
+    "hash": "0x67587857bf02e35b26f7778343b9741bb9f173f4974288e1902fb330287b9753",
     "language": "ink! 3.0.0-rc3",
     "compiler": "rustc 1.53.0-nightly"
   },
@@ -46,9 +46,9 @@
             "name": "tier_fee",
             "type": {
               "displayName": [
-                "u64"
+                "Balance"
               ],
-              "type": 8
+              "type": 12
             }
           },
           {
@@ -109,7 +109,7 @@
               "displayName": [
                 "Balance"
               ],
-              "type": 14
+              "type": 12
             }
           }
         ],
@@ -352,7 +352,7 @@
           "displayName": [
             "Balance"
           ],
-          "type": 14
+          "type": 12
         },
         "selector": "0x1c18c110"
       },
@@ -373,7 +373,7 @@
               "displayName": [
                 "Balance"
               ],
-              "type": 14
+              "type": 12
             }
           }
         ],
@@ -436,9 +436,9 @@
             "name": "tier_fee",
             "type": {
               "displayName": [
-                "u64"
+                "Balance"
               ],
-              "type": 8
+              "type": 12
             }
           },
           {
@@ -507,7 +507,7 @@
           "displayName": [
             "Balance"
           ],
-          "type": 14
+          "type": 12
         },
         "selector": "0xd9e1c06a"
       },
@@ -544,7 +544,7 @@
               "displayName": [
                 "Balance"
               ],
-              "type": 14
+              "type": 12
             }
           }
         ],
@@ -646,7 +646,7 @@
           "displayName": [
             "Balance"
           ],
-          "type": 14
+          "type": 12
         },
         "selector": "0x0f755a56"
       },
@@ -1361,7 +1361,7 @@
                                       "layout": {
                                         "cell": {
                                           "key": "0x0500000002000000000000000000000000000000000000000000000000000000",
-                                          "ty": 12
+                                          "ty": 13
                                         }
                                       },
                                       "len": 4294967295,
@@ -1386,7 +1386,7 @@
                       "layout": {
                         "cell": {
                           "key": "0x0600000002000000000000000000000000000000000000000000000000000000",
-                          "ty": 13
+                          "ty": 14
                         }
                       },
                       "offset": "0x0500000002000000000000000000000000000000000000000000000000000000",
@@ -1441,7 +1441,7 @@
                                       "layout": {
                                         "cell": {
                                           "key": "0x0700000003000000000000000000000000000000000000000000000000000000",
-                                          "ty": 12
+                                          "ty": 13
                                         }
                                       },
                                       "len": 4294967295,
@@ -1521,7 +1521,7 @@
                                       "layout": {
                                         "cell": {
                                           "key": "0x0900000004000000000000000000000000000000000000000000000000000000",
-                                          "ty": 12
+                                          "ty": 13
                                         }
                                       },
                                       "len": 4294967295,
@@ -1601,7 +1601,7 @@
                                       "layout": {
                                         "cell": {
                                           "key": "0x0b00000005000000000000000000000000000000000000000000000000000000",
-                                          "ty": 12
+                                          "ty": 13
                                         }
                                       },
                                       "len": 4294967295,
@@ -2059,8 +2059,8 @@
             },
             {
               "name": "tier_fee",
-              "type": 8,
-              "typeName": "u64"
+              "type": 12,
+              "typeName": "Balance"
             },
             {
               "name": "storage_bytes",
@@ -2085,6 +2085,11 @@
         "ddc",
         "ServiceTier"
       ]
+    },
+    {
+      "def": {
+        "primitive": "u128"
+      }
     },
     {
       "def": {
@@ -2127,7 +2132,7 @@
           "fields": [
             {
               "name": "value",
-              "type": 14,
+              "type": 12,
               "typeName": "V"
             },
             {
@@ -2139,7 +2144,7 @@
         }
       },
       "params": [
-        14
+        12
       ],
       "path": [
         "ink_storage",
@@ -2147,11 +2152,6 @@
         "hashmap",
         "ValueEntry"
       ]
-    },
-    {
-      "def": {
-        "primitive": "u128"
-      }
     },
     {
       "def": {
@@ -2201,7 +2201,7 @@
             },
             {
               "name": "balance",
-              "type": 14,
+              "type": 12,
               "typeName": "Balance"
             }
           ]

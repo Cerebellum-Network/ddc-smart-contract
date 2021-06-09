@@ -161,14 +161,14 @@ mod ddc {
     #[cfg_attr(feature = "std", derive(Debug, PartialEq, Eq, scale_info::TypeInfo, ink_storage::traits::StorageLayout))]
     pub struct ServiceTier {
         tier_id: u64,
-        tier_fee: u64,
+        tier_fee: Balance,
         storage_bytes: u64,
         wcu: u64,
         rcu: u64,
     }
 
     impl ServiceTier {
-        pub fn new(tier_id: u64, tier_fee: u64, storage_bytes: u64, wcu: u64, rcu: u64) -> ServiceTier {
+        pub fn new(tier_id: u64, tier_fee: Balance, storage_bytes: u64, wcu: u64, rcu: u64) -> ServiceTier {
             ServiceTier {
                 tier_id,
                 tier_fee,
@@ -182,7 +182,7 @@ mod ddc {
     #[ink(event)]
     pub struct TierAdded {
         tier_id: u64,
-        tier_fee: u64,
+        tier_fee: Balance,
         storage_bytes: u64,
         wcu: u64,
         rcu: u64,
@@ -202,7 +202,7 @@ mod ddc {
         }
 
         #[ink(message)]
-        pub fn add_tier(&mut self, tier_fee: u64, storage_bytes: u64, wcu: u64, rcu: u64) -> Result<u64> {
+        pub fn add_tier(&mut self, tier_fee: Balance, storage_bytes: u64, wcu: u64, rcu: u64) -> Result<u64> {
             let caller = self.env().caller();
             self.only_owner(caller)?;
 
@@ -253,9 +253,7 @@ mod ddc {
 
             let mut tier = self.service_tiers.get_mut(&tier_id).unwrap();
 
-            tier.tier_fee = to_u64(new_fee);
-
-//            self.service_tiers.insert(tier_id, tier);
+            tier.tier_fee = new_fee;
 
             Ok(())
         }
@@ -377,7 +375,7 @@ mod ddc {
             self.only_active()?;
             let payer = self.env().caller();
             let value = self.env().transferred_balance();
-            let fee_value = value as u64;
+            let fee_value = value;
             let service_v = self.service_tiers.get(&tier_id).unwrap();
             if service_v.tier_fee > fee_value {
                 //TODO: We probably need to summarize the existing balance with provided, in case app wants to deposit more than monthly amount
@@ -889,11 +887,6 @@ mod ddc {
         } else {
             Err(Error::UnexpectedTimestamp)
         }
-    }
-
-    pub fn to_u64(x: Balance) -> u64 {
-        use core::convert::TryInto;
-        x.try_into().unwrap()
     }
 
     #[cfg(test)]
