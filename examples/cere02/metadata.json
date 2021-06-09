@@ -1,7 +1,7 @@
 {
   "metadataVersion": "0.1.0",
   "source": {
-    "hash": "0xc6a75ce64f644f532ce522ac44327d753a4b91190382a5b3136968b4499a22bb",
+    "hash": "0x7b5379e11881fe9f9a906e3f7ee392786977b94db9b19c04bbcd5c4eee71dce9",
     "language": "ink! 3.0.0-rc3",
     "compiler": "rustc 1.53.0-nightly"
   },
@@ -98,7 +98,7 @@
               "displayName": [
                 "Option"
               ],
-              "type": 38
+              "type": 39
             }
           },
           {
@@ -433,6 +433,59 @@
       {
         "args": [
           {
+            "name": "tier_fee",
+            "type": {
+              "displayName": [
+                "u64"
+              ],
+              "type": 8
+            }
+          },
+          {
+            "name": "storage_bytes",
+            "type": {
+              "displayName": [
+                "u64"
+              ],
+              "type": 8
+            }
+          },
+          {
+            "name": "wcu",
+            "type": {
+              "displayName": [
+                "u64"
+              ],
+              "type": 8
+            }
+          },
+          {
+            "name": "rcu",
+            "type": {
+              "displayName": [
+                "u64"
+              ],
+              "type": 8
+            }
+          }
+        ],
+        "docs": [],
+        "mutates": true,
+        "name": [
+          "add_tier"
+        ],
+        "payable": false,
+        "returnType": {
+          "displayName": [
+            "Result"
+          ],
+          "type": 33
+        },
+        "selector": "0xe1ca6609"
+      },
+      {
+        "args": [
+          {
             "name": "tier_id",
             "type": {
               "displayName": [
@@ -470,7 +523,7 @@
           "displayName": [
             "Vec"
           ],
-          "type": 33
+          "type": 34
         },
         "selector": "0x89d28b25"
       },
@@ -649,7 +702,7 @@
           "displayName": [
             "Vec"
           ],
-          "type": 34
+          "type": 35
         },
         "selector": "0xe0116f7d"
       },
@@ -775,7 +828,7 @@
           "displayName": [
             "Vec"
           ],
-          "type": 35
+          "type": 36
         },
         "selector": "0xe6c98b60"
       },
@@ -894,7 +947,7 @@
           "displayName": [
             "Result"
           ],
-          "type": 36
+          "type": 37
         },
         "selector": "0xa7e90f2c"
       },
@@ -964,7 +1017,7 @@
           "displayName": [
             "Vec"
           ],
-          "type": 37
+          "type": 38
         },
         "selector": "0xe8e28257"
       },
@@ -2596,6 +2649,39 @@
         "ddc",
         "ddc",
         "Error"
+      ]
+    },
+    {
+      "def": {
+        "variant": {
+          "variants": [
+            {
+              "fields": [
+                {
+                  "type": 8,
+                  "typeName": "T"
+                }
+              ],
+              "name": "Ok"
+            },
+            {
+              "fields": [
+                {
+                  "type": 32,
+                  "typeName": "E"
+                }
+              ],
+              "name": "Err"
+            }
+          ]
+        }
+      },
+      "params": [
+        8,
+        32
+      ],
+      "path": [
+        "Result"
       ]
     },
     {
