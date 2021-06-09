@@ -12,29 +12,35 @@ use super::*;
 type Event = <Ddc as ::ink_lang::BaseEvent>::Type;
 
 fn make_contract() -> Ddc {
-    Ddc::new(2, 2000, 2000, 4, 4000, 4000, 8, 8000, 800)
+    let mut contract = Ddc::new();
+
+    contract.add_tier(2, 2000, 2000, 2000).unwrap();
+    contract.add_tier(4, 4000, 4000, 4000).unwrap();
+    contract.add_tier(8, 8000, 8000, 8000).unwrap();
+
+    contract
 }
 
 /// We test if the default constructor does its job.
 #[ink::test]
 fn new_works() {
-    let contract = Ddc::new(2, 2000, 2000, 4, 4000, 4000, 8, 8000, 800);
-    assert_eq!(contract.tier_deposit(1), 8);
+    let contract = make_contract();
+    assert_eq!(contract.tier_deposit(1), 2);
     assert_eq!(contract.tier_deposit(2), 4);
-    assert_eq!(contract.tier_deposit(3), 2);
+    assert_eq!(contract.tier_deposit(3), 8);
 }
 
 /// Test if a function can only be called by the contract admin
 #[ink::test]
 fn onlyowner_works() {
-    let contract = Ddc::new(2, 2000, 2000, 4, 4000, 4000, 8, 8000, 800);
+    let contract = make_contract();
     assert_eq!(contract.only_owner(AccountId::from([0x1; 32])), Ok(()));
 }
 
 /// Test that we can transfer owner to another account
 #[ink::test]
 fn transfer_ownership_works() {
-    let mut contract = Ddc::new(2, 2000, 2000, 4, 4000, 4000, 8, 8000, 800);
+    let mut contract = make_contract();
     assert_eq!(contract.only_owner(AccountId::from([0x1; 32])), Ok(()));
     contract
         .transfer_ownership(AccountId::from([0x0; 32]))
@@ -45,7 +51,7 @@ fn transfer_ownership_works() {
 /// Test the contract can take payment from users
 #[ink::test]
 fn subscribe_works() {
-    let mut contract = Ddc::new(2, 2000, 2000, 4, 4000, 4000, 8, 8000, 800);
+    let mut contract = make_contract();
     let payer = AccountId::from([0x1; 32]);
     assert_eq!(contract.balance_of(payer), 0);
     assert_eq!(contract.subscribe(3), Ok(()));
@@ -68,7 +74,7 @@ fn subscribe_works() {
 /// Test the total balance of the contract is correct
 #[ink::test]
 fn balance_of_contract_works() {
-    let mut contract = Ddc::new(2, 2000, 2000, 4, 4000, 4000, 8, 8000, 800);
+    let mut contract = make_contract();
     let payer_one = AccountId::from([0x1; 32]);
     assert_eq!(contract.balance_of(payer_one), 0);
     assert_eq!(contract.subscribe(3), Ok(()));
@@ -78,7 +84,7 @@ fn balance_of_contract_works() {
 /// Test the contract can return the correct tier if given an account id
 #[ink::test]
 fn tier_id_of_works() {
-    let mut contract = Ddc::new(2, 2000, 2000, 4, 4000, 4000, 8, 8000, 800);
+    let mut contract = make_contract();
     let payer_one = AccountId::from([0x1; 32]);
     assert_eq!(contract.balance_of(payer_one), 0);
     assert_eq!(contract.subscribe(2), Ok(()));
@@ -88,27 +94,33 @@ fn tier_id_of_works() {
 /// Test we can read metrics
 #[ink::test]
 fn get_all_tiers_works() {
-    let contract = Ddc::new(2000, 2000, 2000, 4000, 4000, 4000, 8000, 8000, 8000);
+    let contract = make_contract();
 
-    let v = contract.get_all_tiers();
-    assert_eq!(v[0], 1); //tid
-    assert_eq!(v[1], 8000); //fee
-    assert_eq!(v[2], 8000); //throughput limit
-    assert_eq!(v[3], 8000); // storage limit
-    assert_eq!(v[4], 2); //tid
-    assert_eq!(v[5], 4000); //t2 fee
-    assert_eq!(v[6], 4000); //t2 throughtput limit
-    assert_eq!(v[7], 4000); //t2 storage limit
-    assert_eq!(v[8], 3);
-    assert_eq!(v[9], 2000);
-    assert_eq!(v[10], 2000);
-    assert_eq!(v[11], 2000);
+    let tiers = contract.get_all_tiers();
+    assert_eq!(tiers[0].tier_id, 1);
+    assert_eq!(tiers[0].tier_fee, 2);
+    assert_eq!(tiers[0].storage_bytes, 2000);
+    assert_eq!(tiers[0].wcu, 2000);
+    assert_eq!(tiers[0].rcu, 2000);
+
+    assert_eq!(tiers[1].tier_id, 2);
+    assert_eq!(tiers[1].tier_fee, 4);
+    assert_eq!(tiers[1].storage_bytes, 4000);
+    assert_eq!(tiers[1].wcu, 4000);
+    assert_eq!(tiers[1].rcu, 4000);
+
+    assert_eq!(tiers[2].tier_id, 3);
+    assert_eq!(tiers[2].tier_fee, 8);
+    assert_eq!(tiers[2].storage_bytes, 8000);
+    assert_eq!(tiers[2].wcu, 8000);
+    assert_eq!(tiers[2].rcu, 8000);
+
 }
 
 /// Test the contract owner can change tier fees for all 3 tiers
 #[ink::test]
 fn change_tier_fee_works() {
-    let mut contract = Ddc::new(2, 2000, 2000, 4, 4000, 4000, 8, 8000, 800);
+    let mut contract = make_contract();
     assert_eq!(contract.only_owner(AccountId::from([0x1; 32])), Ok(()));
     assert_eq!(contract.change_tier_fee(3, 3), Ok(()));
     assert_eq!(contract.change_tier_fee(2, 5), Ok(()));
@@ -121,21 +133,21 @@ fn change_tier_fee_works() {
 /// Test the contract can change tier limits for all 3 tiers
 #[ink::test]
 fn change_tier_limit_works() {
-    let mut contract = Ddc::new(2, 2000, 2000, 4, 4000, 4000, 8, 8000, 800);
+    let mut contract = make_contract();
     assert_eq!(contract.only_owner(AccountId::from([0x1; 32])), Ok(()));
-    assert_eq!(contract.change_tier_limit(3, 100, 100), Ok(()));
-    assert_eq!(contract.change_tier_limit(2, 200, 200), Ok(()));
-    assert_eq!(contract.change_tier_limit(1, 300, 300), Ok(()));
-    assert_eq!(contract.get_tier_limit(3), vec![100, 100]);
-    assert_eq!(contract.get_tier_limit(2), vec![200, 200]);
-    assert_eq!(contract.get_tier_limit(1), vec![300, 300]);
+    assert_eq!(contract.change_tier_limit(3, 100, 100, 100), Ok(()));
+    assert_eq!(contract.change_tier_limit(2, 200, 200, 200), Ok(()));
+    assert_eq!(contract.change_tier_limit(1, 300, 300, 300), Ok(()));
+    assert_eq!(contract.get_tier_limit(3), vec![100, 100, 100]);
+    assert_eq!(contract.get_tier_limit(2), vec![200, 200, 200]);
+    assert_eq!(contract.get_tier_limit(1), vec![300, 300, 300]);
 }
 
 /// Test the contract owner can flip the status of the contract
 /// Can pause and unpause the contract
 #[ink::test]
 fn flip_contract_status_works() {
-    let mut contract = Ddc::new(2, 2000, 2000, 4, 4000, 4000, 8, 8000, 800);
+    let mut contract = make_contract();
     assert_eq!(contract.only_owner(AccountId::from([0x1; 32])), Ok(()));
     assert_eq!(contract.paused_or_not(), false);
     assert_eq!(contract.flip_contract_status(), Ok(()));
@@ -147,7 +159,7 @@ fn flip_contract_status_works() {
 /// Test the contract owner can transfer all the balance out of the contract after it is paused
 #[ink::test]
 fn withdraw_works() {
-    let mut contract = Ddc::new(2, 2000, 2000, 4, 4000, 4000, 8, 8000, 800);
+    let mut contract = make_contract();
     let accounts = default_accounts::<DefaultEnvironment>().unwrap();
 
     // Endownment equivalence. Inititalize SC address with balance 1000
@@ -1202,7 +1214,7 @@ fn decode_event(event: &ink_env::test::EmittedEvent) -> Event {
 // ---- Admin: Reporters ----
 #[ink::test]
 fn add_and_remove_reporters_works() {
-    let mut contract = Ddc::new(2, 2000, 2000, 4, 4000, 4000, 8, 8000, 800);
+    let mut contract = make_contract();
 
     let new_reporter = AccountId::from([0x1; 32]);
 
@@ -1213,16 +1225,16 @@ fn add_and_remove_reporters_works() {
     assert!(!contract.is_reporter(new_reporter));
 
     let raw_events = recorded_events().collect::<Vec<_>>();
-    assert_eq!(2, raw_events.len());
+    assert_eq!(5, raw_events.len()); // 3 x tier added + added reporter + remove reporter
 
-    if let Event::ReporterAdded(ReporterAdded { reporter }) = decode_event(&raw_events[0]) {
+    if let Event::ReporterAdded(ReporterAdded { reporter }) = decode_event(&raw_events[3]) {
         assert_eq!(reporter, new_reporter);
     } else {
         panic!("Wrong event type");
     }
 
     if let Event::ReporterRemoved(ReporterRemoved { reporter }) =
-        decode_event(&raw_events[1])
+        decode_event(&raw_events[4])
     {
         assert_eq!(reporter, new_reporter);
     } else {
@@ -1271,11 +1283,11 @@ fn add_ddc_node_works() {
 
     // Should emit event
     let raw_events = recorded_events().collect::<Vec<_>>();
-    assert_eq!(1, raw_events.len());
+    assert_eq!(4, raw_events.len()); // 3 x tier added + node added
     if let Event::DDCNodeAdded(DDCNodeAdded {
         p2p_id: event_p2p_id,
         url: event_url,
-    }) = decode_event(&raw_events[0])
+    }) = decode_event(&raw_events[3])
     {
         assert_eq!(event_p2p_id, p2p_id);
         assert_eq!(event_url, url);
@@ -1328,10 +1340,10 @@ fn remove_ddc_node_works() {
 
     // Should emit event
     let raw_events = recorded_events().collect::<Vec<_>>();
-    assert_eq!(2, raw_events.len());
+    assert_eq!(5, raw_events.len());
     if let Event::DDCNodeRemoved(DDCNodeRemoved {
         p2p_id: event_p2p_id,
-    }) = decode_event(&raw_events[1])
+    }) = decode_event(&raw_events[4])
     {
         assert_eq!(event_p2p_id, p2p_id);
     } else {
