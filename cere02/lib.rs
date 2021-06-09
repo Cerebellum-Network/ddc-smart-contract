@@ -300,7 +300,12 @@ mod ddc {
 
             let tier = self.service_tiers.get(&tier_id).unwrap();
 
-            vec![tier.storage_bytes, tier.wcu, tier.rcu]
+            let mut result = Vec::new();
+            result.push(tier.storage_bytes);
+            result.push(tier.wcu);
+            result.push(tier.rcu);
+
+            result
         }
     }
 
