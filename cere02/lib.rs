@@ -201,6 +201,7 @@ mod ddc {
             max + 1
         }
 
+        #[ink(message)]
         pub fn add_tier(&mut self, tier_fee: u64, storage_bytes: u64, wcu: u64, rcu: u64) -> Result<u64> {
             let caller = self.env().caller();
             self.only_owner(caller)?;
