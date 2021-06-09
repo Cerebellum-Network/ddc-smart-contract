@@ -886,7 +886,7 @@ mod ddc {
     }
 
     pub fn to_u64(x: Balance) -> u64 {
-        use std::convert::TryInto;
+        use core::convert::TryInto;
         x.try_into().unwrap()
     }
 
