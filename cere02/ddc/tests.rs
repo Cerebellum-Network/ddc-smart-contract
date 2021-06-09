@@ -182,8 +182,7 @@ fn withdraw_works() {
 
 /// Sets the caller
 fn set_caller(caller: AccountId) {
-    let callee =
-        ink_env::account_id::<ink_env::DefaultEnvironment>().unwrap_or([0x0; 32].into());
+    let callee = ink_env::account_id::<ink_env::DefaultEnvironment>().unwrap_or([0x0; 32].into());
     test::push_execution_context::<Environment>(
         caller,
         callee,
@@ -202,8 +201,7 @@ fn balance_of(account: AccountId) -> Balance {
 }
 
 fn set_balance(account: AccountId, balance: Balance) {
-    ink_env::test::set_account_balance::<ink_env::DefaultEnvironment>(account, balance)
-        .unwrap();
+    ink_env::test::set_account_balance::<ink_env::DefaultEnvironment>(account, balance).unwrap();
 }
 
 fn contract_id() -> AccountId {
@@ -283,12 +281,7 @@ fn report_metrics_works() {
     contract.add_reporter(reporter_id).unwrap();
 
     // Wrong day format.
-    let err = contract.report_metrics(
-        app_id,
-        today_ms + 1,
-        metrics.stored_bytes,
-        metrics.requests,
-    );
+    let err = contract.report_metrics(app_id, today_ms + 1, metrics.stored_bytes, metrics.requests);
     assert_eq!(err, Err(Error::UnexpectedTimestamp));
 
     // Store metrics.
@@ -1221,9 +1214,7 @@ fn add_and_remove_reporters_works() {
         panic!("Wrong event type");
     }
 
-    if let Event::ReporterRemoved(ReporterRemoved { reporter }) =
-        decode_event(&raw_events[1])
-    {
+    if let Event::ReporterRemoved(ReporterRemoved { reporter }) = decode_event(&raw_events[1]) {
         assert_eq!(reporter, new_reporter);
     } else {
         panic!("Wrong event type");
@@ -1339,6 +1330,187 @@ fn remove_ddc_node_works() {
     }
 }
 
+// ---- DDN Statuses ----
+
+#[ink::test]
+fn report_ddn_status_works() {
+    let mut contract = make_contract();
+    let accounts = default_accounts::<DefaultEnvironment>().unwrap();
+
+    let p2p_id = String::from("12D3KooWPfi9EtgoZHFnHh1at85mdZJtj7L8n94g6LFk6e8EEk2b");
+    let url = String::from("localhost");
+    let now_account = AccountId::from([0x05; 32]);
+
+    contract.add_ddc_node(p2p_id.clone(), url).unwrap();
+    contract.add_reporter(accounts.alice).unwrap();
+
+    assert_eq!(
+        contract.get_ddn_status(p2p_id.clone()),
+        DDNStatus {
+            is_online: true,
+            total_downtime: 0,
+            reference_timestamp: 0,
+            last_timestamp: 0,
+        }
+    );
+
+    set_balance(now_account, 4);
+    contract.report_ddn_status(p2p_id.clone(), true).unwrap();
+    assert_eq!(
+        contract.get_ddn_status(p2p_id.clone()),
+        DDNStatus {
+            is_online: true,
+            total_downtime: 0,
+            reference_timestamp: 0,
+            last_timestamp: 4,
+        }
+    );
+
+    set_balance(now_account, 6);
+    contract.report_ddn_status(p2p_id.clone(), true).unwrap();
+    assert_eq!(
+        contract.get_ddn_status(p2p_id.clone()),
+        DDNStatus {
+            is_online: true,
+            total_downtime: 0,
+            reference_timestamp: 0,
+            last_timestamp: 6,
+        }
+    );
+
+    set_balance(now_account, 8);
+    contract.report_ddn_status(p2p_id.clone(), false).unwrap();
+    assert_eq!(
+        contract.get_ddn_status(p2p_id.clone()),
+        DDNStatus {
+            is_online: false,
+            total_downtime: 0,
+            reference_timestamp: 0,
+            last_timestamp: 8,
+        }
+    );
+
+    set_balance(now_account, 10);
+    contract.report_ddn_status(p2p_id.clone(), false).unwrap();
+    assert_eq!(
+        contract.get_ddn_status(p2p_id.clone()),
+        DDNStatus {
+            is_online: false,
+            total_downtime: 2,
+            reference_timestamp: 0,
+            last_timestamp: 10,
+        }
+    );
+
+    set_balance(now_account, 12);
+    contract.report_ddn_status(p2p_id.clone(), true).unwrap();
+    assert_eq!(
+        contract.get_ddn_status(p2p_id.clone()),
+        DDNStatus {
+            is_online: true,
+            total_downtime: 4,
+            reference_timestamp: 0,
+            last_timestamp: 12,
+        }
+    );
+
+    set_balance(now_account, 15);
+    contract.report_ddn_status(p2p_id.clone(), true).unwrap();
+    assert_eq!(
+        contract.get_ddn_status(p2p_id.clone()),
+        DDNStatus {
+            is_online: true,
+            total_downtime: 4,
+            reference_timestamp: 0,
+            last_timestamp: 15,
+        }
+    );
+
+    set_balance(now_account, 18);
+    contract.report_ddn_status(p2p_id.clone(), false).unwrap();
+    assert_eq!(
+        contract.get_ddn_status(p2p_id.clone()),
+        DDNStatus {
+            is_online: false,
+            total_downtime: 4,
+            reference_timestamp: 0,
+            last_timestamp: 18,
+        }
+    );
+
+    set_balance(now_account, 25);
+    contract.report_ddn_status(p2p_id.clone(), true).unwrap();
+    assert_eq!(
+        contract.get_ddn_status(p2p_id.clone()),
+        DDNStatus {
+            is_online: true,
+            total_downtime: 11,
+            reference_timestamp: 0,
+            last_timestamp: 25,
+        }
+    );
+
+    set_balance(now_account, 30);
+    contract.report_ddn_status(p2p_id.clone(), false).unwrap();
+    assert_eq!(
+        contract.get_ddn_status(p2p_id.clone()),
+        DDNStatus {
+            is_online: false,
+            total_downtime: 11,
+            reference_timestamp: 0,
+            last_timestamp: 30,
+        }
+    );
+
+    set_balance(now_account, 34);
+    contract.report_ddn_status(p2p_id.clone(), false).unwrap();
+    assert_eq!(
+        contract.get_ddn_status(p2p_id.clone()),
+        DDNStatus {
+            is_online: false,
+            total_downtime: 15,
+            reference_timestamp: 0,
+            last_timestamp: 34,
+        }
+    );
+
+    set_balance(now_account, 42);
+    contract.report_ddn_status(p2p_id.clone(), false).unwrap();
+    assert_eq!(
+        contract.get_ddn_status(p2p_id.clone()),
+        DDNStatus {
+            is_online: false,
+            total_downtime: 23,
+            reference_timestamp: 0,
+            last_timestamp: 42,
+        }
+    );
+
+    set_balance(now_account, 44);
+    contract.report_ddn_status(p2p_id.clone(), true).unwrap();
+    assert_eq!(
+        contract.get_ddn_status(p2p_id.clone()),
+        DDNStatus {
+            is_online: true,
+            total_downtime: 25,
+            reference_timestamp: 0,
+            last_timestamp: 44,
+        }
+    );
+
+    set_balance(now_account, 50);
+    contract.report_ddn_status(p2p_id.clone(), true).unwrap();
+    assert_eq!(
+        contract.get_ddn_status(p2p_id.clone()),
+        DDNStatus {
+            is_online: true,
+            total_downtime: 25,
+            reference_timestamp: 0,
+            last_timestamp: 50,
+        }
+    );
+}
+
 // ---- Metrics Reporting ----
 #[ink::test]
 fn is_within_limit_works_outside_limit() {
@@ -1404,6 +1576,13 @@ fn report_metrics_ddn_works() {
     let ddn_id = b"12D3KooWPfi9EtgoZHFnHh1at85mdZJtj7L8n94g6LFk6e8EEk2b".to_vec();
     let stored_bytes = 99;
     let requests = 999;
+
+    contract
+        .add_ddc_node(
+            String::from_utf8(ddn_id.clone()).unwrap(),
+            String::from("https://localhost"),
+        )
+        .unwrap();
 
     contract.add_reporter(accounts.alice).unwrap();
     contract

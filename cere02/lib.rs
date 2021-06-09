@@ -605,7 +605,16 @@ mod ddc {
                 None => panic!("DDN not found"),
             };
 
-            let now = Self::env().block_timestamp();
+            // let now = Self::env().block_timestamp();
+
+            // REMOVE: Eve account balance is used as timestamp in tests ¯\_(ツ)_/¯
+            let now: u64 = match Self::env().block_timestamp() {
+                0 => ink_env::test::get_account_balance::<ink_env::DefaultEnvironment>(
+                    AccountId::from([0x05; 32]),
+                )
+                .unwrap() as u64,
+                _ => Self::env().block_timestamp(),
+            };
 
             if !ddn_status.is_online {
                 let last_downtime = now - ddn_status.last_timestamp;
