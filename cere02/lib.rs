@@ -593,13 +593,15 @@ mod ddc {
     pub struct MetricValue {
         start_ms: u64,
         stored_bytes: u128,
-        requests: u128,
+        wcu_used: u128,
+        rcu_used: u128,
     }
 
     impl MetricValue {
         pub fn add_assign(&mut self, other: &Self) {
             self.stored_bytes += other.stored_bytes;
-            self.requests += other.requests;
+            self.wcu_used += other.wcu_used;
+            self.rcu_used += other.rcu_used;
         }
     }
 
@@ -666,24 +668,28 @@ mod ddc {
             let mut period_metrics = MetricValue {
                 start_ms: period_start_days * MS_PER_DAY,
                 stored_bytes: 0,
-                requests: 0,
+                wcu_used: 0,
+                rcu_used: 0,
             };
 
             for day in period_start_days..=now_days {
                 let mut day_stored_bytes: Vec<u128> = Vec::new();
-                let mut day_reqests: Vec<u128> = Vec::new();
+                let mut day_wcu_used: Vec<u128> = Vec::new();
+                let mut day_rcu_used: Vec<u128> = Vec::new();
 
                 for reporter in self.reporters.keys() {
                     let reporter_day_metric = self.metrics_for_day(reporter.clone(), app_id, day);
                     if let Some(reporter_day_metric) = reporter_day_metric {
                         day_stored_bytes.push(reporter_day_metric.stored_bytes);
-                        day_reqests.push(reporter_day_metric.requests);
+                        day_wcu_used.push(reporter_day_metric.wcu_used);
+                        day_rcu_used.push(reporter_day_metric.rcu_used);
                     }
                 }
 
                 period_metrics.add_assign(&MetricValue {
                     stored_bytes: get_median(day_stored_bytes).unwrap_or(0),
-                    requests: get_median(day_reqests).unwrap_or(0),
+                    wcu_used: get_median(day_wcu_used).unwrap_or(0),
+                    rcu_used: get_median(day_rcu_used).unwrap_or(0),
                     start_ms: 0, // Ignored.
                 });
             }
@@ -755,7 +761,8 @@ mod ddc {
                 _ => MetricValue {
                     start_ms,
                     stored_bytes: 0,
-                    requests: 0,
+                    wcu_used: 0,
+                    rcu_used: 0,
                 },
             }
         }
@@ -766,7 +773,8 @@ mod ddc {
             app_id: AccountId,
             day_start_ms: u64,
             stored_bytes: u128,
-            requests: u128,
+            wcu_used: u128,
+            rcu_used: u128,
         ) -> Result<()> {
             let reporter = self.env().caller();
             self.only_reporter(&reporter)?;
@@ -783,7 +791,8 @@ mod ddc {
             let metrics = MetricValue {
                 start_ms: day_start_ms,
                 stored_bytes,
-                requests,
+                wcu_used,
+                rcu_used,
             };
 
             self.metrics.insert(key.clone(), metrics.clone());
@@ -803,7 +812,8 @@ mod ddc {
             ddn_id: Vec<u8>,
             day_start_ms: u64,
             stored_bytes: u128,
-            requests: u128,
+            wcu_used: u128,
+            rcu_used: u128,
         ) -> Result<()> {
             let reporter = self.env().caller();
             self.only_reporter(&reporter)?;
@@ -819,7 +829,8 @@ mod ddc {
             let metrics = MetricValue {
                 start_ms: day_start_ms,
                 stored_bytes,
-                requests,
+                wcu_used,
+                rcu_used,
             };
 
             self.metrics_ddn.insert(key.clone(), metrics.clone());
@@ -859,7 +870,7 @@ mod ddc {
                 Ok(metrics) => metrics,
             };
             let current_tier_limit = self.tier_limit_of(app_id);
-            let requests_ok = metrics.requests <= current_tier_limit[0];
+            let requests_ok = metrics.wcu_used <= current_tier_limit[0];
             let bytes_ok = metrics.stored_bytes <= current_tier_limit[1];
             requests_ok && bytes_ok
         }
