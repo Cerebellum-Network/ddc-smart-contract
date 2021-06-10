@@ -1,7 +1,7 @@
 {
   "metadataVersion": "0.1.0",
   "source": {
-    "hash": "0x67587857bf02e35b26f7778343b9741bb9f173f4974288e1902fb330287b9753",
+    "hash": "0x2bef8da2318596656730fa4f20559d38b9ff20a261395c4aeb02cd0c90d17689",
     "language": "ink! 3.0.0-rc3",
     "compiler": "rustc 1.53.0-nightly"
   },
@@ -98,7 +98,7 @@
               "displayName": [
                 "Option"
               ],
-              "type": 39
+              "type": 40
             }
           },
           {
@@ -700,11 +700,37 @@
         "payable": false,
         "returnType": {
           "displayName": [
-            "Vec"
+            "ServiceTier"
+          ],
+          "type": 11
+        },
+        "selector": "0xe0116f7d"
+      },
+      {
+        "args": [
+          {
+            "name": "app",
+            "type": {
+              "displayName": [
+                "AccountId"
+              ],
+              "type": 1
+            }
+          }
+        ],
+        "docs": [],
+        "mutates": false,
+        "name": [
+          "get_app_limit"
+        ],
+        "payable": false,
+        "returnType": {
+          "displayName": [
+            "Result"
           ],
           "type": 35
         },
-        "selector": "0xe0116f7d"
+        "selector": "0xcb5b5fc9"
       },
       {
         "args": [
@@ -828,7 +854,7 @@
           "displayName": [
             "Vec"
           ],
-          "type": 36
+          "type": 37
         },
         "selector": "0xe6c98b60"
       },
@@ -947,7 +973,7 @@
           "displayName": [
             "Result"
           ],
-          "type": 37
+          "type": 38
         },
         "selector": "0xa7e90f2c"
       },
@@ -1017,7 +1043,7 @@
           "displayName": [
             "Vec"
           ],
-          "type": 38
+          "type": 39
         },
         "selector": "0xe8e28257"
       },
@@ -1042,7 +1068,7 @@
             }
           },
           {
-            "name": "stored_bytes",
+            "name": "storage_bytes",
             "type": {
               "displayName": [
                 "u64"
@@ -1051,7 +1077,16 @@
             }
           },
           {
-            "name": "requests",
+            "name": "wcu_used",
+            "type": {
+              "displayName": [
+                "u64"
+              ],
+              "type": 8
+            }
+          },
+          {
+            "name": "rcu_used",
             "type": {
               "displayName": [
                 "u64"
@@ -1095,7 +1130,7 @@
             }
           },
           {
-            "name": "stored_bytes",
+            "name": "storage_bytes",
             "type": {
               "displayName": [
                 "u64"
@@ -1104,7 +1139,16 @@
             }
           },
           {
-            "name": "requests",
+            "name": "wcu_used",
+            "type": {
+              "displayName": [
+                "u64"
+              ],
+              "type": 8
+            }
+          },
+          {
+            "name": "rcu_used",
             "type": {
               "displayName": [
                 "u64"
@@ -2462,12 +2506,17 @@
               "typeName": "u64"
             },
             {
-              "name": "stored_bytes",
+              "name": "storage_bytes",
               "type": 8,
               "typeName": "u64"
             },
             {
-              "name": "requests",
+              "name": "wcu_used",
+              "type": 8,
+              "typeName": "u64"
+            },
+            {
+              "name": "rcu_used",
               "type": 8,
               "typeName": "u64"
             }
@@ -2641,6 +2690,10 @@
             {
               "discriminant": 14,
               "name": "NoSubscription"
+            },
+            {
+              "discriminant": 15,
+              "name": "NoFreeTier"
             }
           ]
         }
@@ -2693,10 +2746,64 @@
     },
     {
       "def": {
-        "sequence": {
-          "type": 8
+        "variant": {
+          "variants": [
+            {
+              "fields": [
+                {
+                  "type": 36,
+                  "typeName": "T"
+                }
+              ],
+              "name": "Ok"
+            },
+            {
+              "fields": [
+                {
+                  "type": 32,
+                  "typeName": "E"
+                }
+              ],
+              "name": "Err"
+            }
+          ]
         }
-      }
+      },
+      "params": [
+        36,
+        32
+      ],
+      "path": [
+        "Result"
+      ]
+    },
+    {
+      "def": {
+        "composite": {
+          "fields": [
+            {
+              "name": "storage_bytes",
+              "type": 8,
+              "typeName": "u64"
+            },
+            {
+              "name": "wcu",
+              "type": 8,
+              "typeName": "u64"
+            },
+            {
+              "name": "rcu",
+              "type": 8,
+              "typeName": "u64"
+            }
+          ]
+        }
+      },
+      "path": [
+        "ddc",
+        "ddc",
+        "AppSubscriptionLimit"
+      ]
     },
     {
       "def": {
