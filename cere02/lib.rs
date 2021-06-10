@@ -595,17 +595,15 @@ mod ddc {
     }
 
     impl Ddc {
-        #[ink(message)]
-        pub fn report_ddn_status(&mut self, p2p_id: String, is_online: bool) -> Result<()> {
-            let reporter = self.env().caller();
-            self.only_reporter(&reporter)?;
-
+        fn set_ddn_status(&mut self, p2p_id: String, now: u64, is_online: bool) -> Result<()> {
             let ddn_status = match self.ddn_statuses.get_mut(&p2p_id) {
                 Some(ddn_status) => ddn_status,
                 None => return Err(Error::DDNNotFound),
             };
 
-            let now = Self::env().block_timestamp();
+            if now < ddn_status.last_timestamp {
+                return Err(Error::UnexpectedTimestamp);
+            }
 
             if !ddn_status.is_online {
                 let last_downtime = now - ddn_status.last_timestamp;
@@ -616,6 +614,16 @@ mod ddc {
             ddn_status.is_online = is_online;
 
             Ok(())
+        }
+
+        #[ink(message)]
+        pub fn report_ddn_status(&mut self, p2p_id: String, is_online: bool) -> Result<()> {
+            let reporter = self.env().caller();
+            self.only_reporter(&reporter)?;
+
+            let now = Self::env().block_timestamp();
+
+            self.set_ddn_status(p2p_id, now, is_online)
         }
 
         #[ink(message)]
