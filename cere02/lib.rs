@@ -538,16 +538,18 @@ mod ddc {
             let caller = self.env().caller();
             self.only_owner(caller)?;
 
-            let now = Self::env().block_timestamp();
-            self.ddn_statuses.insert(
-                p2p_id.clone(),
-                DDNStatus {
-                    is_online: true,
-                    total_downtime: 0,
-                    reference_timestamp: now,
-                    last_timestamp: now,
-                },
-            );
+            if !self.ddn_statuses.contains_key(&p2p_id) {
+                let now = Self::env().block_timestamp();
+                self.ddn_statuses.insert(
+                    p2p_id.clone(),
+                    DDNStatus {
+                        is_online: true,
+                        total_downtime: 0,
+                        reference_timestamp: now,
+                        last_timestamp: now,
+                    },
+                );
+            }
 
             self.ddc_nodes.insert(
                 p2p_id.clone(),
@@ -601,7 +603,7 @@ mod ddc {
                 None => return Err(Error::DDNNotFound),
             };
 
-            if now < ddn_status.last_timestamp {
+            if now < ddn_status.last_timestamp || now < ddn_status.reference_timestamp {
                 return Err(Error::UnexpectedTimestamp);
             }
 
