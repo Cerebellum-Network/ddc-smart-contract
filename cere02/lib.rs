@@ -361,29 +361,42 @@ mod ddc {
         last_update_ms: u64, // initially creation time
     }
 
-    fn get_end_date_ms(subscription) {
-        price_of_time = get price from subscription.tier
-        prepaid_time = subscription.balance / price_of_time
-        subscription.last_update_ms + prepaid_time
-    }
+    impl AppSubscription {
+        fn get_end_date_ms(&self) -> u64 {
+            let tier_id = self.tier_id.clone();
+            let tier = self.service.get(&tier_id).unwrap();
+            let price = tier[1]; // get tier fee
+            let prepaid_time_ms = self.balance / price * MS_PER_DAY;
 
-    fn get_consumed_balance(subscription) {
-        duration_consumed = now - subscription.last_update_ms
-        price_of_time = get price from subscription.tier
-        balance_consumed = duration_consumed * price of time
-        return balance_consumed
-    }
+            self.last_update_ms.clone() + prepaid_time_ms
+        }
 
-    fn actualize_subscription(&mut subscription) {
-        consumed = get_consumed_balance(subscription)
-        check underflow
-        subscription.balance -= consumed
-        subscription.last_update_ms = now
-    }
+        fn get_consumed_balance(&self) -> u64 {
+            let now_ms = Self::env().block_timestamp();
+            let duration_consumed = now_ms - self.last_update_ms.clone();
+            let tier_id = self.tier_id.clone();
+            let tier = self.service.get(&tier_id).unwrap();
+            let price = tier[1] / 31 / MS_PER_DAY; // get tier fee
 
-    fn set_tier(subscription, new tier) {
-        actualize_subscription(&mut subscription)
-        sub.tier_id = new_tier
+            duration_consumed * price
+        }
+
+        fn actualize_subscription(&mut self) {
+            let now_ms = Self::env().block_timestamp();
+            let consumed = self.get_consumed_balance();
+
+            if consumed > self.balance {
+                self.balance = 0;
+            } else {
+                self.balance -= consumed;
+            }
+            self.last_update_ms = now_ms;
+        }
+
+        fn set_tier(&mut self, new_tier_id: u64) {
+            self.actualize_subscription();
+            self.tier_id = new_tier_id.clone();
+        }
     }
 
     impl Ddc {
@@ -445,7 +458,6 @@ mod ddc {
             if subscription_opt.is_none() || subscription_opt.unwrap().get_end_date_ms() < now {
                 subscription = AppSubscription {
                     start_date_ms: now,
-                    end_date_ms: now + PERIOD_MS,
                     tier_id,
 
                     last_update_ms: now,
@@ -456,12 +468,12 @@ mod ddc {
 
                 subscription.balance = subscription.balance + value;
 
-                if tier is different {
-                    set_tier(new tier)
+                if subscription.tier_id != tier_id {
+                    subscription.set_tier(tier_id.clone());
                 }
             }
 
-            self.subscriptions.insert(payer, subscription);
+            self.subscriptions.insert(payer, subscription.clone());
             self.env().emit_event(Deposit {
                 from: Some(payer),
                 value: value,
@@ -471,12 +483,25 @@ mod ddc {
         }
 
 
-        fn refund() {
-            subscription = get subscription of caller
-            consumed_balance = get_consumed_balance(subscription)
-            check underflow
-            to_refund = sub.balance - consumed_balance
-            transfer(caller, to_refund)
+        fn refund(&self) -> Result<()> {
+            let caller = self.env().caller();
+            let subscription = self.subscriptions.get(caller);
+            if subscription.is_none() {
+                return Err(Error::NoSubscription);
+            }
+
+            let subscription = subscription.unwrap();
+            let consumed_balance = subscription.get_consumed_balance();
+            if consumed_balance > subscription.balance {
+                return Ok();
+            }
+
+            let to_refund = subscription.balance - consumed_balance;
+
+            match self.env().transfer(caller, to_refund) {
+                Err(_e) => Err(Error::TransferFailed),
+                Ok(_v) => Ok(()),
+            }
         }
     }
 
