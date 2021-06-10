@@ -293,18 +293,11 @@ mod ddc {
             }
         }
 
-        /// Return tier limit given a tier id 1, 2, 3
-        fn get_tier_limit(&self, tier_id: u64) -> Vec<u64> {
+        /// Return tier limit given a tier id
+        fn get_tier_limit(&self, tier_id: u64) -> ServiceTier {
             self.tid_in_bound(tier_id).unwrap();
 
-            let tier = self.service_tiers.get(&tier_id).unwrap();
-
-            let mut result = Vec::new();
-            result.push(tier.storage_bytes);
-            result.push(tier.wcu);
-            result.push(tier.rcu);
-
-            result
+            self.service_tiers.get(&tier_id).unwrap().clone()
         }
     }
 
@@ -328,6 +321,26 @@ mod ddc {
         end_date_ms: u64,
         tier_id: u64,
         balance: Balance,
+    }
+
+    #[derive(
+    Default, Clone, PartialEq, Eq, PartialOrd, Ord, Encode, Decode, SpreadLayout, PackedLayout,
+    )]
+    #[cfg_attr(feature = "std", derive(Debug, scale_info::TypeInfo))]
+    pub struct AppSubscriptionLimit {
+        storage_bytes: u64,
+        wcu: u64,
+        rcu: u64,
+    }
+
+    impl AppSubscriptionLimit {
+        pub fn new(storage_bytes: u64, wcu: u64, rcu: u64) -> AppSubscriptionLimit {
+            AppSubscriptionLimit {
+                storage_bytes,
+                wcu,
+                rcu,
+            }
+        }
     }
 
     impl Ddc {
@@ -354,9 +367,10 @@ mod ddc {
 
         /// Return the tier limit corresponding the account
         #[ink(message)]
-        pub fn tier_limit_of(&self, acct: AccountId) -> Vec<u64> {
+        pub fn tier_limit_of(&self, acct: AccountId) -> ServiceTier {
             let tier_id = self.get_tier_id(&acct);
             let tl = self.get_tier_limit(tier_id);
+
             tl.clone()
         }
 
@@ -364,6 +378,56 @@ mod ddc {
         fn get_tier_id(&self, owner: &AccountId) -> u64 {
             let subscription = self.subscriptions.get(owner).unwrap();
             subscription.tier_id
+        }
+
+        #[ink(message)]
+        pub fn get_app_limit(&self, app: AccountId) -> Result<AppSubscriptionLimit> {
+            let now_ms = Self::env().block_timestamp() as u64;
+
+            self.get_app_limit_at_time(app, now_ms)
+        }
+
+        pub fn get_app_limit_at_time(&self, app: AccountId, now_ms: u64) -> Result<AppSubscriptionLimit> {
+            let subscription_opt = self.subscriptions.get(&app);
+            if subscription_opt.is_none() {
+                return Err(Error::NoSubscription);
+            }
+            let subscription = subscription_opt.unwrap();
+
+            if self.tid_in_bound(subscription.tier_id).is_err() {
+                return Ok(AppSubscriptionLimit::new(0, 0, 0));
+            }
+
+            let current_tier = self.service_tiers.get(&subscription.tier_id).unwrap();
+
+
+            // actual
+            if subscription.end_date_ms >= now_ms {
+                Ok(AppSubscriptionLimit::new(
+                    current_tier.storage_bytes,
+                    current_tier.wcu,
+                    current_tier.rcu,
+                ))
+            } else { // expired
+                let free_tier = self.get_free_tier()?;
+
+                Ok(AppSubscriptionLimit::new(
+                    free_tier.storage_bytes,
+                    free_tier.wcu,
+                    free_tier.rcu,
+                ))
+            }
+        }
+
+        pub fn get_free_tier(&self) -> Result<ServiceTier> {
+            for tier_key in self.service_tiers.keys() {
+                let current_tier = self.service_tiers.get(tier_key).unwrap();
+                if current_tier.tier_fee == 0 {
+                    return Ok(current_tier.clone());
+                }
+            }
+
+            Err(Error::NoFreeTier)
         }
 
         /// Receive payment from the participating DDC node
@@ -558,14 +622,16 @@ mod ddc {
     #[cfg_attr(feature = "std", derive(Debug, scale_info::TypeInfo))]
     pub struct MetricValue {
         start_ms: u64,
-        stored_bytes: u64,
-        requests: u64,
+        storage_bytes: u64,
+        wcu_used: u64,
+        rcu_used: u64,
     }
 
     impl MetricValue {
         pub fn add_assign(&mut self, other: &Self) {
-            self.stored_bytes += other.stored_bytes;
-            self.requests += other.requests;
+            self.storage_bytes += other.storage_bytes;
+            self.wcu_used += other.wcu_used;
+            self.rcu_used += other.rcu_used;
         }
     }
 
@@ -631,25 +697,29 @@ mod ddc {
 
             let mut period_metrics = MetricValue {
                 start_ms: period_start_days * MS_PER_DAY,
-                stored_bytes: 0,
-                requests: 0,
+                storage_bytes: 0,
+                wcu_used: 0,
+                rcu_used: 0,
             };
 
             for day in period_start_days..=now_days {
-                let mut day_stored_bytes: Vec<u64> = Vec::new();
-                let mut day_reqests: Vec<u64> = Vec::new();
+                let mut day_storage_bytes: Vec<u64> = Vec::new();
+                let mut day_wcu_used: Vec<u64> = Vec::new();
+                let mut day_rcu_used: Vec<u64> = Vec::new();
 
                 for reporter in self.reporters.keys() {
                     let reporter_day_metric = self.metrics_for_day(reporter.clone(), app_id, day);
                     if let Some(reporter_day_metric) = reporter_day_metric {
-                        day_stored_bytes.push(reporter_day_metric.stored_bytes);
-                        day_reqests.push(reporter_day_metric.requests);
+                        day_storage_bytes.push(reporter_day_metric.storage_bytes);
+                        day_wcu_used.push(reporter_day_metric.wcu_used);
+                        day_rcu_used.push(reporter_day_metric.rcu_used);
                     }
                 }
 
                 period_metrics.add_assign(&MetricValue {
-                    stored_bytes: get_median(day_stored_bytes).unwrap_or(0),
-                    requests: get_median(day_reqests).unwrap_or(0),
+                    storage_bytes: get_median(day_storage_bytes).unwrap_or(0),
+                    wcu_used: get_median(day_wcu_used).unwrap_or(0),
+                    rcu_used: get_median(day_rcu_used).unwrap_or(0),
                     start_ms: 0, // Ignored.
                 });
             }
@@ -720,8 +790,9 @@ mod ddc {
                 // Otherwise, return 0 for missing or outdated metrics from a previous period.
                 _ => MetricValue {
                     start_ms,
-                    stored_bytes: 0,
-                    requests: 0,
+                    storage_bytes: 0,
+                    wcu_used: 0,
+                    rcu_used: 0,
                 },
             }
         }
@@ -731,8 +802,9 @@ mod ddc {
             &mut self,
             app_id: AccountId,
             day_start_ms: u64,
-            stored_bytes: u64,
-            requests: u64,
+            storage_bytes: u64,
+            wcu_used: u64,
+            rcu_used: u64,
         ) -> Result<()> {
             let reporter = self.env().caller();
             self.only_reporter(&reporter)?;
@@ -748,8 +820,9 @@ mod ddc {
             };
             let metrics = MetricValue {
                 start_ms: day_start_ms,
-                stored_bytes,
-                requests,
+                storage_bytes,
+                wcu_used,
+                rcu_used,
             };
 
             self.metrics.insert(key.clone(), metrics.clone());
@@ -768,8 +841,9 @@ mod ddc {
             &mut self,
             ddn_id: Vec<u8>,
             day_start_ms: u64,
-            stored_bytes: u64,
-            requests: u64,
+            storage_bytes: u64,
+            wcu_used: u64,
+            rcu_used: u64,
         ) -> Result<()> {
             let reporter = self.env().caller();
             self.only_reporter(&reporter)?;
@@ -784,8 +858,9 @@ mod ddc {
             };
             let metrics = MetricValue {
                 start_ms: day_start_ms,
-                stored_bytes,
-                requests,
+                storage_bytes,
+                wcu_used,
+                rcu_used,
             };
 
             self.metrics_ddn.insert(key.clone(), metrics.clone());
@@ -840,9 +915,11 @@ mod ddc {
                 Ok(metrics) => metrics,
             };
             let current_tier_limit = self.tier_limit_of(app_id);
-            let requests_ok = metrics.requests <= current_tier_limit[0];
-            let bytes_ok = metrics.stored_bytes <= current_tier_limit[1];
-            requests_ok && bytes_ok
+            let bytes_ok = metrics.storage_bytes <= current_tier_limit.storage_bytes;
+            let wcu_ok = metrics.storage_bytes <= current_tier_limit.wcu;
+            let rcu_ok = metrics.storage_bytes <= current_tier_limit.rcu;
+
+            bytes_ok && wcu_ok && rcu_ok
         }
     }
 
@@ -865,6 +942,7 @@ mod ddc {
         ContractActive,
         UnexpectedTimestamp,
         NoSubscription,
+        NoFreeTier,
     }
 
     pub type Result<T> = core::result::Result<T, Error>;
