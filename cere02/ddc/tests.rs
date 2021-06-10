@@ -1597,7 +1597,7 @@ fn default_ddn_status_works() {
 }
 
 #[ink::test]
-fn report_metrics_update_ddn_status_works() {
+fn report_metrics_updates_ddn_status_works() {
     let mut contract = make_contract();
     let accounts = default_accounts::<DefaultEnvironment>().unwrap();
 
