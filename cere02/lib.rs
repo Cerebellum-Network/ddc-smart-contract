@@ -33,14 +33,13 @@ mod ddc {
 
         // -- Admin: Reporters --
         reporters: StorageHashMap<AccountId, ()>,
+        current_period_ms: StorageHashMap<AccountId, u64>,
 
         // -- DDC Nodes --
         ddc_nodes: StorageHashMap<String, DDCNode>,
 
         // -- Metrics Reporting --
         pub metrics: StorageHashMap<MetricKey, MetricValue>,
-        current_period_ms: u64,
-
         pub metrics_ddn: StorageHashMap<MetricKeyDDN, MetricValue>,
     }
 
@@ -90,19 +89,16 @@ mod ddc {
 
             service_v.insert(3, t3);
 
-            let now: u64 = Self::env().block_timestamp(); // Epoch in milisecond
-            let today_ms = now - now % MS_PER_DAY; // Beginning of deploy date in Epoch milisecond
-
             let instance = Self {
                 owner: Lazy::new(caller),
                 service: service_v,
                 balances: StorageHashMap::new(),
                 subscriptions: StorageHashMap::new(),
                 reporters: StorageHashMap::new(),
+                current_period_ms: StorageHashMap::new(),
                 ddc_nodes: StorageHashMap::new(),
                 metrics: StorageHashMap::new(),
                 metrics_ddn: StorageHashMap::new(),
-                current_period_ms: today_ms,
                 pause: false,
             };
             instance
@@ -850,7 +846,8 @@ mod ddc {
             self.only_reporter(&reporter)?;
 
             enforce_time_is_start_of_day(start_ms)?;
-            self.current_period_ms = start_ms + MS_PER_DAY;
+            let next_period_ms = start_ms + MS_PER_DAY;
+            self.current_period_ms.insert(reporter, next_period_ms);
 
             self.env()
                 .emit_event(MetricPeriodFinalized { reporter, start_ms });
@@ -860,7 +857,21 @@ mod ddc {
 
         #[ink(message)]
         pub fn get_current_period_ms(&self) -> u64 {
-            self.current_period_ms
+            let caller = self.env().caller();
+            self.get_current_period_ms_of(caller)
+        }
+
+        #[ink(message)]
+        pub fn get_current_period_ms_of(&self, reporter_id: AccountId) -> u64 {
+            let current_period_ms = self.current_period_ms.get(&reporter_id);
+            match current_period_ms {
+                None => {
+                    let now: u64 = Self::env().block_timestamp(); // Epoch in milisecond
+                    let today_ms = now - now % MS_PER_DAY; // The beginning of today
+                    today_ms
+                }
+                Some(current_period_ms) => *current_period_ms,
+            }
         }
 
         #[ink(message)]

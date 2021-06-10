@@ -182,8 +182,7 @@ fn withdraw_works() {
 
 /// Sets the caller
 fn set_caller(caller: AccountId) {
-    let callee =
-        ink_env::account_id::<ink_env::DefaultEnvironment>().unwrap_or([0x0; 32].into());
+    let callee = ink_env::account_id::<ink_env::DefaultEnvironment>().unwrap_or([0x0; 32].into());
     test::push_execution_context::<Environment>(
         caller,
         callee,
@@ -202,8 +201,7 @@ fn balance_of(account: AccountId) -> Balance {
 }
 
 fn set_balance(account: AccountId, balance: Balance) {
-    ink_env::test::set_account_balance::<ink_env::DefaultEnvironment>(account, balance)
-        .unwrap();
+    ink_env::test::set_account_balance::<ink_env::DefaultEnvironment>(account, balance).unwrap();
 }
 
 fn contract_id() -> AccountId {
@@ -283,12 +281,7 @@ fn report_metrics_works() {
     contract.add_reporter(reporter_id).unwrap();
 
     // Wrong day format.
-    let err = contract.report_metrics(
-        app_id,
-        today_ms + 1,
-        metrics.stored_bytes,
-        metrics.requests,
-    );
+    let err = contract.report_metrics(app_id, today_ms + 1, metrics.stored_bytes, metrics.requests);
     assert_eq!(err, Err(Error::UnexpectedTimestamp));
 
     // Store metrics.
@@ -1189,9 +1182,48 @@ fn finalize_metric_period_works() {
     let err = contract.finalize_metric_period(yesterday_ms + 1);
     assert_eq!(err, Err(Error::UnexpectedTimestamp));
 
-    // Finalize today.
+    // Finalize today to change the current period.
+    assert_eq!(contract.get_current_period_ms(), 0);
     contract.finalize_metric_period(yesterday_ms).unwrap();
     assert_eq!(contract.get_current_period_ms(), today_ms);
+}
+
+#[ink::test]
+fn get_current_period_ms_works() {
+    let mut contract = make_contract();
+    let accounts = default_accounts::<DefaultEnvironment>().unwrap();
+    let day0 = 9999 * MS_PER_DAY; // Midnight time on some day.
+    let day1 = day0 + MS_PER_DAY;
+    let day2 = day1 + MS_PER_DAY;
+
+    // Authorize our accounts to be a reporters.
+    contract.add_reporter(accounts.alice).unwrap();
+    contract.add_reporter(accounts.bob).unwrap();
+
+    // Initial values are the current day (0 because that is the current time in the test env).
+    assert_eq!(contract.get_current_period_ms_of(accounts.alice), 0);
+    assert_eq!(contract.get_current_period_ms_of(accounts.bob), 0);
+    assert_eq!(contract.get_current_period_ms(), 0); // of caller Alice
+
+    // Alice finalizes day 0.
+    contract.finalize_metric_period(day0).unwrap();
+    assert_eq!(contract.get_current_period_ms_of(accounts.alice), day1); // After day0.
+    assert_eq!(contract.get_current_period_ms_of(accounts.bob), 0); // No change.
+    assert_eq!(contract.get_current_period_ms(), day1); // of caller Alice
+
+    // Bob finalizes day 1.
+    set_caller(accounts.bob);
+    contract.finalize_metric_period(day1).unwrap();
+    assert_eq!(contract.get_current_period_ms_of(accounts.alice), day1); // No change.
+    assert_eq!(contract.get_current_period_ms_of(accounts.bob), day2); // After day1.
+    assert_eq!(contract.get_current_period_ms(), day2); // of caller Bob
+    undo_set_caller();
+
+    // Alice finalizes day 1.
+    contract.finalize_metric_period(day1).unwrap();
+    assert_eq!(contract.get_current_period_ms_of(accounts.alice), day2); // After day1.
+    assert_eq!(contract.get_current_period_ms_of(accounts.bob), day2); // No change.
+    assert_eq!(contract.get_current_period_ms(), day2); // of caller Alice
 }
 
 fn decode_event(event: &ink_env::test::EmittedEvent) -> Event {
@@ -1221,9 +1253,7 @@ fn add_and_remove_reporters_works() {
         panic!("Wrong event type");
     }
 
-    if let Event::ReporterRemoved(ReporterRemoved { reporter }) =
-        decode_event(&raw_events[1])
-    {
+    if let Event::ReporterRemoved(ReporterRemoved { reporter }) = decode_event(&raw_events[1]) {
         assert_eq!(reporter, new_reporter);
     } else {
         panic!("Wrong event type");
