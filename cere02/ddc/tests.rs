@@ -1346,168 +1346,168 @@ fn report_ddn_status_works() {
 
     assert_eq!(
         contract.get_ddn_status(p2p_id.clone()),
-        DDNStatus {
+        Ok(DDNStatus {
             is_online: true,
             total_downtime: 0,
             reference_timestamp: 0,
             last_timestamp: 0,
-        }
+        })
     );
 
     set_balance(now_account, 4);
     contract.report_ddn_status(p2p_id.clone(), true).unwrap();
     assert_eq!(
         contract.get_ddn_status(p2p_id.clone()),
-        DDNStatus {
+        Ok(DDNStatus {
             is_online: true,
             total_downtime: 0,
             reference_timestamp: 0,
             last_timestamp: 4,
-        }
+        })
     );
 
     set_balance(now_account, 6);
     contract.report_ddn_status(p2p_id.clone(), true).unwrap();
     assert_eq!(
         contract.get_ddn_status(p2p_id.clone()),
-        DDNStatus {
+        Ok(DDNStatus {
             is_online: true,
             total_downtime: 0,
             reference_timestamp: 0,
             last_timestamp: 6,
-        }
+        })
     );
 
     set_balance(now_account, 8);
     contract.report_ddn_status(p2p_id.clone(), false).unwrap();
     assert_eq!(
         contract.get_ddn_status(p2p_id.clone()),
-        DDNStatus {
+        Ok(DDNStatus {
             is_online: false,
             total_downtime: 0,
             reference_timestamp: 0,
             last_timestamp: 8,
-        }
+        })
     );
 
     set_balance(now_account, 10);
     contract.report_ddn_status(p2p_id.clone(), false).unwrap();
     assert_eq!(
         contract.get_ddn_status(p2p_id.clone()),
-        DDNStatus {
+        Ok(DDNStatus {
             is_online: false,
             total_downtime: 2,
             reference_timestamp: 0,
             last_timestamp: 10,
-        }
+        })
     );
 
     set_balance(now_account, 12);
     contract.report_ddn_status(p2p_id.clone(), true).unwrap();
     assert_eq!(
         contract.get_ddn_status(p2p_id.clone()),
-        DDNStatus {
+        Ok(DDNStatus {
             is_online: true,
             total_downtime: 4,
             reference_timestamp: 0,
             last_timestamp: 12,
-        }
+        })
     );
 
     set_balance(now_account, 15);
     contract.report_ddn_status(p2p_id.clone(), true).unwrap();
     assert_eq!(
         contract.get_ddn_status(p2p_id.clone()),
-        DDNStatus {
+        Ok(DDNStatus {
             is_online: true,
             total_downtime: 4,
             reference_timestamp: 0,
             last_timestamp: 15,
-        }
+        })
     );
 
     set_balance(now_account, 18);
     contract.report_ddn_status(p2p_id.clone(), false).unwrap();
     assert_eq!(
         contract.get_ddn_status(p2p_id.clone()),
-        DDNStatus {
+        Ok(DDNStatus {
             is_online: false,
             total_downtime: 4,
             reference_timestamp: 0,
             last_timestamp: 18,
-        }
+        })
     );
 
     set_balance(now_account, 25);
     contract.report_ddn_status(p2p_id.clone(), true).unwrap();
     assert_eq!(
         contract.get_ddn_status(p2p_id.clone()),
-        DDNStatus {
+        Ok(DDNStatus {
             is_online: true,
             total_downtime: 11,
             reference_timestamp: 0,
             last_timestamp: 25,
-        }
+        })
     );
 
     set_balance(now_account, 30);
     contract.report_ddn_status(p2p_id.clone(), false).unwrap();
     assert_eq!(
         contract.get_ddn_status(p2p_id.clone()),
-        DDNStatus {
+        Ok(DDNStatus {
             is_online: false,
             total_downtime: 11,
             reference_timestamp: 0,
             last_timestamp: 30,
-        }
+        })
     );
 
     set_balance(now_account, 34);
     contract.report_ddn_status(p2p_id.clone(), false).unwrap();
     assert_eq!(
         contract.get_ddn_status(p2p_id.clone()),
-        DDNStatus {
+        Ok(DDNStatus {
             is_online: false,
             total_downtime: 15,
             reference_timestamp: 0,
             last_timestamp: 34,
-        }
+        })
     );
 
     set_balance(now_account, 42);
     contract.report_ddn_status(p2p_id.clone(), false).unwrap();
     assert_eq!(
         contract.get_ddn_status(p2p_id.clone()),
-        DDNStatus {
+        Ok(DDNStatus {
             is_online: false,
             total_downtime: 23,
             reference_timestamp: 0,
             last_timestamp: 42,
-        }
+        })
     );
 
     set_balance(now_account, 44);
     contract.report_ddn_status(p2p_id.clone(), true).unwrap();
     assert_eq!(
         contract.get_ddn_status(p2p_id.clone()),
-        DDNStatus {
+        Ok(DDNStatus {
             is_online: true,
             total_downtime: 25,
             reference_timestamp: 0,
             last_timestamp: 44,
-        }
+        })
     );
 
     set_balance(now_account, 50);
     contract.report_ddn_status(p2p_id.clone(), true).unwrap();
     assert_eq!(
         contract.get_ddn_status(p2p_id.clone()),
-        DDNStatus {
+        Ok(DDNStatus {
             is_online: true,
             total_downtime: 25,
             reference_timestamp: 0,
             last_timestamp: 50,
-        }
+        })
     );
 }
 

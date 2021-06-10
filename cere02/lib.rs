@@ -602,7 +602,7 @@ mod ddc {
 
             let ddn_status = match self.ddn_statuses.get_mut(&p2p_id) {
                 Some(ddn_status) => ddn_status,
-                None => panic!("DDN not found"),
+                None => return Err(Error::DDNNotFound),
             };
 
             let now = Self::env().block_timestamp();
@@ -619,13 +619,13 @@ mod ddc {
         }
 
         #[ink(message)]
-        pub fn get_ddn_status(&self, p2p_id: String) -> DDNStatus {
+        pub fn get_ddn_status(&self, p2p_id: String) -> Result<DDNStatus> {
             let ddn_status = match self.ddn_statuses.get(&p2p_id) {
                 Some(ddn_status) => ddn_status.clone(),
-                None => panic!("DDN not found"),
+                None => return Err(Error::DDNNotFound),
             };
 
-            ddn_status
+            Ok(ddn_status)
         }
     }
 
@@ -951,6 +951,7 @@ mod ddc {
         ContractActive,
         UnexpectedTimestamp,
         NoSubscription,
+        DDNNotFound,
     }
 
     pub type Result<T> = core::result::Result<T, Error>;
