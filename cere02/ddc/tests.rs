@@ -52,14 +52,14 @@ fn subscribe_works() {
 
     let mut subscription = contract.subscriptions.get(&payer).unwrap();
 
-    assert_eq!(subscription.end_date_ms, PERIOD_MS);
+    assert_eq!(contract.get_end_date_ms(subscription.clone()), PERIOD_MS);
     assert_eq!(subscription.balance, 500);
 
     contract.subscribe(3).unwrap();
 
     subscription = contract.subscriptions.get(&payer).unwrap();
 
-    assert_eq!(subscription.end_date_ms, PERIOD_MS * 2);
+    assert_eq!(contract.get_end_date_ms(subscription.clone()), PERIOD_MS * 2);
     assert_eq!(subscription.balance, 1000);
 
     // assert_eq!(contract.balance_of(payer), 2);

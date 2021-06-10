@@ -361,44 +361,6 @@ mod ddc {
         last_update_ms: u64, // initially creation time
     }
 
-    impl AppSubscription {
-        fn get_end_date_ms(&self) -> u64 {
-            let tier_id = self.tier_id.clone();
-            let tier = self.service.get(&tier_id).unwrap();
-            let price = tier[1]; // get tier fee
-            let prepaid_time_ms = self.balance / price * MS_PER_DAY;
-
-            self.last_update_ms.clone() + prepaid_time_ms
-        }
-
-        fn get_consumed_balance(&self) -> u64 {
-            let now_ms = Self::env().block_timestamp();
-            let duration_consumed = now_ms - self.last_update_ms.clone();
-            let tier_id = self.tier_id.clone();
-            let tier = self.service.get(&tier_id).unwrap();
-            let price = tier[1] / 31 / MS_PER_DAY; // get tier fee
-
-            duration_consumed * price
-        }
-
-        fn actualize_subscription(&mut self) {
-            let now_ms = Self::env().block_timestamp();
-            let consumed = self.get_consumed_balance();
-
-            if consumed > self.balance {
-                self.balance = 0;
-            } else {
-                self.balance -= consumed;
-            }
-            self.last_update_ms = now_ms;
-        }
-
-        fn set_tier(&mut self, new_tier_id: u64) {
-            self.actualize_subscription();
-            self.tier_id = new_tier_id.clone();
-        }
-    }
-
     impl Ddc {
         /// Returns the account balance for the specified `account`.
         /// Returns `0` if the account is non-existent.
@@ -435,6 +397,42 @@ mod ddc {
             subscription.tier_id
         }
 
+        fn get_end_date_ms(&self, subscription: AppSubscription) -> u64 {
+            let tier_id = subscription.tier_id.clone();
+            let tier = self.service.get(&tier_id).unwrap();
+            let price = tier[1]; // get tier fee
+            let prepaid_time_ms = subscription.balance / price * MS_PER_DAY as u128;
+
+            subscription.last_update_ms.clone() + prepaid_time_ms as u64
+        }
+
+        fn get_consumed_balance(&self, subscription: AppSubscription) -> Balance {
+            let now_ms = Self::env().block_timestamp();
+            let duration_consumed = now_ms - subscription.last_update_ms.clone();
+            let tier_id = subscription.tier_id.clone();
+            let tier = self.service.get(&tier_id).unwrap();
+            let price = tier[1] / 31 / MS_PER_DAY as u128; // get tier fee
+
+            duration_consumed as u128 * price
+        }
+
+        fn actualize_subscription(&mut self, subscription: &mut AppSubscription) {
+            let now_ms = Self::env().block_timestamp();
+            let consumed = self.get_consumed_balance(subscription.clone());
+
+            if consumed > subscription.balance {
+                subscription.balance = 0;
+            } else {
+                subscription.balance -= consumed;
+            }
+            subscription.last_update_ms = now_ms;
+        }
+
+        fn set_tier(&mut self, subscription: &mut AppSubscription, new_tier_id: u128) {
+            self.actualize_subscription(subscription);
+            subscription.tier_id = new_tier_id.clone();
+        }
+
         /// Receive payment from the participating DDC node
         /// Store payment into users balance map
         /// Initialize user metrics map
@@ -455,7 +453,7 @@ mod ddc {
             let now = Self::env().block_timestamp();
             let mut subscription: AppSubscription;
 
-            if subscription_opt.is_none() || subscription_opt.unwrap().get_end_date_ms() < now {
+            if subscription_opt.is_none() || self.get_end_date_ms(subscription_opt.unwrap().clone()) < now {
                 subscription = AppSubscription {
                     start_date_ms: now,
                     tier_id,
@@ -469,7 +467,7 @@ mod ddc {
                 subscription.balance = subscription.balance + value;
 
                 if subscription.tier_id != tier_id {
-                    subscription.set_tier(tier_id.clone());
+                    self.set_tier(&mut subscription, tier_id);
                 }
             }
 
@@ -485,15 +483,15 @@ mod ddc {
 
         fn refund(&self) -> Result<()> {
             let caller = self.env().caller();
-            let subscription = self.subscriptions.get(caller);
+            let subscription = self.subscriptions.get(&caller);
             if subscription.is_none() {
                 return Err(Error::NoSubscription);
             }
 
             let subscription = subscription.unwrap();
-            let consumed_balance = subscription.get_consumed_balance();
+            let consumed_balance = self.get_consumed_balance(subscription.clone()) as Balance;
             if consumed_balance > subscription.balance {
-                return Ok();
+                return Ok(());
             }
 
             let to_refund = subscription.balance - consumed_balance;
