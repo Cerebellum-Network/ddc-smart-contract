@@ -47,20 +47,23 @@ fn transfer_ownership_works() {
 fn subscribe_works() {
     let mut contract = Ddc::new(2, 2000, 2000, 4, 4000, 4000, 8, 8000, 800);
     let payer = AccountId::from([0x1; 32]);
+
+    set_exec_context(payer, 2);
+
     assert_eq!(contract.balance_of(payer), 0);
     assert_eq!(contract.subscribe(3), Ok(()));
 
     let mut subscription = contract.subscriptions.get(&payer).unwrap();
 
     assert_eq!(contract.get_end_date_ms(subscription.clone()), PERIOD_MS);
-    assert_eq!(subscription.balance, 500);
+    assert_eq!(subscription.balance, 2);
 
     contract.subscribe(3).unwrap();
 
     subscription = contract.subscriptions.get(&payer).unwrap();
 
     assert_eq!(contract.get_end_date_ms(subscription.clone()), PERIOD_MS * 2);
-    assert_eq!(subscription.balance, 1000);
+    assert_eq!(subscription.balance, 4);
 
     // assert_eq!(contract.balance_of(payer), 2);
 }
@@ -156,10 +159,10 @@ fn withdraw_works() {
     assert_eq!(balance_of(contract_id()), 1000);
 
     // Non-owner cannot withdraw.
-    set_caller(accounts.bob);
+    set_exec_context(accounts.bob, 2);
     assert_eq!(contract.withdraw(accounts.bob, 200), Err(OnlyOwner));
     assert_eq!(balance_of(contract_id()), 1000);
-    undo_set_caller(); // Back to Alice owner.
+    undo_set_exec_context(); // Back to Alice owner.
 
     // Cannot withdraw to the zero account by mistake.
     assert_eq!(
@@ -180,19 +183,19 @@ fn withdraw_works() {
     assert_eq!(contract.balance_of_contract(), 800);
 }
 
-/// Sets the caller
-fn set_caller(caller: AccountId) {
+/// Sets exec context
+fn set_exec_context(caller: AccountId, endowement: Balance) {
     let callee = ink_env::account_id::<ink_env::DefaultEnvironment>().unwrap_or([0x0; 32].into());
     test::push_execution_context::<Environment>(
         caller,
         callee,
         1000000,
-        1000000,
+        endowement, // transferred balance
         test::CallData::new(call::Selector::new([0x00; 4])), // dummy
     );
 }
 
-fn undo_set_caller() {
+fn undo_set_exec_context() {
     test::pop_execution_context();
 }
 
@@ -477,200 +480,200 @@ fn median_works() {
     // alice day5: [] - 0
 
     // Day 1
-    set_caller(bob);
+    set_exec_context(bob, 2);
     contract.report_metrics(bob, day1_ms, 8, 1).unwrap();
     contract.report_metrics(charlie, day1_ms, 0, 2).unwrap();
     contract.report_metrics(django, day1_ms, 1, 3).unwrap();
     contract.report_metrics(eve, day1_ms, 5, 4).unwrap();
     contract.report_metrics(frank, day1_ms, 7, 5).unwrap();
     contract.report_metrics(alice, day1_ms, 2, 6).unwrap();
-    undo_set_caller();
+    undo_set_exec_context();
 
-    set_caller(charlie);
+    set_exec_context(charlie, 2);
     contract.report_metrics(bob, day1_ms, 6, 1).unwrap();
     contract.report_metrics(charlie, day1_ms, 1, 2).unwrap();
     contract.report_metrics(django, day1_ms, 1, 3).unwrap();
     contract.report_metrics(eve, day1_ms, 5, 4).unwrap();
-    undo_set_caller();
+    undo_set_exec_context();
 
-    set_caller(django);
+    set_exec_context(django, 2);
     contract.report_metrics(bob, day1_ms, 8, 1).unwrap();
     contract.report_metrics(charlie, day1_ms, 4, 2).unwrap();
     contract.report_metrics(django, day1_ms, 5, 3).unwrap();
     contract.report_metrics(eve, day1_ms, 5, 4).unwrap();
     contract.report_metrics(frank, day1_ms, 7, 5).unwrap();
     contract.report_metrics(alice, day1_ms, 5, 6).unwrap();
-    undo_set_caller();
+    undo_set_exec_context();
 
-    set_caller(eve);
+    set_exec_context(eve, 2);
     contract.report_metrics(bob, day1_ms, 0, 1).unwrap();
     contract.report_metrics(charlie, day1_ms, 5, 2).unwrap();
     contract.report_metrics(django, day1_ms, 1, 3).unwrap();
     contract.report_metrics(eve, day1_ms, 5, 4).unwrap();
     contract.report_metrics(frank, day1_ms, 7, 5).unwrap();
 
-    undo_set_caller();
+    undo_set_exec_context();
 
-    set_caller(frank);
+    set_exec_context(frank, 2);
     contract.report_metrics(bob, day1_ms, 100, 1).unwrap();
     contract.report_metrics(charlie, day1_ms, 5, 2).unwrap();
     contract.report_metrics(django, day1_ms, 1, 3).unwrap();
-    undo_set_caller();
+    undo_set_exec_context();
 
     // Day 2
-    set_caller(bob);
+    set_exec_context(bob, 2);
     contract.report_metrics(bob, day2_ms, 2, 1).unwrap();
     contract.report_metrics(charlie, day2_ms, 5, 2).unwrap();
     contract.report_metrics(django, day2_ms, 5, 3).unwrap();
     contract.report_metrics(eve, day2_ms, 5, 4).unwrap();
     contract.report_metrics(frank, day2_ms, 0, 5).unwrap();
     contract.report_metrics(alice, day2_ms, 0, 6).unwrap();
-    undo_set_caller();
+    undo_set_exec_context();
 
-    set_caller(charlie);
+    set_exec_context(charlie, 2);
     contract.report_metrics(bob, day2_ms, 4, 1).unwrap();
     contract.report_metrics(charlie, day2_ms, 5, 2).unwrap();
     contract.report_metrics(django, day2_ms, 0, 3).unwrap();
     contract.report_metrics(eve, day2_ms, 1, 4).unwrap();
     contract.report_metrics(frank, day2_ms, 10, 5).unwrap();
-    undo_set_caller();
+    undo_set_exec_context();
 
-    set_caller(django);
+    set_exec_context(django, 2);
     contract.report_metrics(bob, day2_ms, 5, 1).unwrap();
     contract.report_metrics(charlie, day2_ms, 4, 2).unwrap();
     contract.report_metrics(django, day2_ms, 5, 3).unwrap();
     contract.report_metrics(eve, day2_ms, 5, 4).unwrap();
     contract.report_metrics(frank, day2_ms, 10, 5).unwrap();
     contract.report_metrics(alice, day2_ms, 10, 6).unwrap();
-    undo_set_caller();
+    undo_set_exec_context();
 
-    set_caller(eve);
+    set_exec_context(eve, 2);
     contract.report_metrics(bob, day2_ms, 6, 1).unwrap();
     contract.report_metrics(charlie, day2_ms, 4, 2).unwrap();
     contract.report_metrics(django, day2_ms, 5, 3).unwrap();
     contract.report_metrics(eve, day2_ms, 5, 4).unwrap();
-    undo_set_caller();
+    undo_set_exec_context();
 
-    set_caller(frank);
+    set_exec_context(frank, 2);
     contract.report_metrics(bob, day2_ms, 4, 1).unwrap();
     contract.report_metrics(charlie, day2_ms, 2, 2).unwrap();
     contract.report_metrics(django, day2_ms, 5, 3).unwrap();
-    undo_set_caller();
+    undo_set_exec_context();
 
     // Day3
-    set_caller(bob);
+    set_exec_context(bob, 2);
     contract.report_metrics(bob, day3_ms, 11, 1).unwrap();
     contract.report_metrics(charlie, day3_ms, 11, 2).unwrap();
     contract.report_metrics(django, day3_ms, 1000, 3).unwrap();
     contract.report_metrics(eve, day3_ms, 1, 4).unwrap();
     contract.report_metrics(frank, day3_ms, 10, 5).unwrap();
     contract.report_metrics(alice, day3_ms, 7, 6).unwrap();
-    undo_set_caller();
+    undo_set_exec_context();
 
-    set_caller(charlie);
+    set_exec_context(charlie, 2);
     contract.report_metrics(bob, day3_ms, 11, 1).unwrap();
     contract.report_metrics(charlie, day3_ms, 2, 2).unwrap();
     contract.report_metrics(django, day3_ms, 8, 3).unwrap();
     contract.report_metrics(eve, day3_ms, 6, 4).unwrap();
-    undo_set_caller();
+    undo_set_exec_context();
 
-    set_caller(django);
+    set_exec_context(django, 2);
     contract.report_metrics(bob, day3_ms, 8, 1).unwrap();
     contract.report_metrics(charlie, day3_ms, 11, 2).unwrap();
     contract.report_metrics(django, day3_ms, 8, 3).unwrap();
     contract.report_metrics(eve, day3_ms, 6, 4).unwrap();
     contract.report_metrics(frank, day3_ms, 2, 5).unwrap();
     contract.report_metrics(alice, day3_ms, 7, 6).unwrap();
-    undo_set_caller();
+    undo_set_exec_context();
 
-    set_caller(eve);
+    set_exec_context(eve, 2);
     contract.report_metrics(bob, day3_ms, 10, 1).unwrap();
     contract.report_metrics(charlie, day3_ms, 2, 2).unwrap();
     contract.report_metrics(django, day3_ms, 8, 3).unwrap();
     contract.report_metrics(frank, day3_ms, 2, 5).unwrap();
-    undo_set_caller();
+    undo_set_exec_context();
 
-    set_caller(frank);
+    set_exec_context(frank, 2);
     contract.report_metrics(bob, day3_ms, 5, 1).unwrap();
     contract.report_metrics(charlie, day3_ms, 2, 2).unwrap();
     contract.report_metrics(django, day3_ms, 1, 3).unwrap();
     contract.report_metrics(eve, day3_ms, 10, 4).unwrap();
-    undo_set_caller();
+    undo_set_exec_context();
 
     // Day 4
-    set_caller(bob);
+    set_exec_context(bob, 2);
     contract.report_metrics(bob, day4_ms, 80, 1).unwrap();
     contract.report_metrics(charlie, day4_ms, 5, 2).unwrap();
     contract.report_metrics(django, day4_ms, 10, 3).unwrap();
     contract.report_metrics(frank, day4_ms, 20, 5).unwrap();
     contract.report_metrics(alice, day4_ms, 2, 6).unwrap();
-    undo_set_caller();
+    undo_set_exec_context();
 
-    set_caller(charlie);
+    set_exec_context(charlie, 2);
     contract.report_metrics(bob, day4_ms, 20, 1).unwrap();
     contract.report_metrics(charlie, day4_ms, 0, 2).unwrap();
     contract.report_metrics(django, day4_ms, 2, 3).unwrap();
     contract.report_metrics(eve, day4_ms, 2, 4).unwrap();
     contract.report_metrics(frank, day4_ms, 10, 5).unwrap();
-    undo_set_caller();
+    undo_set_exec_context();
 
-    set_caller(django);
+    set_exec_context(django, 2);
     contract.report_metrics(bob, day4_ms, 50, 1).unwrap();
     contract.report_metrics(charlie, day4_ms, 5, 2).unwrap();
     contract.report_metrics(django, day4_ms, 10, 3).unwrap();
     contract.report_metrics(eve, day4_ms, 4, 4).unwrap();
     contract.report_metrics(frank, day4_ms, 0, 5).unwrap();
-    undo_set_caller();
+    undo_set_exec_context();
 
-    set_caller(eve);
+    set_exec_context(eve, 2);
     contract.report_metrics(bob, day4_ms, 8, 1).unwrap();
     contract.report_metrics(charlie, day4_ms, 5, 2).unwrap();
     contract.report_metrics(django, day4_ms, 2, 3).unwrap();
     contract.report_metrics(eve, day4_ms, 6, 4).unwrap();
-    undo_set_caller();
+    undo_set_exec_context();
 
-    set_caller(frank);
+    set_exec_context(frank, 2);
     contract.report_metrics(bob, day4_ms, 16, 1).unwrap();
     contract.report_metrics(charlie, day4_ms, 4, 2).unwrap();
     contract.report_metrics(eve, day4_ms, 10, 4).unwrap();
-    undo_set_caller();
+    undo_set_exec_context();
 
     // Day 5
-    set_caller(bob);
+    set_exec_context(bob, 2);
     contract.report_metrics(bob, day5_ms, 2, 1).unwrap();
     contract.report_metrics(charlie, day5_ms, 11, 2).unwrap();
     contract.report_metrics(django, day5_ms, 10, 3).unwrap();
     contract.report_metrics(eve, day5_ms, 1, 4).unwrap();
     contract.report_metrics(frank, day5_ms, 1, 5).unwrap();
-    undo_set_caller();
+    undo_set_exec_context();
 
-    set_caller(charlie);
+    set_exec_context(charlie, 2);
     contract.report_metrics(bob, day5_ms, 0, 1).unwrap();
     contract.report_metrics(charlie, day5_ms, 10, 2).unwrap();
     contract.report_metrics(django, day5_ms, 2, 3).unwrap();
     contract.report_metrics(frank, day5_ms, 2, 5).unwrap();
-    undo_set_caller();
+    undo_set_exec_context();
 
-    set_caller(django);
+    set_exec_context(django, 2);
     contract.report_metrics(bob, day5_ms, 0, 1).unwrap();
     contract.report_metrics(charlie, day5_ms, 11, 2).unwrap();
     contract.report_metrics(django, day5_ms, 2, 3).unwrap();
     contract.report_metrics(eve, day5_ms, 100, 4).unwrap();
     contract.report_metrics(frank, day5_ms, 3, 5).unwrap();
-    undo_set_caller();
+    undo_set_exec_context();
 
-    set_caller(eve);
+    set_exec_context(eve, 2);
     contract.report_metrics(bob, day5_ms, 2, 1).unwrap();
     contract.report_metrics(charlie, day5_ms, 0, 2).unwrap();
     contract.report_metrics(django, day5_ms, 2, 3).unwrap();
     contract.report_metrics(eve, day5_ms, 1, 4).unwrap();
-    undo_set_caller();
+    undo_set_exec_context();
 
-    set_caller(frank);
+    set_exec_context(frank, 2);
     contract.report_metrics(bob, day5_ms, 2, 1).unwrap();
     contract.report_metrics(charlie, day5_ms, 0, 2).unwrap();
     contract.report_metrics(eve, day5_ms, 1, 4).unwrap();
-    undo_set_caller();
+    undo_set_exec_context();
 
     // Bob
     assert_eq!(
@@ -1137,9 +1140,9 @@ fn metrics_since_subscription_works() {
     );
 
     // Charlie subscribes for her app. The start date will be 0.
-    set_caller(app_id);
-    contract.subscribe(1).unwrap();
-    undo_set_caller(); // Back to Alice admin.
+    set_exec_context(app_id, 2);
+    contract.subscribe(3).unwrap();
+    undo_set_exec_context(); // Back to Alice admin.
 
     // Subscription without metrics.
     assert_eq!(
@@ -1212,12 +1215,12 @@ fn get_current_period_ms_works() {
     assert_eq!(contract.get_current_period_ms(), day1); // of caller Alice
 
     // Bob finalizes day 1.
-    set_caller(accounts.bob);
+    set_exec_context(accounts.bob, 2);
     contract.finalize_metric_period(day1).unwrap();
     assert_eq!(contract.get_current_period_ms_of(accounts.alice), day1); // No change.
     assert_eq!(contract.get_current_period_ms_of(accounts.bob), day2); // After day1.
     assert_eq!(contract.get_current_period_ms(), day2); // of caller Bob
-    undo_set_caller();
+    undo_set_exec_context();
 
     // Alice finalizes day 1.
     contract.finalize_metric_period(day1).unwrap();
@@ -1277,7 +1280,7 @@ fn add_ddc_node_only_owner_works() {
     let url = String::from("ws://localhost:9944");
 
     // Should be an owner
-    set_caller(accounts.charlie);
+    set_exec_context(accounts.charlie, 2);
     assert_eq!(contract.add_ddc_node(p2p_id, url), Err(Error::OnlyOwner));
 }
 
@@ -1337,7 +1340,7 @@ fn remove_ddc_node_only_owner_works() {
     let p2p_id = String::from("test_p2p_id");
 
     // Should be an owner
-    set_caller(accounts.charlie);
+    set_exec_context(accounts.charlie, 2);
     assert_eq!(contract.remove_ddc_node(p2p_id), Err(Error::OnlyOwner));
 }
 
@@ -1461,4 +1464,29 @@ fn report_metrics_ddn_works() {
     expected[17].requests = requests;
 
     assert_eq!(result, expected);
+}
+
+#[ink::test]
+fn set_tier_works() {
+    let mut contract = make_contract();
+    let payer = AccountId::from([0x1; 32]);
+    set_exec_context(payer, 2);
+
+    contract.subscribe(3).unwrap();
+
+    let mut subscription = contract.subscriptions.get(&payer).unwrap().clone();
+    assert_eq!(contract.get_end_date_ms(subscription.clone()), PERIOD_MS);
+
+    assert_eq!(subscription.tier_id, 3);
+
+    set_exec_context(payer, 4);
+
+    contract.subscribe(2).unwrap();
+
+    subscription = contract.subscriptions.get(&payer).unwrap().clone();
+
+    assert_eq!(subscription.tier_id, 2);
+    assert_eq!(subscription.balance, 6);
+    assert_eq!(contract.get_end_date_ms(subscription), PERIOD_MS * 15 / 10); // 15 / 10 = 1.5 period
+
 }

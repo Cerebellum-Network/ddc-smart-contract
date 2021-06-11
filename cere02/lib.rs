@@ -401,7 +401,7 @@ mod ddc {
             let tier_id = subscription.tier_id.clone();
             let tier = self.service.get(&tier_id).unwrap();
             let price = tier[1]; // get tier fee
-            let prepaid_time_ms = subscription.balance / price * MS_PER_DAY as u128;
+            let prepaid_time_ms = subscription.balance * PERIOD_MS as u128 / price;
 
             subscription.last_update_ms.clone() + prepaid_time_ms as u64
         }
@@ -442,8 +442,11 @@ mod ddc {
             self.only_active()?;
             let payer = self.env().caller();
             let value = self.env().transferred_balance();
+
+
             let fee_value = value as u128;
             let service_v = self.service.get(&tier_id).unwrap();
+
             if service_v[1] > fee_value {
                 //TODO: We probably need to summarize the existing balance with provided, in case app wants to deposit more than monthly amount
                 return Err(Error::InsufficientDeposit);
@@ -466,6 +469,7 @@ mod ddc {
 
                 subscription.balance = subscription.balance + value;
 
+
                 if subscription.tier_id != tier_id {
                     self.set_tier(&mut subscription, tier_id);
                 }
@@ -474,7 +478,7 @@ mod ddc {
             self.subscriptions.insert(payer, subscription.clone());
             self.env().emit_event(Deposit {
                 from: Some(payer),
-                value: value,
+                value,
             });
 
             return Ok(());
