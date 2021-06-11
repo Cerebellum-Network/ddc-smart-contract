@@ -1723,7 +1723,8 @@ fn report_metrics_updates_ddn_status_works() {
     let today_ms = (first_day + 17) * MS_PER_DAY;
     let ddn_id = b"12D3KooWPfi9EtgoZHFnHh1at85mdZJtj7L8n94g6LFk6e8EEk2b".to_vec();
     let stored_bytes = 99;
-    let requests = 999;
+    let wcu = 999;
+    let rcu = 999;
 
     let p2p_id = String::from_utf8(ddn_id.clone()).unwrap();
     let url = String::from("test_url");
@@ -1739,7 +1740,7 @@ fn report_metrics_updates_ddn_status_works() {
 
     // Report DDN metrics
     contract
-        .report_metrics_ddn(ddn_id.clone(), today_ms, stored_bytes, requests)
+        .report_metrics_ddn(ddn_id.clone(), today_ms, stored_bytes, wcu, rcu)
         .unwrap();
 
     // DDN status should be online
