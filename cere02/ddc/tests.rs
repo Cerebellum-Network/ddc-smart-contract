@@ -12,29 +12,35 @@ use super::*;
 type Event = <Ddc as ::ink_lang::BaseEvent>::Type;
 
 fn make_contract() -> Ddc {
-    Ddc::new(2, 2000, 2000, 4, 4000, 4000, 8, 8000, 800)
+    let mut contract = Ddc::new();
+
+    contract.add_tier(2, 2000, 2000, 2000).unwrap();
+    contract.add_tier(4, 4000, 4000, 4000).unwrap();
+    contract.add_tier(8, 8000, 8000, 8000).unwrap();
+
+    contract
 }
 
 /// We test if the default constructor does its job.
 #[ink::test]
 fn new_works() {
-    let contract = Ddc::new(2, 2000, 2000, 4, 4000, 4000, 8, 8000, 800);
-    assert_eq!(contract.tier_deposit(1), 8);
+    let contract = make_contract();
+    assert_eq!(contract.tier_deposit(1), 2);
     assert_eq!(contract.tier_deposit(2), 4);
-    assert_eq!(contract.tier_deposit(3), 2);
+    assert_eq!(contract.tier_deposit(3), 8);
 }
 
 /// Test if a function can only be called by the contract admin
 #[ink::test]
 fn onlyowner_works() {
-    let contract = Ddc::new(2, 2000, 2000, 4, 4000, 4000, 8, 8000, 800);
+    let contract = make_contract();
     assert_eq!(contract.only_owner(AccountId::from([0x1; 32])), Ok(()));
 }
 
 /// Test that we can transfer owner to another account
 #[ink::test]
 fn transfer_ownership_works() {
-    let mut contract = Ddc::new(2, 2000, 2000, 4, 4000, 4000, 8, 8000, 800);
+    let mut contract = make_contract();
     assert_eq!(contract.only_owner(AccountId::from([0x1; 32])), Ok(()));
     contract
         .transfer_ownership(AccountId::from([0x0; 32]))
@@ -45,7 +51,7 @@ fn transfer_ownership_works() {
 /// Test the contract can take payment from users
 #[ink::test]
 fn subscribe_works() {
-    let mut contract = Ddc::new(2, 2000, 2000, 4, 4000, 4000, 8, 8000, 800);
+    let mut contract = make_contract();
     let payer = AccountId::from([0x1; 32]);
 
     set_exec_context(payer, 2);
@@ -71,7 +77,7 @@ fn subscribe_works() {
 /// Test the total balance of the contract is correct
 #[ink::test]
 fn balance_of_contract_works() {
-    let mut contract = Ddc::new(2, 2000, 2000, 4, 4000, 4000, 8, 8000, 800);
+    let mut contract = make_contract();
     let payer_one = AccountId::from([0x1; 32]);
     assert_eq!(contract.balance_of(payer_one), 0);
     assert_eq!(contract.subscribe(3), Ok(()));
@@ -81,7 +87,7 @@ fn balance_of_contract_works() {
 /// Test the contract can return the correct tier if given an account id
 #[ink::test]
 fn tier_id_of_works() {
-    let mut contract = Ddc::new(2, 2000, 2000, 4, 4000, 4000, 8, 8000, 800);
+    let mut contract = make_contract();
     let payer_one = AccountId::from([0x1; 32]);
     assert_eq!(contract.balance_of(payer_one), 0);
     assert_eq!(contract.subscribe(2), Ok(()));
@@ -91,27 +97,33 @@ fn tier_id_of_works() {
 /// Test we can read metrics
 #[ink::test]
 fn get_all_tiers_works() {
-    let contract = Ddc::new(2000, 2000, 2000, 4000, 4000, 4000, 8000, 8000, 8000);
+    let contract = make_contract();
 
-    let v = contract.get_all_tiers();
-    assert_eq!(v[0], 1); //tid
-    assert_eq!(v[1], 8000); //fee
-    assert_eq!(v[2], 8000); //throughput limit
-    assert_eq!(v[3], 8000); // storage limit
-    assert_eq!(v[4], 2); //tid
-    assert_eq!(v[5], 4000); //t2 fee
-    assert_eq!(v[6], 4000); //t2 throughtput limit
-    assert_eq!(v[7], 4000); //t2 storage limit
-    assert_eq!(v[8], 3);
-    assert_eq!(v[9], 2000);
-    assert_eq!(v[10], 2000);
-    assert_eq!(v[11], 2000);
+    let tiers = contract.get_all_tiers();
+    assert_eq!(tiers[0].tier_id, 1);
+    assert_eq!(tiers[0].tier_fee, 2);
+    assert_eq!(tiers[0].storage_bytes, 2000);
+    assert_eq!(tiers[0].wcu, 2000);
+    assert_eq!(tiers[0].rcu, 2000);
+
+    assert_eq!(tiers[1].tier_id, 2);
+    assert_eq!(tiers[1].tier_fee, 4);
+    assert_eq!(tiers[1].storage_bytes, 4000);
+    assert_eq!(tiers[1].wcu, 4000);
+    assert_eq!(tiers[1].rcu, 4000);
+
+    assert_eq!(tiers[2].tier_id, 3);
+    assert_eq!(tiers[2].tier_fee, 8);
+    assert_eq!(tiers[2].storage_bytes, 8000);
+    assert_eq!(tiers[2].wcu, 8000);
+    assert_eq!(tiers[2].rcu, 8000);
+
 }
 
 /// Test the contract owner can change tier fees for all 3 tiers
 #[ink::test]
 fn change_tier_fee_works() {
-    let mut contract = Ddc::new(2, 2000, 2000, 4, 4000, 4000, 8, 8000, 800);
+    let mut contract = make_contract();
     assert_eq!(contract.only_owner(AccountId::from([0x1; 32])), Ok(()));
     assert_eq!(contract.change_tier_fee(3, 3), Ok(()));
     assert_eq!(contract.change_tier_fee(2, 5), Ok(()));
@@ -124,21 +136,21 @@ fn change_tier_fee_works() {
 /// Test the contract can change tier limits for all 3 tiers
 #[ink::test]
 fn change_tier_limit_works() {
-    let mut contract = Ddc::new(2, 2000, 2000, 4, 4000, 4000, 8, 8000, 800);
+    let mut contract = make_contract();
     assert_eq!(contract.only_owner(AccountId::from([0x1; 32])), Ok(()));
-    assert_eq!(contract.change_tier_limit(3, 100, 100), Ok(()));
-    assert_eq!(contract.change_tier_limit(2, 200, 200), Ok(()));
-    assert_eq!(contract.change_tier_limit(1, 300, 300), Ok(()));
-    assert_eq!(contract.get_tier_limit(3), vec![100, 100]);
-    assert_eq!(contract.get_tier_limit(2), vec![200, 200]);
-    assert_eq!(contract.get_tier_limit(1), vec![300, 300]);
+    assert_eq!(contract.change_tier_limit(3, 100, 100, 100), Ok(()));
+    assert_eq!(contract.change_tier_limit(2, 200, 200, 200), Ok(()));
+    assert_eq!(contract.change_tier_limit(1, 300, 300, 300), Ok(()));
+    assert_eq!(contract.get_tier_limit(3), ServiceTier::new(3, 8, 100, 100, 100));
+    assert_eq!(contract.get_tier_limit(2), ServiceTier::new(2, 4, 200, 200, 200));
+    assert_eq!(contract.get_tier_limit(1), ServiceTier::new(1, 2, 300, 300, 300));
 }
 
 /// Test the contract owner can flip the status of the contract
 /// Can pause and unpause the contract
 #[ink::test]
 fn flip_contract_status_works() {
-    let mut contract = Ddc::new(2, 2000, 2000, 4, 4000, 4000, 8, 8000, 800);
+    let mut contract = make_contract();
     assert_eq!(contract.only_owner(AccountId::from([0x1; 32])), Ok(()));
     assert_eq!(contract.paused_or_not(), false);
     assert_eq!(contract.flip_contract_status(), Ok(()));
@@ -150,7 +162,7 @@ fn flip_contract_status_works() {
 /// Test the contract owner can transfer all the balance out of the contract after it is paused
 #[ink::test]
 fn withdraw_works() {
-    let mut contract = Ddc::new(2, 2000, 2000, 4, 4000, 4000, 8, 8000, 800);
+    let mut contract = make_contract();
     let accounts = default_accounts::<DefaultEnvironment>().unwrap();
 
     // Endownment equivalence. Inititalize SC address with balance 1000
@@ -225,18 +237,21 @@ fn report_metrics_works() {
     let app_id = accounts.charlie;
 
     let mut metrics = MetricValue {
-        stored_bytes: 11,
-        requests: 12,
+        storage_bytes: 11,
+        wcu_used: 12,
+        rcu_used: 13,
         start_ms: 0,
     };
     let mut big_metrics = MetricValue {
-        stored_bytes: 100,
-        requests: 300,
+        storage_bytes: 100,
+        wcu_used: 101,
+        rcu_used: 102,
         start_ms: 0,
     };
     let mut double_big_metrics = MetricValue {
-        stored_bytes: 200,
-        requests: 600,
+        storage_bytes: 200,
+        wcu_used: 202,
+        rcu_used: 204,
         start_ms: 0,
     };
     // Note: the values of start_ms will be updated to use in assert_eq!
@@ -266,7 +281,7 @@ fn report_metrics_works() {
     };
 
     // Unauthorized report, we are not a reporter.
-    let err = contract.report_metrics(app_id, 0, metrics.stored_bytes, metrics.requests);
+    let err = contract.report_metrics(app_id, 0, metrics.storage_bytes, metrics.wcu_used, metrics.rcu_used);
     assert_eq!(err, Err(Error::OnlyReporter));
 
     // No metric yet.
@@ -275,8 +290,9 @@ fn report_metrics_works() {
         contract.metrics_for_period(app_id, 0, today_ms),
         MetricValue {
             start_ms: period_start_ms,
-            stored_bytes: 0,
-            requests: 0
+            storage_bytes: 0,
+            wcu_used: 0,
+            rcu_used: 0,
         }
     );
 
@@ -284,7 +300,7 @@ fn report_metrics_works() {
     contract.add_reporter(reporter_id).unwrap();
 
     // Wrong day format.
-    let err = contract.report_metrics(app_id, today_ms + 1, metrics.stored_bytes, metrics.requests);
+    let err = contract.report_metrics(app_id, today_ms + 1, metrics.storage_bytes, metrics.wcu_used, metrics.rcu_used);
     assert_eq!(err, Err(Error::UnexpectedTimestamp));
 
     // Store metrics.
@@ -292,13 +308,14 @@ fn report_metrics_works() {
         .report_metrics(
             app_id,
             yesterday_ms,
-            big_metrics.stored_bytes,
-            big_metrics.requests,
+            big_metrics.storage_bytes,
+            big_metrics.wcu_used,
+            big_metrics.rcu_used,
         )
         .unwrap();
 
     contract
-        .report_metrics(app_id, today_ms, metrics.stored_bytes, metrics.requests)
+        .report_metrics(app_id, today_ms, metrics.storage_bytes, metrics.wcu_used, metrics.rcu_used)
         .unwrap();
 
     big_metrics.start_ms = yesterday_ms;
@@ -311,8 +328,9 @@ fn report_metrics_works() {
         .report_metrics(
             app_id,
             today_ms,
-            big_metrics.stored_bytes,
-            big_metrics.requests,
+            big_metrics.storage_bytes,
+            big_metrics.wcu_used,
+            big_metrics.rcu_used,
         )
         .unwrap();
 
@@ -344,8 +362,9 @@ fn report_metrics_works() {
         .report_metrics(
             app_id,
             next_month_ms,
-            metrics.stored_bytes,
-            metrics.requests,
+            metrics.storage_bytes,
+            metrics.wcu_used,
+            metrics.rcu_used,
         )
         .unwrap();
     metrics.start_ms = next_month_ms;
@@ -438,8 +457,9 @@ fn median_works() {
         contract.metrics_for_period(django, day1_ms, day5_ms),
         MetricValue {
             start_ms: day1_ms,
-            stored_bytes: 0,
-            requests: 0
+            storage_bytes: 0,
+            wcu_used: 0,
+            rcu_used: 0,
         }
     );
 
@@ -481,198 +501,198 @@ fn median_works() {
 
     // Day 1
     set_exec_context(bob, 2);
-    contract.report_metrics(bob, day1_ms, 8, 1).unwrap();
-    contract.report_metrics(charlie, day1_ms, 0, 2).unwrap();
-    contract.report_metrics(django, day1_ms, 1, 3).unwrap();
-    contract.report_metrics(eve, day1_ms, 5, 4).unwrap();
-    contract.report_metrics(frank, day1_ms, 7, 5).unwrap();
-    contract.report_metrics(alice, day1_ms, 2, 6).unwrap();
+    contract.report_metrics(bob, day1_ms, 8, 1, 1).unwrap();
+    contract.report_metrics(charlie, day1_ms, 0, 2, 2).unwrap();
+    contract.report_metrics(django, day1_ms, 1, 3, 3).unwrap();
+    contract.report_metrics(eve, day1_ms, 5, 4, 4).unwrap();
+    contract.report_metrics(frank, day1_ms, 7, 5, 5).unwrap();
+    contract.report_metrics(alice, day1_ms, 2, 6, 6).unwrap();
     undo_set_exec_context();
 
     set_exec_context(charlie, 2);
-    contract.report_metrics(bob, day1_ms, 6, 1).unwrap();
-    contract.report_metrics(charlie, day1_ms, 1, 2).unwrap();
-    contract.report_metrics(django, day1_ms, 1, 3).unwrap();
-    contract.report_metrics(eve, day1_ms, 5, 4).unwrap();
+    contract.report_metrics(bob, day1_ms, 6, 1, 1).unwrap();
+    contract.report_metrics(charlie, day1_ms, 1, 2, 2).unwrap();
+    contract.report_metrics(django, day1_ms, 1, 3, 3).unwrap();
+    contract.report_metrics(eve, day1_ms, 5, 4, 4).unwrap();
     undo_set_exec_context();
 
     set_exec_context(django, 2);
-    contract.report_metrics(bob, day1_ms, 8, 1).unwrap();
-    contract.report_metrics(charlie, day1_ms, 4, 2).unwrap();
-    contract.report_metrics(django, day1_ms, 5, 3).unwrap();
-    contract.report_metrics(eve, day1_ms, 5, 4).unwrap();
-    contract.report_metrics(frank, day1_ms, 7, 5).unwrap();
-    contract.report_metrics(alice, day1_ms, 5, 6).unwrap();
-    undo_set_exec_context();
+    contract.report_metrics(bob, day1_ms, 8, 1, 1).unwrap();
+    contract.report_metrics(charlie, day1_ms, 4, 2, 2).unwrap();
+    contract.report_metrics(django, day1_ms, 5, 3, 3).unwrap();
+    contract.report_metrics(eve, day1_ms, 5, 4, 4).unwrap();
+    contract.report_metrics(frank, day1_ms, 7, 5, 5).unwrap();
+    contract.report_metrics(alice, day1_ms, 5, 6, 6).unwrap();
+   undo_set_exec_context();
 
     set_exec_context(eve, 2);
-    contract.report_metrics(bob, day1_ms, 0, 1).unwrap();
-    contract.report_metrics(charlie, day1_ms, 5, 2).unwrap();
-    contract.report_metrics(django, day1_ms, 1, 3).unwrap();
-    contract.report_metrics(eve, day1_ms, 5, 4).unwrap();
-    contract.report_metrics(frank, day1_ms, 7, 5).unwrap();
+    contract.report_metrics(bob, day1_ms, 0, 1, 1).unwrap();
+    contract.report_metrics(charlie, day1_ms, 5, 2, 2).unwrap();
+    contract.report_metrics(django, day1_ms, 1, 3, 3).unwrap();
+    contract.report_metrics(eve, day1_ms, 5, 4, 4).unwrap();
+    contract.report_metrics(frank, day1_ms, 7, 5, 5).unwrap();
 
     undo_set_exec_context();
 
     set_exec_context(frank, 2);
-    contract.report_metrics(bob, day1_ms, 100, 1).unwrap();
-    contract.report_metrics(charlie, day1_ms, 5, 2).unwrap();
-    contract.report_metrics(django, day1_ms, 1, 3).unwrap();
+    contract.report_metrics(bob, day1_ms, 100, 1, 1).unwrap();
+    contract.report_metrics(charlie, day1_ms, 5, 2, 2).unwrap();
+    contract.report_metrics(django, day1_ms, 1, 3, 3).unwrap();
     undo_set_exec_context();
 
     // Day 2
     set_exec_context(bob, 2);
-    contract.report_metrics(bob, day2_ms, 2, 1).unwrap();
-    contract.report_metrics(charlie, day2_ms, 5, 2).unwrap();
-    contract.report_metrics(django, day2_ms, 5, 3).unwrap();
-    contract.report_metrics(eve, day2_ms, 5, 4).unwrap();
-    contract.report_metrics(frank, day2_ms, 0, 5).unwrap();
-    contract.report_metrics(alice, day2_ms, 0, 6).unwrap();
+    contract.report_metrics(bob, day2_ms, 2, 1, 1).unwrap();
+    contract.report_metrics(charlie, day2_ms, 5, 2, 2).unwrap();
+    contract.report_metrics(django, day2_ms, 5, 3, 3).unwrap();
+    contract.report_metrics(eve, day2_ms, 5, 4, 4).unwrap();
+    contract.report_metrics(frank, day2_ms, 0, 5, 5).unwrap();
+    contract.report_metrics(alice, day2_ms, 0, 6, 6).unwrap();
     undo_set_exec_context();
 
     set_exec_context(charlie, 2);
-    contract.report_metrics(bob, day2_ms, 4, 1).unwrap();
-    contract.report_metrics(charlie, day2_ms, 5, 2).unwrap();
-    contract.report_metrics(django, day2_ms, 0, 3).unwrap();
-    contract.report_metrics(eve, day2_ms, 1, 4).unwrap();
-    contract.report_metrics(frank, day2_ms, 10, 5).unwrap();
+    contract.report_metrics(bob, day2_ms, 4, 1, 1).unwrap();
+    contract.report_metrics(charlie, day2_ms, 5, 2, 2).unwrap();
+    contract.report_metrics(django, day2_ms, 0, 3, 3).unwrap();
+    contract.report_metrics(eve, day2_ms, 1, 4, 4).unwrap();
+    contract.report_metrics(frank, day2_ms, 10, 5, 5).unwrap();
     undo_set_exec_context();
 
     set_exec_context(django, 2);
-    contract.report_metrics(bob, day2_ms, 5, 1).unwrap();
-    contract.report_metrics(charlie, day2_ms, 4, 2).unwrap();
-    contract.report_metrics(django, day2_ms, 5, 3).unwrap();
-    contract.report_metrics(eve, day2_ms, 5, 4).unwrap();
-    contract.report_metrics(frank, day2_ms, 10, 5).unwrap();
-    contract.report_metrics(alice, day2_ms, 10, 6).unwrap();
+    contract.report_metrics(bob, day2_ms, 5, 1, 1).unwrap();
+    contract.report_metrics(charlie, day2_ms, 4, 2, 2).unwrap();
+    contract.report_metrics(django, day2_ms, 5, 3, 3).unwrap();
+    contract.report_metrics(eve, day2_ms, 5, 4, 4).unwrap();
+    contract.report_metrics(frank, day2_ms, 10, 5, 5).unwrap();
+    contract.report_metrics(alice, day2_ms, 10, 6, 6).unwrap();
     undo_set_exec_context();
 
     set_exec_context(eve, 2);
-    contract.report_metrics(bob, day2_ms, 6, 1).unwrap();
-    contract.report_metrics(charlie, day2_ms, 4, 2).unwrap();
-    contract.report_metrics(django, day2_ms, 5, 3).unwrap();
-    contract.report_metrics(eve, day2_ms, 5, 4).unwrap();
-    undo_set_exec_context();
+    contract.report_metrics(bob, day2_ms, 6, 1, 1).unwrap();
+    contract.report_metrics(charlie, day2_ms, 4, 2, 2).unwrap();
+    contract.report_metrics(django, day2_ms, 5, 3, 3).unwrap();
+    contract.report_metrics(eve, day2_ms, 5, 4, 4).unwrap();
+   undo_set_exec_context();
 
     set_exec_context(frank, 2);
-    contract.report_metrics(bob, day2_ms, 4, 1).unwrap();
-    contract.report_metrics(charlie, day2_ms, 2, 2).unwrap();
-    contract.report_metrics(django, day2_ms, 5, 3).unwrap();
+    contract.report_metrics(bob, day2_ms, 4, 1, 1).unwrap();
+    contract.report_metrics(charlie, day2_ms, 2, 2, 2).unwrap();
+    contract.report_metrics(django, day2_ms, 5, 3, 3).unwrap();
     undo_set_exec_context();
 
     // Day3
     set_exec_context(bob, 2);
-    contract.report_metrics(bob, day3_ms, 11, 1).unwrap();
-    contract.report_metrics(charlie, day3_ms, 11, 2).unwrap();
-    contract.report_metrics(django, day3_ms, 1000, 3).unwrap();
-    contract.report_metrics(eve, day3_ms, 1, 4).unwrap();
-    contract.report_metrics(frank, day3_ms, 10, 5).unwrap();
-    contract.report_metrics(alice, day3_ms, 7, 6).unwrap();
+    contract.report_metrics(bob, day3_ms, 11, 1, 1).unwrap();
+    contract.report_metrics(charlie, day3_ms, 11, 2, 2).unwrap();
+    contract.report_metrics(django, day3_ms, 1000, 3, 3).unwrap();
+    contract.report_metrics(eve, day3_ms, 1, 4, 4).unwrap();
+    contract.report_metrics(frank, day3_ms, 10, 5, 5).unwrap();
+    contract.report_metrics(alice, day3_ms, 7, 6, 6).unwrap();
     undo_set_exec_context();
 
     set_exec_context(charlie, 2);
-    contract.report_metrics(bob, day3_ms, 11, 1).unwrap();
-    contract.report_metrics(charlie, day3_ms, 2, 2).unwrap();
-    contract.report_metrics(django, day3_ms, 8, 3).unwrap();
-    contract.report_metrics(eve, day3_ms, 6, 4).unwrap();
+    contract.report_metrics(bob, day3_ms, 11, 1, 1).unwrap();
+    contract.report_metrics(charlie, day3_ms, 2, 2, 2).unwrap();
+    contract.report_metrics(django, day3_ms, 8, 3, 3).unwrap();
+    contract.report_metrics(eve, day3_ms, 6, 4, 4).unwrap();
     undo_set_exec_context();
 
     set_exec_context(django, 2);
-    contract.report_metrics(bob, day3_ms, 8, 1).unwrap();
-    contract.report_metrics(charlie, day3_ms, 11, 2).unwrap();
-    contract.report_metrics(django, day3_ms, 8, 3).unwrap();
-    contract.report_metrics(eve, day3_ms, 6, 4).unwrap();
-    contract.report_metrics(frank, day3_ms, 2, 5).unwrap();
-    contract.report_metrics(alice, day3_ms, 7, 6).unwrap();
+    contract.report_metrics(bob, day3_ms, 8, 1, 1).unwrap();
+    contract.report_metrics(charlie, day3_ms, 11, 2, 2).unwrap();
+    contract.report_metrics(django, day3_ms, 8, 3, 3).unwrap();
+    contract.report_metrics(eve, day3_ms, 6, 4, 4).unwrap();
+    contract.report_metrics(frank, day3_ms, 2, 5, 5).unwrap();
+    contract.report_metrics(alice, day3_ms, 7, 6, 6).unwrap();
     undo_set_exec_context();
 
     set_exec_context(eve, 2);
-    contract.report_metrics(bob, day3_ms, 10, 1).unwrap();
-    contract.report_metrics(charlie, day3_ms, 2, 2).unwrap();
-    contract.report_metrics(django, day3_ms, 8, 3).unwrap();
-    contract.report_metrics(frank, day3_ms, 2, 5).unwrap();
+    contract.report_metrics(bob, day3_ms, 10, 1, 1).unwrap();
+    contract.report_metrics(charlie, day3_ms, 2, 2, 2).unwrap();
+    contract.report_metrics(django, day3_ms, 8, 3, 3).unwrap();
+    contract.report_metrics(frank, day3_ms, 2, 5, 5).unwrap();
     undo_set_exec_context();
 
     set_exec_context(frank, 2);
-    contract.report_metrics(bob, day3_ms, 5, 1).unwrap();
-    contract.report_metrics(charlie, day3_ms, 2, 2).unwrap();
-    contract.report_metrics(django, day3_ms, 1, 3).unwrap();
-    contract.report_metrics(eve, day3_ms, 10, 4).unwrap();
+    contract.report_metrics(bob, day3_ms, 5, 1, 1).unwrap();
+    contract.report_metrics(charlie, day3_ms, 2, 2, 2).unwrap();
+    contract.report_metrics(django, day3_ms, 1, 3, 3).unwrap();
+    contract.report_metrics(eve, day3_ms, 10, 4, 4).unwrap();
     undo_set_exec_context();
 
     // Day 4
     set_exec_context(bob, 2);
-    contract.report_metrics(bob, day4_ms, 80, 1).unwrap();
-    contract.report_metrics(charlie, day4_ms, 5, 2).unwrap();
-    contract.report_metrics(django, day4_ms, 10, 3).unwrap();
-    contract.report_metrics(frank, day4_ms, 20, 5).unwrap();
-    contract.report_metrics(alice, day4_ms, 2, 6).unwrap();
+    contract.report_metrics(bob, day4_ms, 80, 1, 1).unwrap();
+    contract.report_metrics(charlie, day4_ms, 5, 2, 2).unwrap();
+    contract.report_metrics(django, day4_ms, 10, 3, 3).unwrap();
+    contract.report_metrics(frank, day4_ms, 20, 5, 5).unwrap();
+    contract.report_metrics(alice, day4_ms, 2, 6, 6).unwrap();
     undo_set_exec_context();
 
     set_exec_context(charlie, 2);
-    contract.report_metrics(bob, day4_ms, 20, 1).unwrap();
-    contract.report_metrics(charlie, day4_ms, 0, 2).unwrap();
-    contract.report_metrics(django, day4_ms, 2, 3).unwrap();
-    contract.report_metrics(eve, day4_ms, 2, 4).unwrap();
-    contract.report_metrics(frank, day4_ms, 10, 5).unwrap();
+    contract.report_metrics(bob, day4_ms, 20, 1, 1).unwrap();
+    contract.report_metrics(charlie, day4_ms, 0, 2, 2).unwrap();
+    contract.report_metrics(django, day4_ms, 2, 3, 3).unwrap();
+    contract.report_metrics(eve, day4_ms, 2, 4, 4).unwrap();
+    contract.report_metrics(frank, day4_ms, 10, 5, 5).unwrap();
     undo_set_exec_context();
 
     set_exec_context(django, 2);
-    contract.report_metrics(bob, day4_ms, 50, 1).unwrap();
-    contract.report_metrics(charlie, day4_ms, 5, 2).unwrap();
-    contract.report_metrics(django, day4_ms, 10, 3).unwrap();
-    contract.report_metrics(eve, day4_ms, 4, 4).unwrap();
-    contract.report_metrics(frank, day4_ms, 0, 5).unwrap();
+    contract.report_metrics(bob, day4_ms, 50, 1, 1).unwrap();
+    contract.report_metrics(charlie, day4_ms, 5, 2, 2).unwrap();
+    contract.report_metrics(django, day4_ms, 10, 3, 3).unwrap();
+    contract.report_metrics(eve, day4_ms, 4, 4, 4).unwrap();
+    contract.report_metrics(frank, day4_ms, 0, 5, 5).unwrap();
     undo_set_exec_context();
 
     set_exec_context(eve, 2);
-    contract.report_metrics(bob, day4_ms, 8, 1).unwrap();
-    contract.report_metrics(charlie, day4_ms, 5, 2).unwrap();
-    contract.report_metrics(django, day4_ms, 2, 3).unwrap();
-    contract.report_metrics(eve, day4_ms, 6, 4).unwrap();
+    contract.report_metrics(bob, day4_ms, 8, 1, 1).unwrap();
+    contract.report_metrics(charlie, day4_ms, 5, 2, 2).unwrap();
+    contract.report_metrics(django, day4_ms, 2, 3, 3).unwrap();
+    contract.report_metrics(eve, day4_ms, 6, 4, 4).unwrap();
     undo_set_exec_context();
 
     set_exec_context(frank, 2);
-    contract.report_metrics(bob, day4_ms, 16, 1).unwrap();
-    contract.report_metrics(charlie, day4_ms, 4, 2).unwrap();
-    contract.report_metrics(eve, day4_ms, 10, 4).unwrap();
+    contract.report_metrics(bob, day4_ms, 16, 1, 1).unwrap();
+    contract.report_metrics(charlie, day4_ms, 4, 2, 2).unwrap();
+    contract.report_metrics(eve, day4_ms, 10, 4, 4).unwrap();
     undo_set_exec_context();
 
     // Day 5
     set_exec_context(bob, 2);
-    contract.report_metrics(bob, day5_ms, 2, 1).unwrap();
-    contract.report_metrics(charlie, day5_ms, 11, 2).unwrap();
-    contract.report_metrics(django, day5_ms, 10, 3).unwrap();
-    contract.report_metrics(eve, day5_ms, 1, 4).unwrap();
-    contract.report_metrics(frank, day5_ms, 1, 5).unwrap();
+    contract.report_metrics(bob, day5_ms, 2, 1, 1).unwrap();
+    contract.report_metrics(charlie, day5_ms, 11, 2, 2).unwrap();
+    contract.report_metrics(django, day5_ms, 10, 3, 3).unwrap();
+    contract.report_metrics(eve, day5_ms, 1, 4, 4).unwrap();
+    contract.report_metrics(frank, day5_ms, 1, 5, 5).unwrap();
     undo_set_exec_context();
 
     set_exec_context(charlie, 2);
-    contract.report_metrics(bob, day5_ms, 0, 1).unwrap();
-    contract.report_metrics(charlie, day5_ms, 10, 2).unwrap();
-    contract.report_metrics(django, day5_ms, 2, 3).unwrap();
-    contract.report_metrics(frank, day5_ms, 2, 5).unwrap();
+    contract.report_metrics(bob, day5_ms, 0, 1, 1).unwrap();
+    contract.report_metrics(charlie, day5_ms, 10, 2, 2).unwrap();
+    contract.report_metrics(django, day5_ms, 2, 3, 3).unwrap();
+    contract.report_metrics(frank, day5_ms, 2, 5, 5).unwrap();
     undo_set_exec_context();
 
     set_exec_context(django, 2);
-    contract.report_metrics(bob, day5_ms, 0, 1).unwrap();
-    contract.report_metrics(charlie, day5_ms, 11, 2).unwrap();
-    contract.report_metrics(django, day5_ms, 2, 3).unwrap();
-    contract.report_metrics(eve, day5_ms, 100, 4).unwrap();
-    contract.report_metrics(frank, day5_ms, 3, 5).unwrap();
+    contract.report_metrics(bob, day5_ms, 0, 1, 1).unwrap();
+    contract.report_metrics(charlie, day5_ms, 11, 2, 2).unwrap();
+    contract.report_metrics(django, day5_ms, 2, 3, 3).unwrap();
+    contract.report_metrics(eve, day5_ms, 100, 4, 5).unwrap();
+    contract.report_metrics(frank, day5_ms, 3, 5, 5).unwrap();
     undo_set_exec_context();
 
     set_exec_context(eve, 2);
-    contract.report_metrics(bob, day5_ms, 2, 1).unwrap();
-    contract.report_metrics(charlie, day5_ms, 0, 2).unwrap();
-    contract.report_metrics(django, day5_ms, 2, 3).unwrap();
-    contract.report_metrics(eve, day5_ms, 1, 4).unwrap();
+    contract.report_metrics(bob, day5_ms, 2, 1, 1).unwrap();
+    contract.report_metrics(charlie, day5_ms, 0, 2, 2).unwrap();
+    contract.report_metrics(django, day5_ms, 2, 3, 3).unwrap();
+    contract.report_metrics(eve, day5_ms, 1, 4, 4).unwrap();
     undo_set_exec_context();
 
     set_exec_context(frank, 2);
-    contract.report_metrics(bob, day5_ms, 2, 1).unwrap();
-    contract.report_metrics(charlie, day5_ms, 0, 2).unwrap();
-    contract.report_metrics(eve, day5_ms, 1, 4).unwrap();
+    contract.report_metrics(bob, day5_ms, 2, 1, 1).unwrap();
+    contract.report_metrics(charlie, day5_ms, 0, 2, 2).unwrap();
+    contract.report_metrics(eve, day5_ms, 1, 4, 4).unwrap();
     undo_set_exec_context();
 
     // Bob
@@ -680,40 +700,45 @@ fn median_works() {
         contract.metrics_for_period(bob, day1_ms, day1_ms),
         MetricValue {
             start_ms: day1_ms,
-            stored_bytes: 8,
-            requests: 1,
+            storage_bytes: 8,
+            wcu_used: 1,
+            rcu_used: 1,
         }
     );
     assert_eq!(
         contract.metrics_for_period(bob, day2_ms, day2_ms),
         MetricValue {
             start_ms: day2_ms,
-            stored_bytes: 4,
-            requests: 1,
+            storage_bytes: 4,
+            wcu_used: 1,
+            rcu_used: 1,
         }
     );
     assert_eq!(
         contract.metrics_for_period(bob, day3_ms, day3_ms),
         MetricValue {
             start_ms: day3_ms,
-            stored_bytes: 10,
-            requests: 1,
+            storage_bytes: 10,
+            wcu_used: 1,
+            rcu_used: 1,
         }
     );
     assert_eq!(
         contract.metrics_for_period(bob, day4_ms, day4_ms),
         MetricValue {
             start_ms: day4_ms,
-            stored_bytes: 20,
-            requests: 1,
+            storage_bytes: 20,
+            wcu_used: 1,
+            rcu_used: 1,
         }
     );
     assert_eq!(
         contract.metrics_for_period(bob, day5_ms, day5_ms),
         MetricValue {
             start_ms: day5_ms,
-            stored_bytes: 2,
-            requests: 1,
+            storage_bytes: 2,
+            wcu_used: 1,
+            rcu_used: 1,
         }
     );
 
@@ -721,32 +746,36 @@ fn median_works() {
         contract.metrics_for_period(bob, day1_ms, day5_ms),
         MetricValue {
             start_ms: day1_ms,
-            stored_bytes: 44,
-            requests: 5,
+            storage_bytes: 44,
+            wcu_used: 5,
+            rcu_used: 5,
         }
     );
     assert_eq!(
         contract.metrics_for_period(bob, day1_ms, day2_ms),
         MetricValue {
             start_ms: day1_ms,
-            stored_bytes: 12,
-            requests: 2,
+            storage_bytes: 12,
+            wcu_used: 2,
+            rcu_used: 2,
         }
     );
     assert_eq!(
         contract.metrics_for_period(bob, day1_ms, day3_ms),
         MetricValue {
             start_ms: day1_ms,
-            stored_bytes: 22,
-            requests: 3,
+            storage_bytes: 22,
+            wcu_used: 3,
+            rcu_used: 3,
         }
     );
     assert_eq!(
         contract.metrics_for_period(bob, day2_ms, day5_ms),
         MetricValue {
             start_ms: day2_ms,
-            stored_bytes: 36,
-            requests: 4,
+            storage_bytes: 36,
+            wcu_used: 4,
+            rcu_used: 4,
         }
     );
 
@@ -755,40 +784,45 @@ fn median_works() {
         contract.metrics_for_period(charlie, day1_ms, day1_ms),
         MetricValue {
             start_ms: day1_ms,
-            stored_bytes: 4,
-            requests: 2,
+            storage_bytes: 4,
+            wcu_used: 2,
+            rcu_used: 2,
         }
     );
     assert_eq!(
         contract.metrics_for_period(charlie, day2_ms, day2_ms),
         MetricValue {
             start_ms: day2_ms,
-            stored_bytes: 4,
-            requests: 2,
+            storage_bytes: 4,
+            wcu_used: 2,
+            rcu_used: 2,
         }
     );
     assert_eq!(
         contract.metrics_for_period(charlie, day3_ms, day3_ms),
         MetricValue {
             start_ms: day3_ms,
-            stored_bytes: 2,
-            requests: 2,
+            storage_bytes: 2,
+            wcu_used: 2,
+            rcu_used: 2,
         }
     );
     assert_eq!(
         contract.metrics_for_period(charlie, day4_ms, day4_ms),
         MetricValue {
             start_ms: day4_ms,
-            stored_bytes: 5,
-            requests: 2,
+            storage_bytes: 5,
+            wcu_used: 2,
+            rcu_used: 2,
         }
     );
     assert_eq!(
         contract.metrics_for_period(charlie, day5_ms, day5_ms),
         MetricValue {
             start_ms: day5_ms,
-            stored_bytes: 10,
-            requests: 2,
+            storage_bytes: 10,
+            wcu_used: 2,
+            rcu_used: 2,
         }
     );
 
@@ -796,32 +830,36 @@ fn median_works() {
         contract.metrics_for_period(charlie, day1_ms, day5_ms),
         MetricValue {
             start_ms: day1_ms,
-            stored_bytes: 25,
-            requests: 10,
+            storage_bytes: 25,
+            wcu_used: 10,
+            rcu_used: 10,
         }
     );
     assert_eq!(
         contract.metrics_for_period(charlie, day1_ms, day2_ms),
         MetricValue {
             start_ms: day1_ms,
-            stored_bytes: 8,
-            requests: 4,
+            storage_bytes: 8,
+            wcu_used: 4,
+            rcu_used: 4,
         }
     );
     assert_eq!(
         contract.metrics_for_period(charlie, day1_ms, day3_ms),
         MetricValue {
             start_ms: day1_ms,
-            stored_bytes: 10,
-            requests: 6,
+            storage_bytes: 10,
+            wcu_used: 6,
+            rcu_used: 6,
         }
     );
     assert_eq!(
         contract.metrics_for_period(charlie, day2_ms, day5_ms),
         MetricValue {
             start_ms: day2_ms,
-            stored_bytes: 21,
-            requests: 8,
+            storage_bytes: 21,
+            wcu_used: 8,
+            rcu_used: 8,
         }
     );
 
@@ -830,40 +868,45 @@ fn median_works() {
         contract.metrics_for_period(django, day1_ms, day1_ms),
         MetricValue {
             start_ms: day1_ms,
-            stored_bytes: 1,
-            requests: 3,
+            storage_bytes: 1,
+            wcu_used: 3,
+            rcu_used: 3,
         }
     );
     assert_eq!(
         contract.metrics_for_period(django, day2_ms, day2_ms),
         MetricValue {
             start_ms: day2_ms,
-            stored_bytes: 5,
-            requests: 3,
+            storage_bytes: 5,
+            wcu_used: 3,
+            rcu_used: 3,
         }
     );
     assert_eq!(
         contract.metrics_for_period(django, day3_ms, day3_ms),
         MetricValue {
             start_ms: day3_ms,
-            stored_bytes: 8,
-            requests: 3,
+            storage_bytes: 8,
+            wcu_used: 3,
+            rcu_used: 3,
         }
     );
     assert_eq!(
         contract.metrics_for_period(django, day4_ms, day4_ms),
         MetricValue {
             start_ms: day4_ms,
-            stored_bytes: 2,
-            requests: 3,
+            storage_bytes: 2,
+            wcu_used: 3,
+            rcu_used: 3,
         }
     );
     assert_eq!(
         contract.metrics_for_period(django, day5_ms, day5_ms),
         MetricValue {
             start_ms: day5_ms,
-            stored_bytes: 2,
-            requests: 3,
+            storage_bytes: 2,
+            wcu_used: 3,
+            rcu_used: 3,
         }
     );
 
@@ -871,32 +914,36 @@ fn median_works() {
         contract.metrics_for_period(django, day1_ms, day5_ms),
         MetricValue {
             start_ms: day1_ms,
-            stored_bytes: 18,
-            requests: 15,
+            storage_bytes: 18,
+            wcu_used: 15,
+            rcu_used: 15,
         }
     );
     assert_eq!(
         contract.metrics_for_period(django, day1_ms, day2_ms),
         MetricValue {
             start_ms: day1_ms,
-            stored_bytes: 6,
-            requests: 6,
+            storage_bytes: 6,
+            wcu_used: 6,
+            rcu_used: 6,
         }
     );
     assert_eq!(
         contract.metrics_for_period(django, day1_ms, day3_ms),
         MetricValue {
             start_ms: day1_ms,
-            stored_bytes: 14,
-            requests: 9,
+            storage_bytes: 14,
+            wcu_used: 9,
+            rcu_used: 9,
         }
     );
     assert_eq!(
         contract.metrics_for_period(django, day2_ms, day5_ms),
         MetricValue {
             start_ms: day2_ms,
-            stored_bytes: 17,
-            requests: 12,
+            storage_bytes: 17,
+            wcu_used: 12,
+            rcu_used: 12,
         }
     );
 
@@ -905,40 +952,45 @@ fn median_works() {
         contract.metrics_for_period(eve, day1_ms, day1_ms),
         MetricValue {
             start_ms: day1_ms,
-            stored_bytes: 5,
-            requests: 4,
+            storage_bytes: 5,
+            wcu_used: 4,
+            rcu_used: 4,
         }
     );
     assert_eq!(
         contract.metrics_for_period(eve, day2_ms, day2_ms),
         MetricValue {
             start_ms: day2_ms,
-            stored_bytes: 5,
-            requests: 4,
+            storage_bytes: 5,
+            wcu_used: 4,
+            rcu_used: 4,
         }
     );
     assert_eq!(
         contract.metrics_for_period(eve, day3_ms, day3_ms),
         MetricValue {
             start_ms: day3_ms,
-            stored_bytes: 6,
-            requests: 4,
+            storage_bytes: 6,
+            wcu_used: 4,
+            rcu_used: 4,
         }
     );
     assert_eq!(
         contract.metrics_for_period(eve, day4_ms, day4_ms),
         MetricValue {
             start_ms: day4_ms,
-            stored_bytes: 4,
-            requests: 4,
+            storage_bytes: 4,
+            wcu_used: 4,
+            rcu_used: 4,
         }
     );
     assert_eq!(
         contract.metrics_for_period(eve, day5_ms, day5_ms),
         MetricValue {
             start_ms: day5_ms,
-            stored_bytes: 1,
-            requests: 4,
+            storage_bytes: 1,
+            wcu_used: 4,
+            rcu_used: 4,
         }
     );
 
@@ -946,32 +998,36 @@ fn median_works() {
         contract.metrics_for_period(eve, day1_ms, day5_ms),
         MetricValue {
             start_ms: day1_ms,
-            stored_bytes: 21,
-            requests: 20,
+            storage_bytes: 21,
+            wcu_used: 20,
+            rcu_used: 20,
         }
     );
     assert_eq!(
         contract.metrics_for_period(eve, day1_ms, day2_ms),
         MetricValue {
             start_ms: day1_ms,
-            stored_bytes: 10,
-            requests: 8,
+            storage_bytes: 10,
+            wcu_used: 8,
+            rcu_used: 8,
         }
     );
     assert_eq!(
         contract.metrics_for_period(eve, day1_ms, day3_ms),
         MetricValue {
             start_ms: day1_ms,
-            stored_bytes: 16,
-            requests: 12,
+            storage_bytes: 16,
+            wcu_used: 12,
+            rcu_used: 12,
         }
     );
     assert_eq!(
         contract.metrics_for_period(eve, day2_ms, day5_ms),
         MetricValue {
             start_ms: day2_ms,
-            stored_bytes: 16,
-            requests: 16,
+            storage_bytes: 16,
+            wcu_used: 16,
+            rcu_used: 16,
         }
     );
 
@@ -980,40 +1036,45 @@ fn median_works() {
         contract.metrics_for_period(frank, day1_ms, day1_ms),
         MetricValue {
             start_ms: day1_ms,
-            stored_bytes: 7,
-            requests: 5,
+            storage_bytes: 7,
+            wcu_used: 5,
+            rcu_used: 5,
         }
     );
     assert_eq!(
         contract.metrics_for_period(frank, day2_ms, day2_ms),
         MetricValue {
             start_ms: day2_ms,
-            stored_bytes: 10,
-            requests: 5,
+            storage_bytes: 10,
+            wcu_used: 5,
+            rcu_used: 5,
         }
     );
     assert_eq!(
         contract.metrics_for_period(frank, day3_ms, day3_ms),
         MetricValue {
             start_ms: day3_ms,
-            stored_bytes: 2,
-            requests: 5,
+            storage_bytes: 2,
+            wcu_used: 5,
+            rcu_used: 5,
         }
     );
     assert_eq!(
         contract.metrics_for_period(frank, day4_ms, day4_ms),
         MetricValue {
             start_ms: day4_ms,
-            stored_bytes: 10,
-            requests: 5,
+            storage_bytes: 10,
+            wcu_used: 5,
+            rcu_used: 5,
         }
     );
     assert_eq!(
         contract.metrics_for_period(frank, day5_ms, day5_ms),
         MetricValue {
             start_ms: day5_ms,
-            stored_bytes: 2,
-            requests: 5,
+            storage_bytes: 2,
+            wcu_used: 5,
+            rcu_used: 5,
         }
     );
 
@@ -1021,32 +1082,36 @@ fn median_works() {
         contract.metrics_for_period(frank, day1_ms, day5_ms),
         MetricValue {
             start_ms: day1_ms,
-            stored_bytes: 31,
-            requests: 25,
+            storage_bytes: 31,
+            wcu_used: 25,
+            rcu_used: 25,
         }
     );
     assert_eq!(
         contract.metrics_for_period(frank, day1_ms, day2_ms),
         MetricValue {
             start_ms: day1_ms,
-            stored_bytes: 17,
-            requests: 10,
+            storage_bytes: 17,
+            wcu_used: 10,
+            rcu_used: 10,
         }
     );
     assert_eq!(
         contract.metrics_for_period(frank, day1_ms, day3_ms),
         MetricValue {
             start_ms: day1_ms,
-            stored_bytes: 19,
-            requests: 15,
+            storage_bytes: 19,
+            wcu_used: 15,
+            rcu_used: 15,
         }
     );
     assert_eq!(
         contract.metrics_for_period(frank, day2_ms, day5_ms),
         MetricValue {
             start_ms: day2_ms,
-            stored_bytes: 24,
-            requests: 20,
+            storage_bytes: 24,
+            wcu_used: 20,
+            rcu_used: 20,
         }
     );
 
@@ -1055,32 +1120,36 @@ fn median_works() {
         contract.metrics_for_period(alice, day1_ms, day1_ms),
         MetricValue {
             start_ms: day1_ms,
-            stored_bytes: 2,
-            requests: 6,
+            storage_bytes: 2,
+            wcu_used: 6,
+            rcu_used: 6,
         }
     );
     assert_eq!(
         contract.metrics_for_period(alice, day2_ms, day2_ms),
         MetricValue {
             start_ms: day2_ms,
-            stored_bytes: 0,
-            requests: 6,
+            storage_bytes: 0,
+            wcu_used: 6,
+            rcu_used: 6,
         }
     );
     assert_eq!(
         contract.metrics_for_period(alice, day3_ms, day3_ms),
         MetricValue {
             start_ms: day3_ms,
-            stored_bytes: 7,
-            requests: 6,
+            storage_bytes: 7,
+            wcu_used: 6,
+            rcu_used: 6,
         }
     );
     assert_eq!(
         contract.metrics_for_period(alice, day4_ms, day4_ms),
         MetricValue {
             start_ms: day4_ms,
-            stored_bytes: 2,
-            requests: 6,
+            storage_bytes: 2,
+            wcu_used: 6,
+            rcu_used: 6,
         }
     );
     // no metrics
@@ -1088,8 +1157,9 @@ fn median_works() {
         contract.metrics_for_period(alice, day5_ms, day5_ms),
         MetricValue {
             start_ms: day5_ms,
-            stored_bytes: 0,
-            requests: 0,
+            storage_bytes: 0,
+            wcu_used: 0,
+            rcu_used: 0,
         }
     );
 
@@ -1097,32 +1167,36 @@ fn median_works() {
         contract.metrics_for_period(alice, day1_ms, day5_ms),
         MetricValue {
             start_ms: day1_ms,
-            stored_bytes: 11,
-            requests: 24,
+            storage_bytes: 11,
+            wcu_used: 24,
+            rcu_used: 24,
         }
     );
     assert_eq!(
         contract.metrics_for_period(alice, day1_ms, day2_ms),
         MetricValue {
             start_ms: day1_ms,
-            stored_bytes: 2,
-            requests: 12,
+            storage_bytes: 2,
+            wcu_used: 12,
+            rcu_used: 12,
         }
     );
     assert_eq!(
         contract.metrics_for_period(alice, day1_ms, day3_ms),
         MetricValue {
             start_ms: day1_ms,
-            stored_bytes: 9,
-            requests: 18,
+            storage_bytes: 9,
+            rcu_used: 18,
+            wcu_used: 18,
         }
     );
     assert_eq!(
         contract.metrics_for_period(alice, day2_ms, day5_ms),
         MetricValue {
             start_ms: day2_ms,
-            stored_bytes: 9,
-            requests: 18,
+            storage_bytes: 9,
+            wcu_used: 18,
+            rcu_used: 18,
         }
     );
 }
@@ -1149,20 +1223,22 @@ fn metrics_since_subscription_works() {
         contract.metrics_since_subscription(app_id),
         Ok(MetricValue {
             start_ms: 0,
-            stored_bytes: 0,
-            requests: 0
+            storage_bytes: 0,
+            wcu_used: 0,
+            rcu_used: 0,
         })
     );
 
     // Subscription with metrics.
     contract.add_reporter(accounts.alice).unwrap();
-    contract.report_metrics(app_id, 0, 12, 34).unwrap();
+    contract.report_metrics(app_id, 0, 12, 34, 34).unwrap();
     assert_eq!(
         contract.metrics_since_subscription(app_id),
         Ok(MetricValue {
             start_ms: 0,
-            stored_bytes: 12,
-            requests: 34
+            storage_bytes: 12,
+            wcu_used: 34,
+            rcu_used: 34,
         })
     );
 }
@@ -1237,7 +1313,7 @@ fn decode_event(event: &ink_env::test::EmittedEvent) -> Event {
 // ---- Admin: Reporters ----
 #[ink::test]
 fn add_and_remove_reporters_works() {
-    let mut contract = Ddc::new(2, 2000, 2000, 4, 4000, 4000, 8, 8000, 800);
+    let mut contract = make_contract();
 
     let new_reporter = AccountId::from([0x1; 32]);
 
@@ -1248,15 +1324,17 @@ fn add_and_remove_reporters_works() {
     assert!(!contract.is_reporter(new_reporter));
 
     let raw_events = recorded_events().collect::<Vec<_>>();
-    assert_eq!(2, raw_events.len());
+    assert_eq!(5, raw_events.len()); // 3 x tier added + added reporter + remove reporter
 
-    if let Event::ReporterAdded(ReporterAdded { reporter }) = decode_event(&raw_events[0]) {
+    if let Event::ReporterAdded(ReporterAdded { reporter }) = decode_event(&raw_events[3]) {
         assert_eq!(reporter, new_reporter);
     } else {
         panic!("Wrong event type");
     }
 
-    if let Event::ReporterRemoved(ReporterRemoved { reporter }) = decode_event(&raw_events[1]) {
+    if let Event::ReporterRemoved(ReporterRemoved { reporter }) =
+        decode_event(&raw_events[4])
+    {
         assert_eq!(reporter, new_reporter);
     } else {
         panic!("Wrong event type");
@@ -1304,11 +1382,11 @@ fn add_ddc_node_works() {
 
     // Should emit event
     let raw_events = recorded_events().collect::<Vec<_>>();
-    assert_eq!(1, raw_events.len());
+    assert_eq!(4, raw_events.len()); // 3 x tier added + node added
     if let Event::DDCNodeAdded(DDCNodeAdded {
         p2p_id: event_p2p_id,
         url: event_url,
-    }) = decode_event(&raw_events[0])
+    }) = decode_event(&raw_events[3])
     {
         assert_eq!(event_p2p_id, p2p_id);
         assert_eq!(event_url, url);
@@ -1361,10 +1439,10 @@ fn remove_ddc_node_works() {
 
     // Should emit event
     let raw_events = recorded_events().collect::<Vec<_>>();
-    assert_eq!(2, raw_events.len());
+    assert_eq!(5, raw_events.len());
     if let Event::DDCNodeRemoved(DDCNodeRemoved {
         p2p_id: event_p2p_id,
-    }) = decode_event(&raw_events[1])
+    }) = decode_event(&raw_events[4])
     {
         assert_eq!(event_p2p_id, p2p_id);
     } else {
@@ -1380,8 +1458,9 @@ fn is_within_limit_works_outside_limit() {
     let app_id = accounts.alice;
     let metrics = MetricValue {
         start_ms: 0,
-        stored_bytes: 99999,
-        requests: 10,
+        storage_bytes: 99999,
+        wcu_used: 10,
+        rcu_used: 10,
     };
 
     let some_day = 0;
@@ -1395,7 +1474,7 @@ fn is_within_limit_works_outside_limit() {
 
     contract.add_reporter(accounts.alice).unwrap();
     contract
-        .report_metrics(app_id, today_ms, metrics.stored_bytes, metrics.requests)
+        .report_metrics(app_id, today_ms, metrics.storage_bytes, metrics.wcu_used, metrics.rcu_used)
         .unwrap();
 
     assert_eq!(contract.is_within_limit(app_id), false)
@@ -1408,8 +1487,9 @@ fn is_within_limit_works_within_limit() {
     let app_id = accounts.alice;
     let metrics = MetricValue {
         start_ms: 0,
-        stored_bytes: 5,
-        requests: 10,
+        storage_bytes: 5,
+        wcu_used: 10,
+        rcu_used: 10,
     };
     let some_day = 9999;
     let ms_per_day = 24 * 3600 * 1000;
@@ -1420,7 +1500,7 @@ fn is_within_limit_works_within_limit() {
 
     contract.add_reporter(accounts.alice).unwrap();
     contract
-        .report_metrics(app_id, today_ms, metrics.stored_bytes, metrics.requests)
+        .report_metrics(app_id, today_ms, metrics.storage_bytes, metrics.wcu_used, metrics.rcu_used)
         .unwrap();
 
     assert_eq!(contract.is_within_limit(app_id), true)
@@ -1435,12 +1515,13 @@ fn report_metrics_ddn_works() {
 
     let today_ms = (first_day + 17) * MS_PER_DAY;
     let ddn_id = b"12D3KooWPfi9EtgoZHFnHh1at85mdZJtj7L8n94g6LFk6e8EEk2b".to_vec();
-    let stored_bytes = 99;
-    let requests = 999;
+    let storage_bytes = 99;
+    let wcu_used = 999;
+    let rcu_used = 999;
 
     contract.add_reporter(accounts.alice).unwrap();
     contract
-        .report_metrics_ddn(ddn_id.clone(), today_ms, stored_bytes, requests)
+        .report_metrics_ddn(ddn_id.clone(), today_ms, storage_bytes, wcu_used, rcu_used)
         .unwrap();
 
     let last_day_inclusive = first_day + PERIOD_DAYS - 1;
@@ -1450,8 +1531,9 @@ fn report_metrics_ddn_works() {
     let mut expected = vec![
         MetricValue {
             start_ms: 0,
-            stored_bytes: 0,
-            requests: 0,
+            storage_bytes: 0,
+            wcu_used: 0,
+            rcu_used: 0,
         };
         PERIOD_DAYS as usize
     ];
@@ -1460,8 +1542,9 @@ fn report_metrics_ddn_works() {
         expected[i].start_ms = (first_day + i as u64) * MS_PER_DAY;
     }
 
-    expected[17].stored_bytes = stored_bytes;
-    expected[17].requests = requests;
+    expected[17].storage_bytes = storage_bytes;
+    expected[17].wcu_used = wcu_used;
+    expected[17].rcu_used = rcu_used;
 
     assert_eq!(result, expected);
 }
@@ -1511,4 +1594,46 @@ fn refund_works() {
     let subscription = contract.subscriptions.get(&caller).unwrap().clone();
 
     assert_eq!(subscription.balance, 0);
+}
+
+#[ink::test]
+fn get_app_limit_works() {
+    let mut contract = make_contract();
+    let accounts = default_accounts::<DefaultEnvironment>().unwrap();
+    let app_id = accounts.alice;
+    let now = 0;
+    let later = now + 45 * MS_PER_DAY;
+
+    assert_eq!(
+        contract.get_app_limit_at_time(app_id, 0),
+        Err(Error::NoSubscription)
+    );
+
+    contract.subscribe(2).unwrap();
+
+    assert_eq!(
+        contract.get_app_limit_at_time(app_id, 0),
+        Ok(AppSubscriptionLimit::new(
+            4000,
+            4000,
+            4000,
+        ))
+    );
+
+    assert_eq!(
+        contract.get_app_limit_at_time(app_id, later),
+        Err(NoFreeTier)
+    );
+
+
+    contract.add_tier(0, 1000, 1000, 1000).unwrap();
+
+    assert_eq!(
+        contract.get_app_limit_at_time(app_id, later),
+        Ok(AppSubscriptionLimit::new(
+            1000,
+            1000,
+            1000,
+        ))
+    );
 }
