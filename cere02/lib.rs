@@ -597,6 +597,7 @@ mod ddc {
     }
 
     impl Ddc {
+        // Private function to set DDN status (used in tests)
         fn set_ddn_status(&mut self, p2p_id: String, now: u64, is_online: bool) -> Result<()> {
             let ddn_status = match self.ddn_statuses.get_mut(&p2p_id) {
                 Some(ddn_status) => ddn_status,
@@ -618,6 +619,9 @@ mod ddc {
             Ok(())
         }
 
+        /// Update DDC node connectivity status (online/offline)
+        /// Called by OCW to set DDN offline status if fetching of node metrics failed
+        /// Called by SC to set online status when metrics is reported
         #[ink(message)]
         pub fn report_ddn_status(&mut self, p2p_id: String, is_online: bool) -> Result<()> {
             let reporter = self.env().caller();
@@ -628,6 +632,7 @@ mod ddc {
             self.set_ddn_status(p2p_id, now, is_online)
         }
 
+        /// Get DDC node status
         #[ink(message)]
         pub fn get_ddn_status(&self, p2p_id: String) -> Result<DDNStatus> {
             let ddn_status = match self.ddn_statuses.get(&p2p_id) {
@@ -871,6 +876,9 @@ mod ddc {
             Ok(())
         }
 
+        /// Reports DDC node metrics
+        /// Called by OCW if node metrics is successfully fetched
+        /// Updates DDC node connectivity status to online
         #[ink(message)]
         pub fn report_metrics_ddn(
             &mut self,
