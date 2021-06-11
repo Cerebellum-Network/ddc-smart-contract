@@ -359,6 +359,7 @@ mod ddc {
             subscription.balance
         }
 
+        // TODO: Add tests in case if subscription is empty
         /// Return the tier id corresponding to the account
         #[ink(message)]
         pub fn tier_id_of(&self, acct: AccountId) -> u64 {
