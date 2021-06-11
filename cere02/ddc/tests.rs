@@ -57,14 +57,14 @@ fn subscribe_works() {
     set_exec_context(payer, 2);
 
     assert_eq!(contract.balance_of(payer), 0);
-    assert_eq!(contract.subscribe(3), Ok(()));
+    assert_eq!(contract.subscribe(1), Ok(()));
 
     let mut subscription = contract.subscriptions.get(&payer).unwrap();
 
     assert_eq!(contract.get_end_date_ms(subscription.clone()), PERIOD_MS);
     assert_eq!(subscription.balance, 2);
 
-    contract.subscribe(3).unwrap();
+    contract.subscribe(1).unwrap();
 
     subscription = contract.subscriptions.get(&payer).unwrap();
 
@@ -1215,7 +1215,7 @@ fn metrics_since_subscription_works() {
 
     // Charlie subscribes for her app. The start date will be 0.
     set_exec_context(app_id, 2);
-    contract.subscribe(3).unwrap();
+    contract.subscribe(1).unwrap();
     undo_set_exec_context(); // Back to Alice admin.
 
     // Subscription without metrics.
@@ -1555,12 +1555,12 @@ fn set_tier_works() {
     let payer = AccountId::from([0x1; 32]);
     set_exec_context(payer, 2);
 
-    contract.subscribe(3).unwrap();
+    contract.subscribe(1).unwrap();
 
     let mut subscription = contract.subscriptions.get(&payer).unwrap().clone();
     assert_eq!(contract.get_end_date_ms(subscription.clone()), PERIOD_MS);
 
-    assert_eq!(subscription.tier_id, 3);
+    assert_eq!(subscription.tier_id, 1);
 
     set_exec_context(payer, 4);
 
@@ -1581,7 +1581,7 @@ fn refund_works() {
 
     assert_eq!(contract.refund(), Err(Error::NoSubscription));
 
-    contract.subscribe(3).unwrap();
+    contract.subscribe(1).unwrap();
 
     let subscription = contract.subscriptions.get(&caller).unwrap().clone();
 
@@ -1608,6 +1608,8 @@ fn get_app_limit_works() {
         contract.get_app_limit_at_time(app_id, 0),
         Err(Error::NoSubscription)
     );
+
+    set_exec_context(accounts.alice, 4);
 
     contract.subscribe(2).unwrap();
 
