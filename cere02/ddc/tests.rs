@@ -1488,5 +1488,26 @@ fn set_tier_works() {
     assert_eq!(subscription.tier_id, 2);
     assert_eq!(subscription.balance, 6);
     assert_eq!(contract.get_end_date_ms(subscription), PERIOD_MS * 15 / 10); // 15 / 10 = 1.5 period
+}
 
+#[ink::test]
+fn refund_works() {
+    let mut contract = make_contract();
+    let caller = AccountId::from([0x1; 32]);
+    let another_caller = AccountId::from([0x2; 32]);
+    set_exec_context(caller, 2);
+
+    assert_eq!(contract.refund(), Err(Error::NoSubscription));
+
+    contract.subscribe(3).unwrap();
+
+    let subscription = contract.subscriptions.get(&caller).unwrap().clone();
+
+    assert_eq!(subscription.balance, 2);
+
+    assert_eq!(contract.refund(), Ok(())); // TODO Fix Err(TransferFailed)
+
+    let subscription = contract.subscriptions.get(&caller).unwrap().clone();
+
+    assert_eq!(subscription.balance, 0);
 }

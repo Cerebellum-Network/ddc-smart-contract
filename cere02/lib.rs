@@ -442,8 +442,6 @@ mod ddc {
             self.only_active()?;
             let payer = self.env().caller();
             let value = self.env().transferred_balance();
-
-
             let fee_value = value as u128;
             let service_v = self.service.get(&tier_id).unwrap();
 
@@ -469,7 +467,6 @@ mod ddc {
 
                 subscription.balance = subscription.balance + value;
 
-
                 if subscription.tier_id != tier_id {
                     self.set_tier(&mut subscription, tier_id);
                 }
@@ -484,15 +481,15 @@ mod ddc {
             return Ok(());
         }
 
-
-        fn refund(&self) -> Result<()> {
+        #[ink(message)]
+        pub fn refund(&mut self) -> Result<()> {
             let caller = self.env().caller();
-            let subscription = self.subscriptions.get(&caller);
-            if subscription.is_none() {
+            let subscription_opt = self.subscriptions.get(&caller);
+            if subscription_opt.is_none() {
                 return Err(Error::NoSubscription);
             }
 
-            let subscription = subscription.unwrap();
+            let mut subscription = subscription_opt.unwrap().clone();
             let consumed_balance = self.get_consumed_balance(subscription.clone()) as Balance;
             if consumed_balance > subscription.balance {
                 return Ok(());
@@ -500,10 +497,22 @@ mod ddc {
 
             let to_refund = subscription.balance - consumed_balance;
 
-            match self.env().transfer(caller, to_refund) {
-                Err(_e) => Err(Error::TransferFailed),
+            let result = match self.env().transfer(caller, to_refund) {
+                Err(_e) => {
+                    Err(Error::TransferFailed)
+                },
                 Ok(_v) => Ok(()),
+            };
+
+            if !result.is_ok() {
+                return result;
             }
+
+            subscription.balance = 0;
+            self.actualize_subscription(&mut subscription);
+            self.subscriptions.insert(caller, subscription.clone());
+
+            Ok(())
         }
     }
 
