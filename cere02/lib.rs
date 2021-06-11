@@ -1001,8 +1001,8 @@ mod ddc {
             };
             let current_tier_limit = self.tier_limit_of(app_id);
             let bytes_ok = metrics.storage_bytes <= current_tier_limit.storage_bytes;
-            let wcu_ok = metrics.storage_bytes <= current_tier_limit.wcu;
-            let rcu_ok = metrics.storage_bytes <= current_tier_limit.rcu;
+            let wcu_ok = metrics.wcu_used <= current_tier_limit.wcu;
+            let rcu_ok = metrics.rcu_used <= current_tier_limit.rcu;
 
             bytes_ok && wcu_ok && rcu_ok
         }
