@@ -1494,7 +1494,6 @@ fn set_tier_works() {
 fn refund_works() {
     let mut contract = make_contract();
     let caller = AccountId::from([0x1; 32]);
-    let another_caller = AccountId::from([0x2; 32]);
     set_exec_context(caller, 2);
 
     assert_eq!(contract.refund(), Err(Error::NoSubscription));
