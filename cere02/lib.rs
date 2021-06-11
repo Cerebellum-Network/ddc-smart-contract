@@ -37,6 +37,9 @@ mod ddc {
         // -- DDC Nodes --
         ddc_nodes: StorageHashMap<String, DDCNode>,
 
+        // -- Statuses of DDC Nodes--
+        ddn_statuses: StorageHashMap<String, DDNStatus>,
+
         // -- Metrics Reporting --
         pub metrics: StorageHashMap<MetricKey, MetricValue>,
         pub metrics_ddn: StorageHashMap<MetricKeyDDN, MetricValue>,
@@ -56,6 +59,7 @@ mod ddc {
                 reporters: StorageHashMap::new(),
                 current_period_ms: StorageHashMap::new(),
                 ddc_nodes: StorageHashMap::new(),
+                ddn_statuses: StorageHashMap::new(),
                 metrics: StorageHashMap::new(),
                 metrics_ddn: StorageHashMap::new(),
                 pause: false,
@@ -640,6 +644,19 @@ mod ddc {
             let caller = self.env().caller();
             self.only_owner(caller)?;
 
+            if !self.ddn_statuses.contains_key(&p2p_id) {
+                let now = Self::env().block_timestamp();
+                self.ddn_statuses.insert(
+                    p2p_id.clone(),
+                    DDNStatus {
+                        is_online: true,
+                        total_downtime: 0,
+                        reference_timestamp: now,
+                        last_timestamp: now,
+                    },
+                );
+            }
+
             self.ddc_nodes.insert(
                 p2p_id.clone(),
                 DDCNode {
@@ -664,10 +681,72 @@ mod ddc {
             let caller = self.env().caller();
             self.only_owner(caller)?;
 
+            self.ddn_statuses.take(&p2p_id);
+
             self.ddc_nodes.take(&p2p_id);
             Self::env().emit_event(DDCNodeRemoved { p2p_id });
 
             Ok(())
+        }
+    }
+
+    // ---- DDN Statuses ----
+    #[derive(
+        Default, Clone, PartialEq, Eq, PartialOrd, Ord, Encode, Decode, SpreadLayout, PackedLayout,
+    )]
+    #[cfg_attr(feature = "std", derive(Debug, scale_info::TypeInfo))]
+    pub struct DDNStatus {
+        is_online: bool,
+        total_downtime: u64,
+        reference_timestamp: u64,
+        last_timestamp: u64,
+    }
+
+    impl Ddc {
+        // Private function to set DDN status (used in tests)
+        fn set_ddn_status(&mut self, p2p_id: String, now: u64, is_online: bool) -> Result<()> {
+            let ddn_status = match self.ddn_statuses.get_mut(&p2p_id) {
+                Some(ddn_status) => ddn_status,
+                None => return Err(Error::DDNNotFound),
+            };
+
+            if now < ddn_status.last_timestamp || now < ddn_status.reference_timestamp {
+                return Err(Error::UnexpectedTimestamp);
+            }
+
+            if !ddn_status.is_online {
+                let last_downtime = now - ddn_status.last_timestamp;
+                ddn_status.total_downtime += last_downtime;
+            }
+
+            ddn_status.last_timestamp = now;
+            ddn_status.is_online = is_online;
+
+            Ok(())
+        }
+
+        /// Update DDC node connectivity status (online/offline)
+        /// Called by OCW to set DDN offline status if fetching of node metrics failed
+        /// Called by SC to set online status when metrics is reported
+        #[ink(message)]
+        pub fn report_ddn_status(&mut self, p2p_id: String, is_online: bool) -> Result<()> {
+            let reporter = self.env().caller();
+            self.only_reporter(&reporter)?;
+
+            let now = Self::env().block_timestamp();
+
+            self.set_ddn_status(p2p_id, now, is_online)
+        }
+
+        /// Get DDC node status
+        #[ink(message)]
+        pub fn get_ddn_status(&self, p2p_id: String) -> Result<DDNStatus> {
+            let ddn_status = match self.ddn_statuses.get(&p2p_id) {
+                Some(ddn_status) => ddn_status.clone(),
+                None => return Err(Error::DDNNotFound),
+            };
+
+            Ok(ddn_status)
         }
     }
 
@@ -912,6 +991,9 @@ mod ddc {
             Ok(())
         }
 
+        /// Reports DDC node metrics
+        /// Called by OCW if node metrics is successfully fetched
+        /// Updates DDC node connectivity status to online
         #[ink(message)]
         pub fn report_metrics_ddn(
             &mut self,
@@ -927,6 +1009,7 @@ mod ddc {
             enforce_time_is_start_of_day(day_start_ms)?;
             let day = day_start_ms / MS_PER_DAY;
             let day_of_period = day % PERIOD_DAYS;
+            let p2p_id = String::from_utf8(ddn_id.clone()).unwrap();
 
             let key = MetricKeyDDN {
                 ddn_id,
@@ -940,6 +1023,8 @@ mod ddc {
             };
 
             self.metrics_ddn.insert(key.clone(), metrics.clone());
+
+            self.report_ddn_status(p2p_id, true).unwrap();
 
             self.env().emit_event(NewMetricDDN {
                 reporter,
@@ -1019,6 +1104,7 @@ mod ddc {
         UnexpectedTimestamp,
         NoSubscription,
         NoFreeTier,
+        DDNNotFound,
     }
 
     pub type Result<T> = core::result::Result<T, Error>;
