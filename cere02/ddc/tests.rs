@@ -1774,3 +1774,15 @@ fn report_metrics_ddn_works() {
 
     assert_eq!(result, expected);
 }
+
+#[ink::test]
+fn to_u64_works() {
+    let balance: Balance = 1;
+    assert_eq!(to_u64(balance << 63), 1_u64 << 63);
+}
+
+#[ink::test]
+#[should_panic]
+fn to_u64_overflow_panics_works() {
+    to_u64(1 << 64);
+}
