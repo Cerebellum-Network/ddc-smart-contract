@@ -1505,7 +1505,9 @@ fn refund_works() {
 
     assert_eq!(subscription.balance, 2);
 
-    assert_eq!(contract.refund(), Ok(())); // TODO Fix Err(TransferFailed)
+    set_balance(contract_id(), 1000); // Add a little bit of balance to be able to refund
+
+    assert_eq!(contract.refund(), Ok(()));
 
     let subscription = contract.subscriptions.get(&caller).unwrap().clone();
 
