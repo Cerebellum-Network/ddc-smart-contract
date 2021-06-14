@@ -614,7 +614,7 @@ mod ddc {
     )]
     #[cfg_attr(feature = "std", derive(Debug, scale_info::TypeInfo))]
     pub struct DDCNode {
-        p2p_id: String,
+        p2p_addr: String,
         url: String,
     }
 
@@ -640,7 +640,7 @@ mod ddc {
 
         /// Add DDC node to the list
         #[ink(message)]
-        pub fn add_ddc_node(&mut self, p2p_id: String, url: String) -> Result<()> {
+        pub fn add_ddc_node(&mut self, p2p_id: String, p2p_addr: String, url: String) -> Result<()> {
             let caller = self.env().caller();
             self.only_owner(caller)?;
 
@@ -660,7 +660,7 @@ mod ddc {
             self.ddc_nodes.insert(
                 p2p_id.clone(),
                 DDCNode {
-                    p2p_id: p2p_id.clone(),
+                    p2p_addr: p2p_addr.clone(),
                     url: url.clone(),
                 },
             );
@@ -767,7 +767,7 @@ mod ddc {
     )]
     #[cfg_attr(feature = "std", derive(Debug, scale_info::TypeInfo))]
     pub struct MetricKeyDDN {
-        ddn_id: Vec<u8>,
+        p2p_id: String,
         day_of_period: u64,
     }
 
@@ -906,12 +906,12 @@ mod ddc {
         }
 
         #[ink(message)]
-        pub fn metrics_for_ddn(&self, ddn_id: Vec<u8>) -> Vec<MetricValue> {
+        pub fn metrics_for_ddn(&self, p2p_id: String) -> Vec<MetricValue> {
             let now_ms = Self::env().block_timestamp() as u64;
-            self.metrics_for_ddn_at_time(ddn_id, now_ms)
+            self.metrics_for_ddn_at_time(p2p_id, now_ms)
         }
 
-        pub fn metrics_for_ddn_at_time(&self, ddn_id: Vec<u8>, now_ms: u64) -> Vec<MetricValue> {
+        pub fn metrics_for_ddn_at_time(&self, p2p_id: String, now_ms: u64) -> Vec<MetricValue> {
             let mut period_metrics: Vec<MetricValue> = Vec::with_capacity(PERIOD_DAYS as usize);
 
             let last_day = now_ms / MS_PER_DAY + 1; // non-inclusive.
@@ -922,17 +922,17 @@ mod ddc {
             };
 
             for day in first_day..last_day {
-                let metrics = self.metrics_for_ddn_day(ddn_id.clone(), day);
+                let metrics = self.metrics_for_ddn_day(p2p_id.clone(), day);
                 period_metrics.push(metrics);
             }
 
             period_metrics
         }
 
-        fn metrics_for_ddn_day(&self, ddn_id: Vec<u8>, day: u64) -> MetricValue {
+        fn metrics_for_ddn_day(&self, p2p_id: String, day: u64) -> MetricValue {
             let day_of_period = day % PERIOD_DAYS;
             let day_key = MetricKeyDDN {
-                ddn_id,
+                p2p_id,
                 day_of_period,
             };
             let start_ms = day * MS_PER_DAY;
@@ -997,7 +997,7 @@ mod ddc {
         #[ink(message)]
         pub fn report_metrics_ddn(
             &mut self,
-            ddn_id: Vec<u8>,
+            p2p_id: String,
             day_start_ms: u64,
             storage_bytes: u64,
             wcu_used: u64,
@@ -1009,10 +1009,9 @@ mod ddc {
             enforce_time_is_start_of_day(day_start_ms)?;
             let day = day_start_ms / MS_PER_DAY;
             let day_of_period = day % PERIOD_DAYS;
-            let p2p_id = String::from_utf8(ddn_id.clone()).unwrap();
 
             let key = MetricKeyDDN {
-                ddn_id,
+                p2p_id: p2p_id.clone(),
                 day_of_period,
             };
             let metrics = MetricValue {

@@ -1355,27 +1355,29 @@ fn add_ddc_node_only_owner_works() {
     let mut contract = make_contract();
     let accounts = default_accounts::<DefaultEnvironment>().unwrap();
     let p2p_id = String::from("test_p2p_id");
+    let p2p_addr = String::from("test_p2p_addr");
     let url = String::from("test_url");
 
     // Should be an owner
     set_exec_context(accounts.charlie, 2);
-    assert_eq!(contract.add_ddc_node(p2p_id, url), Err(Error::OnlyOwner));
+    assert_eq!(contract.add_ddc_node(p2p_id, p2p_addr, url), Err(Error::OnlyOwner));
 }
 
 #[ink::test]
 fn add_ddc_node_works() {
     let mut contract = make_contract();
     let p2p_id = String::from("test_p2p_id");
+    let p2p_addr = String::from("test_p2p_addr");
     let url = String::from("test_url");
 
     // Add DDC node to the list
-    contract.add_ddc_node(p2p_id.clone(), url.clone()).unwrap();
+    contract.add_ddc_node(p2p_id.clone(), p2p_addr.clone(), url.clone()).unwrap();
 
     // Should be in the list
     assert_eq!(
         contract.get_all_ddc_nodes(),
         vec![DDCNode {
-            p2p_id: p2p_id.clone(),
+            p2p_addr: p2p_addr.clone(),
             url: url.clone()
         },]
     );
@@ -1410,22 +1412,23 @@ fn add_ddc_node_works() {
 fn add_ddn_node_update_url_works() {
     let mut contract = make_contract();
     let p2p_id = String::from("test_p2p_id");
+    let p2p_addr = String::from("test_p2p_addr");
     let url = String::from("test_url");
     let new_url = String::from("test_url_new");
 
     // Add DDC node to the list
-    contract.add_ddc_node(p2p_id.clone(), url.clone()).unwrap();
+    contract.add_ddc_node(p2p_id.clone(), p2p_addr.clone(), url.clone()).unwrap();
 
     // Update DDC node url
     contract
-        .add_ddc_node(p2p_id.clone(), new_url.clone())
+        .add_ddc_node(p2p_id.clone(), p2p_addr.clone(), new_url.clone())
         .unwrap();
 
     // Get the list of DDC nodes
     assert_eq!(
         contract.get_all_ddc_nodes(),
         vec![DDCNode {
-            p2p_id,
+            p2p_addr,
             url: new_url
         }]
     );
@@ -1435,13 +1438,14 @@ fn add_ddn_node_update_url_works() {
 fn is_ddc_node_works() {
     let mut contract = make_contract();
     let p2p_id = String::from("test_p2p_id");
+    let p2p_addr = String::from("test_p2p_addr");
     let url = String::from("test_url");
 
     // Return false if not added
     assert_eq!(contract.is_ddc_node(p2p_id.clone()), false);
 
     // Add DDC node to the list
-    contract.add_ddc_node(p2p_id.clone(), url.clone()).unwrap();
+    contract.add_ddc_node(p2p_id.clone(), p2p_addr.clone(), url.clone()).unwrap();
 
     // Should be in the list
     assert_eq!(contract.is_ddc_node(p2p_id), true);
@@ -1462,10 +1466,11 @@ fn remove_ddc_node_only_owner_works() {
 fn remove_ddc_node_works() {
     let mut contract = make_contract();
     let p2p_id = String::from("test_p2p_id");
+    let p2p_addr = String::from("test_p2p_addr");
     let url = String::from("test_url");
 
     // Add DDC node to the list
-    contract.add_ddc_node(p2p_id.clone(), url.clone()).unwrap();
+    contract.add_ddc_node(p2p_id.clone(), p2p_addr.clone(), url.clone()).unwrap();
 
     // Remove DDC node
     contract.remove_ddc_node(p2p_id.clone()).unwrap();
@@ -1503,11 +1508,12 @@ fn set_ddn_status_not_found_works() {
 #[ink::test]
 fn set_ddn_status_works() {
     let mut contract = make_contract();
-    let p2p_id = String::from("test_p2p_id");
+    let p2p_id = "test_p2p_id".to_string();
+    let p2p_addr = "test_p2p_addr".to_string();
     let url = String::from("test_url");
 
     // Add DDC node to the list
-    contract.add_ddc_node(p2p_id.clone(), url).unwrap();
+    contract.add_ddc_node(p2p_id.clone(), p2p_addr.clone(), url).unwrap();
 
     // Calculations should work
     contract.set_ddn_status(p2p_id.clone(), 4, true).unwrap();
@@ -1591,11 +1597,12 @@ fn set_ddn_status_works() {
 #[ink::test]
 fn set_ddn_status_unexpected_timestamp_works() {
     let mut contract = make_contract();
-    let p2p_id = String::from("test_p2p_id");
+    let p2p_id = "test_p2p_id".to_string();
+    let p2p_addr = "test_p2p_addr".to_string();
     let url = String::from("test_url");
 
     // Add DDC node to the list
-    contract.add_ddc_node(p2p_id.clone(), url).unwrap();
+    contract.add_ddc_node(p2p_id.clone(), p2p_addr.clone(), url).unwrap();
 
     // Set status for a timestamp
     assert_eq!(contract.set_ddn_status(p2p_id.clone(), 10, true), Ok(()));
@@ -1619,11 +1626,12 @@ fn get_ddn_status_not_found_works() {
 #[ink::test]
 fn get_ddn_status_works() {
     let mut contract = make_contract();
-    let p2p_id = String::from("test_p2p_id");
+    let p2p_id = "test_p2p_id".to_string();
+    let p2p_addr = "test_p2p_addr".to_string();
     let url = String::from("test_url");
 
     // Add DDC node to the list
-    contract.add_ddc_node(p2p_id.clone(), url).unwrap();
+    contract.add_ddc_node(p2p_id.clone(), p2p_addr.clone(), url).unwrap();
 
     // Set new status
     contract.set_ddn_status(p2p_id.clone(), 2, false).unwrap();
@@ -1672,14 +1680,15 @@ fn report_ddn_status_not_found_works() {
 fn report_ddn_status_works() {
     let mut contract = make_contract();
     let accounts = default_accounts::<DefaultEnvironment>().unwrap();
-    let p2p_id = String::from("test_p2p_id");
+    let p2p_id = "test_p2p_id".to_string();
+    let p2p_addr = "test_p2p_addr".to_string();
     let url = String::from("test_url");
 
     // Make admin a reporter
     contract.add_reporter(accounts.alice).unwrap();
 
     // Add DDC node to the list
-    contract.add_ddc_node(p2p_id.clone(), url).unwrap();
+    contract.add_ddc_node(p2p_id.clone(), p2p_addr.clone(), url).unwrap();
 
     // Should return Ok
     assert_eq!(contract.report_ddn_status(p2p_id.clone(), true), Ok(()));
@@ -1688,12 +1697,13 @@ fn report_ddn_status_works() {
 #[ink::test]
 fn default_ddn_status_works() {
     let mut contract = make_contract();
-    let p2p_id = String::from("test_p2p_id");
+    let p2p_id = "test_p2p_id".to_string();
+    let p2p_addr = "test_p2p_addr".to_string();
     let url = String::from("test_url");
     let new_url = String::from("test_url_new");
 
     // Add DDC node to the list
-    contract.add_ddc_node(p2p_id.clone(), url.clone()).unwrap();
+    contract.add_ddc_node(p2p_id.clone(), p2p_addr.clone(), url.clone()).unwrap();
 
     // Set new status
     contract.set_ddn_status(p2p_id.clone(), 2, false).unwrap();
@@ -1701,7 +1711,7 @@ fn default_ddn_status_works() {
 
     // Repeat adding DDC node (update url)
     contract
-        .add_ddc_node(p2p_id.clone(), new_url.clone())
+        .add_ddc_node(p2p_id.clone(), p2p_addr.clone(), new_url.clone())
         .unwrap();
 
     // Get updated status
@@ -1724,16 +1734,16 @@ fn report_metrics_updates_ddn_status_works() {
     let first_day = 1000;
 
     let today_ms = (first_day + 17) * MS_PER_DAY;
-    let ddn_id = b"12D3KooWPfi9EtgoZHFnHh1at85mdZJtj7L8n94g6LFk6e8EEk2b".to_vec();
+    let p2p_id = "12D3KooWPfi9EtgoZHFnHh1at85mdZJtj7L8n94g6LFk6e8EEk2b".to_string();
+    let p2p_addr = "/dns4/localhost/tcp/5000/p2p/12D3KooWPfi9EtgoZHFnHh1at85mdZJtj7L8n94g6LFk6e8EEk2b".to_string();
     let stored_bytes = 99;
     let wcu = 999;
     let rcu = 999;
 
-    let p2p_id = String::from_utf8(ddn_id.clone()).unwrap();
     let url = String::from("test_url");
 
     // Add DDC node to the list
-    contract.add_ddc_node(p2p_id.clone(), url).unwrap();
+    contract.add_ddc_node(p2p_id.clone(), p2p_addr, url).unwrap();
 
     // Set new DDC node status
     contract.set_ddn_status(p2p_id.clone(), 0, false).unwrap();
@@ -1743,7 +1753,7 @@ fn report_metrics_updates_ddn_status_works() {
 
     // Report DDN metrics
     contract
-        .report_metrics_ddn(ddn_id.clone(), today_ms, stored_bytes, wcu, rcu)
+        .report_metrics_ddn(p2p_id.clone(), today_ms, stored_bytes, wcu, rcu)
         .unwrap();
 
     // DDN status should be online
@@ -1766,24 +1776,24 @@ fn report_metrics_ddn_works() {
     let first_day = 1000;
 
     let today_ms = (first_day + 17) * MS_PER_DAY;
-    let ddn_id = b"12D3KooWPfi9EtgoZHFnHh1at85mdZJtj7L8n94g6LFk6e8EEk2b".to_vec();
+    let p2p_id = "12D3KooWPfi9EtgoZHFnHh1at85mdZJtj7L8n94g6LFk6e8EEk2b".to_string();
+    let p2p_addr = "/dns4/localhost/tcp/5000/p2p/12D3KooWPfi9EtgoZHFnHh1at85mdZJtj7L8n94g6LFk6e8EEk2b".to_string();
     let storage_bytes = 99;
     let wcu_used = 999;
     let rcu_used = 999;
 
-    let p2p_id = String::from_utf8(ddn_id.clone()).unwrap();
     let url = String::from("test_url");
 
-    contract.add_ddc_node(p2p_id, url).unwrap();
+    contract.add_ddc_node(p2p_id.clone(), p2p_addr.clone(), url).unwrap();
 
     contract.add_reporter(accounts.alice).unwrap();
     contract
-        .report_metrics_ddn(ddn_id.clone(), today_ms, storage_bytes, wcu_used, rcu_used)
+        .report_metrics_ddn(p2p_id.clone(), today_ms, storage_bytes, wcu_used, rcu_used)
         .unwrap();
 
     let last_day_inclusive = first_day + PERIOD_DAYS - 1;
     let now_ms = last_day_inclusive * MS_PER_DAY + 12345;
-    let result = contract.metrics_for_ddn_at_time(ddn_id, now_ms);
+    let result = contract.metrics_for_ddn_at_time(p2p_id, now_ms);
 
     let mut expected = vec![
         MetricValue {
