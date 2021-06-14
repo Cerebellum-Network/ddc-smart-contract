@@ -103,20 +103,20 @@ fn get_all_tiers_works() {
     assert_eq!(tiers[0].tier_id, 1);
     assert_eq!(tiers[0].tier_fee, 2);
     assert_eq!(tiers[0].storage_bytes, 2000);
-    assert_eq!(tiers[0].wcu, 2000);
-    assert_eq!(tiers[0].rcu, 2000);
+    assert_eq!(tiers[0].wcu_per_minute, 2000);
+    assert_eq!(tiers[0].rcu_per_minute, 2000);
 
     assert_eq!(tiers[1].tier_id, 2);
     assert_eq!(tiers[1].tier_fee, 4);
     assert_eq!(tiers[1].storage_bytes, 4000);
-    assert_eq!(tiers[1].wcu, 4000);
-    assert_eq!(tiers[1].rcu, 4000);
+    assert_eq!(tiers[1].wcu_per_minute, 4000);
+    assert_eq!(tiers[1].rcu_per_minute, 4000);
 
     assert_eq!(tiers[2].tier_id, 3);
     assert_eq!(tiers[2].tier_fee, 8);
     assert_eq!(tiers[2].storage_bytes, 8000);
-    assert_eq!(tiers[2].wcu, 8000);
-    assert_eq!(tiers[2].rcu, 8000);
+    assert_eq!(tiers[2].wcu_per_minute, 8000);
+    assert_eq!(tiers[2].rcu_per_minute, 8000);
 
 }
 
@@ -1756,62 +1756,6 @@ fn report_metrics_updates_ddn_status_works() {
             last_timestamp: 0,
         })
     );
-}
-
-// ---- Metrics Reporting ----
-#[ink::test]
-fn is_within_limit_works_outside_limit() {
-    let mut contract = make_contract();
-    let accounts = default_accounts::<DefaultEnvironment>().unwrap();
-    let app_id = accounts.alice;
-    let metrics = MetricValue {
-        start_ms: 0,
-        storage_bytes: 99999,
-        wcu_used: 10,
-        rcu_used: 10,
-    };
-
-    let some_day = 0;
-    let ms_per_day = 24 * 3600 * 1000;
-
-    let today_ms = some_day * ms_per_day;
-
-    contract.subscribe(1).unwrap();
-
-    assert_eq!(contract.is_within_limit(app_id), true);
-
-    contract.add_reporter(accounts.alice).unwrap();
-    contract
-        .report_metrics(app_id, today_ms, metrics.storage_bytes, metrics.wcu_used, metrics.rcu_used)
-        .unwrap();
-
-    assert_eq!(contract.is_within_limit(app_id), false)
-}
-
-#[ink::test]
-fn is_within_limit_works_within_limit() {
-    let mut contract = make_contract();
-    let accounts = default_accounts::<DefaultEnvironment>().unwrap();
-    let app_id = accounts.alice;
-    let metrics = MetricValue {
-        start_ms: 0,
-        storage_bytes: 5,
-        wcu_used: 10,
-        rcu_used: 10,
-    };
-    let some_day = 9999;
-    let ms_per_day = 24 * 3600 * 1000;
-
-    let today_ms = some_day * ms_per_day;
-
-    contract.subscribe(1).unwrap();
-
-    contract.add_reporter(accounts.alice).unwrap();
-    contract
-        .report_metrics(app_id, today_ms, metrics.storage_bytes, metrics.wcu_used, metrics.rcu_used)
-        .unwrap();
-
-    assert_eq!(contract.is_within_limit(app_id), true)
 }
 
 #[ink::test]
