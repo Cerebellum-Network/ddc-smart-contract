@@ -622,6 +622,7 @@ mod ddc {
     pub struct DDCNodeAdded {
         #[ink(topic)]
         p2p_id: String,
+        p2p_addr: String,
         url: String,
     }
 
@@ -629,6 +630,7 @@ mod ddc {
     pub struct DDCNodeRemoved {
         #[ink(topic)]
         p2p_id: String,
+        p2p_addr: String,
     }
 
     impl Ddc {
@@ -664,7 +666,7 @@ mod ddc {
                     url: url.clone(),
                 },
             );
-            Self::env().emit_event(DDCNodeAdded { p2p_id, url });
+            Self::env().emit_event(DDCNodeAdded { p2p_id, url, p2p_addr });
 
             Ok(())
         }
@@ -683,8 +685,8 @@ mod ddc {
 
             self.ddn_statuses.take(&p2p_id);
 
-            self.ddc_nodes.take(&p2p_id);
-            Self::env().emit_event(DDCNodeRemoved { p2p_id });
+            let node = self.ddc_nodes.take(&p2p_id).unwrap();
+            Self::env().emit_event(DDCNodeRemoved { p2p_id, p2p_addr: node.p2p_addr });
 
             Ok(())
         }

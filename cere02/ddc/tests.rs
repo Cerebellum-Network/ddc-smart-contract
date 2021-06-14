@@ -1398,10 +1398,12 @@ fn add_ddc_node_works() {
     assert_eq!(4, raw_events.len()); // 3 x tier added + node added
     if let Event::DDCNodeAdded(DDCNodeAdded {
         p2p_id: event_p2p_id,
+        p2p_addr: event_p2p_addr,
         url: event_url,
     }) = decode_event(&raw_events[3])
     {
         assert_eq!(event_p2p_id, p2p_id);
+        assert_eq!(event_p2p_addr, p2p_addr);
         assert_eq!(event_url, url);
     } else {
         panic!("Wrong event type")
@@ -1483,9 +1485,11 @@ fn remove_ddc_node_works() {
     assert_eq!(5, raw_events.len());
     if let Event::DDCNodeRemoved(DDCNodeRemoved {
         p2p_id: event_p2p_id,
+        p2p_addr: event_p2p_addr,
     }) = decode_event(&raw_events[4])
     {
         assert_eq!(event_p2p_id, p2p_id);
+        assert_eq!(event_p2p_addr, p2p_addr);
     } else {
         panic!("Wrong event type")
     }
