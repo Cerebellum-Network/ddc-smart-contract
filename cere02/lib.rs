@@ -395,19 +395,19 @@ mod ddc {
             subscription.last_update_ms.clone() + prepaid_time_ms as u64
         }
 
-        fn get_consumed_balance(&self, subscription: AppSubscription) -> Balance {
+        fn get_consumed_balance(subscription: &AppSubscription, service_tiers: &StorageHashMap<u64, ServiceTier>) -> Balance {
             let now_ms = Self::env().block_timestamp();
             let duration_consumed = now_ms - subscription.last_update_ms.clone();
             let tier_id = subscription.tier_id.clone();
-            let tier = self.service_tiers.get(&tier_id).unwrap();
+            let tier = service_tiers.get(&tier_id).unwrap();
             let price = tier.tier_fee / 31 / MS_PER_DAY as u128; // get tier fee
 
             duration_consumed as u128 * price
         }
 
-        fn actualize_subscription(&mut self, subscription: &mut AppSubscription) {
+        fn actualize_subscription(subscription: &mut AppSubscription, service_tiers: &StorageHashMap<u64, ServiceTier>) {
             let now_ms = Self::env().block_timestamp();
-            let consumed = self.get_consumed_balance(subscription.clone());
+            let consumed = Self::get_consumed_balance(subscription, service_tiers);
 
             if consumed > subscription.balance {
                 subscription.balance = 0;
@@ -418,7 +418,7 @@ mod ddc {
         }
 
         fn set_tier(&mut self, subscription: &mut AppSubscription, new_tier_id: u64) {
-            self.actualize_subscription(subscription);
+            Self::actualize_subscription(subscription, &self.service_tiers);
             subscription.tier_id = new_tier_id.clone();
         }
 
@@ -528,7 +528,7 @@ mod ddc {
             }
 
             let mut subscription = subscription_opt.unwrap().clone();
-            let consumed_balance = self.get_consumed_balance(subscription.clone()) as Balance;
+            let consumed_balance = Self::get_consumed_balance(&subscription, &self.service_tiers) as Balance;
             if consumed_balance > subscription.balance {
                 return Ok(());
             }
@@ -547,7 +547,7 @@ mod ddc {
             }
 
             subscription.balance = 0;
-            self.actualize_subscription(&mut subscription);
+            Self::actualize_subscription(&mut subscription, &self.service_tiers);
             self.subscriptions.insert(caller, subscription.clone());
 
             Ok(())
