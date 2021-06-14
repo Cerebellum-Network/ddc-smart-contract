@@ -23,8 +23,7 @@ mod ddc {
         pause: bool,
 
         // -- Tiers --
-        /// HashMap of tier_id: vector of [tier_id, tier_fee, tier_throughput_limit, tier_storage_limit]
-        service: StorageHashMap<u128, Vec<u128>>,
+        service_tiers: StorageHashMap<u64, ServiceTier>,
 
         // -- App Subscriptions --
         /// Mapping from owner to number of owned coins.
@@ -38,6 +37,9 @@ mod ddc {
         // -- DDC Nodes --
         ddc_nodes: StorageHashMap<String, DDCNode>,
 
+        // -- Statuses of DDC Nodes--
+        ddn_statuses: StorageHashMap<String, DDNStatus>,
+
         // -- Metrics Reporting --
         pub metrics: StorageHashMap<MetricKey, MetricValue>,
         pub metrics_ddn: StorageHashMap<MetricKeyDDN, MetricValue>,
@@ -45,58 +47,19 @@ mod ddc {
 
     impl Ddc {
         /// Constructor that initializes the contract
-        /// Give tier3fee, tier3limit, tier2fee, tier2limit, tier1fee, and tier1 limit to initialize
         #[ink(constructor)]
-        pub fn new(
-            tier3fee: Balance,
-            tier3_throughput_limit: u128,
-            tier3_storage_limit: u128,
-            tier2fee: Balance,
-            tier2_throughput_limit: u128,
-            tier2_storage_limit: u128,
-            tier1fee: Balance,
-            tier1_throughput_limit: u128,
-            tier1_storage_limit: u128,
-        ) -> Self {
+        pub fn new() -> Self {
             let caller = Self::env().caller();
-
-            let mut service_v = StorageHashMap::new();
-
-            let mut t1 = Vec::new();
-
-            t1.push(1);
-            t1.push(tier1fee);
-            t1.push(tier1_throughput_limit);
-            t1.push(tier1_storage_limit);
-
-            service_v.insert(1, t1);
-
-            let mut t2 = Vec::new();
-
-            t2.push(2);
-            t2.push(tier2fee);
-            t2.push(tier2_throughput_limit);
-            t2.push(tier2_storage_limit);
-
-            service_v.insert(2, t2);
-
-            let mut t3 = Vec::new();
-
-            t3.push(3);
-            t3.push(tier3fee);
-            t3.push(tier3_throughput_limit);
-            t3.push(tier3_storage_limit);
-
-            service_v.insert(3, t3);
 
             let instance = Self {
                 owner: Lazy::new(caller),
-                service: service_v,
+                service_tiers: StorageHashMap::new(),
                 balances: StorageHashMap::new(),
                 subscriptions: StorageHashMap::new(),
                 reporters: StorageHashMap::new(),
                 current_period_ms: StorageHashMap::new(),
                 ddc_nodes: StorageHashMap::new(),
+                ddn_statuses: StorageHashMap::new(),
                 metrics: StorageHashMap::new(),
                 metrics_ddn: StorageHashMap::new(),
                 pause: false,
@@ -198,94 +161,104 @@ mod ddc {
 
     // ---- Admin: Tiers ----
 
-    // #[derive(scale::Encode, scale::Decode, SpreadLayout, PackedLayout)]
-    // #[cfg_attr(feature = "std", derive(Debug, PartialEq, Eq, scale_info::TypeInfo, ink_storage::traits::StorageLayout))]
-    // pub struct ServiceTier{
-    //     tier_id: u128,
-    //     tier_fee: u128,
-    //     throughput_limit: u128,
-    //     storage_limit: u128,
-    // }
+    #[derive(scale::Encode, Clone, scale::Decode, SpreadLayout, PackedLayout)]
+    #[cfg_attr(feature = "std", derive(Debug, PartialEq, Eq, scale_info::TypeInfo, ink_storage::traits::StorageLayout))]
+    pub struct ServiceTier {
+        tier_id: u64,
+        tier_fee: Balance,
+        storage_bytes: u64,
+        wcu: u64,
+        rcu: u64,
+    }
 
-    // impl ServiceTier {
-    //     pub fn new(tier_id: u128, tier_fee: u128, throughput_limit: u128, storage_limit: u128) -> ServiceTier {
+    impl ServiceTier {
+        pub fn new(tier_id: u64, tier_fee: Balance, storage_bytes: u64, wcu: u64, rcu: u64) -> ServiceTier {
+            ServiceTier {
+                tier_id,
+                tier_fee,
+                storage_bytes,
+                wcu,
+                rcu,
+            }
+        }
+    }
 
-    //         ServiceTier {
-    //             tier_id,
-    //             tier_fee,
-    //             throughput_limit,
-    //             storage_limit
-    //         }
-    //     }
-    // }
+    #[ink(event)]
+    pub struct TierAdded {
+        tier_id: u64,
+        tier_fee: Balance,
+        storage_bytes: u64,
+        wcu: u64,
+        rcu: u64,
+    }
 
     impl Ddc {
-        /// Given a tier id: 1, 2, 3
-        /// return the fee required
-        #[ink(message)]
-        pub fn tier_deposit(&self, tid: u128) -> Balance {
-            //self.tid_in_bound(tier_id)?;
-            if tid > 3 {
-                return 0 as Balance;
+        fn calculate_new_tier_id(&self) -> u64 {
+            let mut max = 0_u64;
+            for key in self.service_tiers.keys() {
+                let tier = self.service_tiers.get(key).unwrap();
+                if tier.tier_id > max {
+                    max = tier.tier_id;
+                }
             }
-            let v = self.service.get(&tid).unwrap();
-            return v[1] as Balance;
+
+            max + 1
         }
 
         #[ink(message)]
-        pub fn get_all_tiers(&self) -> Vec<u128> {
-            let mut v = Vec::new();
-            // v1 = [tier_id, tier_fee, tier_throughput_limit, tier_storage_limit]
-            let v1 = self.service.get(&1).unwrap();
+        pub fn add_tier(&mut self, tier_fee: Balance, storage_bytes: u64, wcu: u64, rcu: u64) -> Result<u64> {
+            let caller = self.env().caller();
+            self.only_owner(caller)?;
 
-            let v2 = self.service.get(&2).unwrap();
+            let tier_id = self.calculate_new_tier_id();
+            let tier = ServiceTier { tier_id, tier_fee, storage_bytes, wcu, rcu };
+            self.service_tiers.insert(tier_id, tier);
+            Self::env().emit_event(TierAdded { tier_id, tier_fee, storage_bytes, wcu, rcu });
 
-            let v3 = self.service.get(&3).unwrap();
+            Ok(tier_id)
+        }
 
-            for i in 0..4 {
-                v.push(v1[i]);
+        /// return the fee required
+        #[ink(message)]
+        pub fn tier_deposit(&self, tier_id: u64) -> Balance {
+            if self.tid_in_bound(tier_id).is_err() {
+                return 0 as Balance;
             }
-            for j in 0..4 {
-                v.push(v2[j]);
-            }
-            for k in 0..4 {
-                v.push(v3[k]);
-            }
-            v
+
+            let v = self.service_tiers.get(&tier_id).unwrap();
+            return v.tier_fee as Balance;
+        }
+
+        #[ink(message)]
+        pub fn get_all_tiers(&self) -> Vec<ServiceTier> {
+            self.service_tiers.values().cloned().collect()
         }
 
         /// check if tid is within 1, 2 ,3
         /// return ok or error
-        fn tid_in_bound(&self, tid: u128) -> Result<()> {
-            if tid <= 3 {
-                Ok(())
-            } else {
+        fn tid_in_bound(&self, tier_id: u64) -> Result<()> {
+            if self.service_tiers.get(&tier_id).is_none() {
                 return Err(Error::TidOutOfBound);
+            } else {
+                Ok(())
             }
         }
 
         /// change the tier fee given the tier id and new fee
         /// Must be the contract admin to call this function
         #[ink(message)]
-        pub fn change_tier_fee(&mut self, tier_id: u128, new_fee: Balance) -> Result<()> {
+        pub fn change_tier_fee(&mut self, tier_id: u64, new_fee: Balance) -> Result<()> {
             self.tid_in_bound(tier_id)?;
             self.only_active()?;
             let caller = self.env().caller();
             self.only_owner(caller)?;
-            // let n_f = new_fee as u128;
 
             self.diff_deposit(tier_id, new_fee)?;
 
-            // v[0] index, v[1] fee, v[2] throughput_limit, v[3] storage_limit
-            let v = self.service.get(&tier_id).unwrap();
+            let mut tier = self.service_tiers.get_mut(&tier_id).unwrap();
 
-            let mut v2 = Vec::new();
-            v2.push(v[0]);
-            v2.push(new_fee);
-            v2.push(v[2]);
-            v2.push(v[3]);
+            tier.tier_fee = new_fee;
 
-            self.service.insert(tier_id, v2);
             Ok(())
         }
 
@@ -294,32 +267,30 @@ mod ddc {
         #[ink(message)]
         pub fn change_tier_limit(
             &mut self,
-            tier_id: u128,
-            new_throughput_limit: u128,
-            new_storage_limit: u128,
+            tier_id: u64,
+            new_storage_bytes_limit: u64,
+            new_wcu_limit: u64,
+            new_rcu_limit: u64,
         ) -> Result<()> {
             self.tid_in_bound(tier_id)?;
             self.only_active()?;
             let caller = self.env().caller();
             self.only_owner(caller)?;
-            // v[0] index, v[1] fee, v[2] throughput_limit, v[3] storage_limit
-            let v = self.service.get(&tier_id).unwrap();
-            let mut v2 = Vec::new();
-            v2.push(v[0]);
-            v2.push(v[1]);
-            v2.push(new_throughput_limit);
-            v2.push(new_storage_limit);
-            self.service.insert(tier_id, v2);
+
+            let mut tier = self.service_tiers.get_mut(&tier_id).unwrap();
+            tier.storage_bytes = new_storage_bytes_limit;
+            tier.wcu = new_wcu_limit;
+            tier.rcu = new_rcu_limit;
+
             Ok(())
         }
 
         /// Check if the new fee is the same as the old fee
         /// Return error if they are the same
-        fn diff_deposit(&self, tid: u128, new_value: Balance) -> Result<()> {
-            self.tid_in_bound(tid)?;
-            let newv = new_value as u128;
-            let v = self.service.get(&tid).unwrap();
-            if v[1] != newv {
+        fn diff_deposit(&self, tier_id: u64, new_value: Balance) -> Result<()> {
+            self.tid_in_bound(tier_id)?;
+            let v = self.service_tiers.get(&tier_id).unwrap();
+            if v.tier_fee as Balance != new_value {
                 return Ok(());
             } else {
                 return Err(Error::SameDepositValue);
@@ -327,14 +298,17 @@ mod ddc {
         }
 
         /// Return tier limit given a tier id 1, 2, 3
-        fn get_tier_limit(&self, tid: u128) -> Vec<u128> {
-            let mut v = Vec::new();
-            let v2 = self.service.get(&tid).unwrap();
-            let throughput_limit = v2[2];
-            let storage_limit = v2[3];
-            v.push(throughput_limit);
-            v.push(storage_limit);
-            v
+        fn get_tier_limit(&self, tier_id: u64) -> Vec<u64> {
+            self.tid_in_bound(tier_id).unwrap();
+
+            let tier = self.service_tiers.get(&tier_id).unwrap();
+
+            let mut result = Vec::new();
+            result.push(tier.storage_bytes);
+            result.push(tier.wcu);
+            result.push(tier.rcu);
+
+            result
         }
     }
 
@@ -356,7 +330,7 @@ mod ddc {
     pub struct AppSubscription {
         start_date_ms: u64,
         end_date_ms: u64,
-        tier_id: u128,
+        tier_id: u64,
         balance: Balance,
     }
 
@@ -377,21 +351,21 @@ mod ddc {
 
         /// Return the tier id corresponding to the account
         #[ink(message)]
-        pub fn tier_id_of(&self, acct: AccountId) -> u128 {
-            let tid = self.get_tier_id(&acct);
-            tid
+        pub fn tier_id_of(&self, acct: AccountId) -> u64 {
+            let tier_id = self.get_tier_id(&acct);
+            tier_id
         }
 
         /// Return the tier limit corresponding the account
         #[ink(message)]
-        pub fn tier_limit_of(&self, acct: AccountId) -> Vec<u128> {
-            let tid = self.get_tier_id(&acct);
-            let tl = self.get_tier_limit(tid);
+        pub fn tier_limit_of(&self, acct: AccountId) -> Vec<u64> {
+            let tier_id = self.get_tier_id(&acct);
+            let tl = self.get_tier_limit(tier_id);
             tl.clone()
         }
 
         /// Return tier id given an account
-        fn get_tier_id(&self, owner: &AccountId) -> u128 {
+        fn get_tier_id(&self, owner: &AccountId) -> u64 {
             let subscription = self.subscriptions.get(owner).unwrap();
             subscription.tier_id
         }
@@ -400,14 +374,14 @@ mod ddc {
         /// Store payment into users balance map
         /// Initialize user metrics map
         #[ink(message, payable)]
-        pub fn subscribe(&mut self, tier_id: u128) -> Result<()> {
+        pub fn subscribe(&mut self, tier_id: u64) -> Result<()> {
             self.tid_in_bound(tier_id)?;
             self.only_active()?;
             let payer = self.env().caller();
             let value = self.env().transferred_balance();
-            let fee_value = value as u128;
-            let service_v = self.service.get(&tier_id).unwrap();
-            if service_v[1] > fee_value {
+            let fee_value = value;
+            let service_v = self.service_tiers.get(&tier_id).unwrap();
+            if service_v.tier_fee > fee_value {
                 //TODO: We probably need to summarize the existing balance with provided, in case app wants to deposit more than monthly amount
                 return Err(Error::InsufficientDeposit);
             }
@@ -530,6 +504,19 @@ mod ddc {
             let caller = self.env().caller();
             self.only_owner(caller)?;
 
+            if !self.ddn_statuses.contains_key(&p2p_id) {
+                let now = Self::env().block_timestamp();
+                self.ddn_statuses.insert(
+                    p2p_id.clone(),
+                    DDNStatus {
+                        is_online: true,
+                        total_downtime: 0,
+                        reference_timestamp: now,
+                        last_timestamp: now,
+                    },
+                );
+            }
+
             self.ddc_nodes.insert(
                 p2p_id.clone(),
                 DDCNode {
@@ -554,10 +541,72 @@ mod ddc {
             let caller = self.env().caller();
             self.only_owner(caller)?;
 
+            self.ddn_statuses.take(&p2p_id);
+
             self.ddc_nodes.take(&p2p_id);
             Self::env().emit_event(DDCNodeRemoved { p2p_id });
 
             Ok(())
+        }
+    }
+
+    // ---- DDN Statuses ----
+    #[derive(
+        Default, Clone, PartialEq, Eq, PartialOrd, Ord, Encode, Decode, SpreadLayout, PackedLayout,
+    )]
+    #[cfg_attr(feature = "std", derive(Debug, scale_info::TypeInfo))]
+    pub struct DDNStatus {
+        is_online: bool,
+        total_downtime: u64,
+        reference_timestamp: u64,
+        last_timestamp: u64,
+    }
+
+    impl Ddc {
+        // Private function to set DDN status (used in tests)
+        fn set_ddn_status(&mut self, p2p_id: String, now: u64, is_online: bool) -> Result<()> {
+            let ddn_status = match self.ddn_statuses.get_mut(&p2p_id) {
+                Some(ddn_status) => ddn_status,
+                None => return Err(Error::DDNNotFound),
+            };
+
+            if now < ddn_status.last_timestamp || now < ddn_status.reference_timestamp {
+                return Err(Error::UnexpectedTimestamp);
+            }
+
+            if !ddn_status.is_online {
+                let last_downtime = now - ddn_status.last_timestamp;
+                ddn_status.total_downtime += last_downtime;
+            }
+
+            ddn_status.last_timestamp = now;
+            ddn_status.is_online = is_online;
+
+            Ok(())
+        }
+
+        /// Update DDC node connectivity status (online/offline)
+        /// Called by OCW to set DDN offline status if fetching of node metrics failed
+        /// Called by SC to set online status when metrics is reported
+        #[ink(message)]
+        pub fn report_ddn_status(&mut self, p2p_id: String, is_online: bool) -> Result<()> {
+            let reporter = self.env().caller();
+            self.only_reporter(&reporter)?;
+
+            let now = Self::env().block_timestamp();
+
+            self.set_ddn_status(p2p_id, now, is_online)
+        }
+
+        /// Get DDC node status
+        #[ink(message)]
+        pub fn get_ddn_status(&self, p2p_id: String) -> Result<DDNStatus> {
+            let ddn_status = match self.ddn_statuses.get(&p2p_id) {
+                Some(ddn_status) => ddn_status.clone(),
+                None => return Err(Error::DDNNotFound),
+            };
+
+            Ok(ddn_status)
         }
     }
 
@@ -802,6 +851,9 @@ mod ddc {
             Ok(())
         }
 
+        /// Reports DDC node metrics
+        /// Called by OCW if node metrics is successfully fetched
+        /// Updates DDC node connectivity status to online
         #[ink(message)]
         pub fn report_metrics_ddn(
             &mut self,
@@ -817,6 +869,7 @@ mod ddc {
             enforce_time_is_start_of_day(day_start_ms)?;
             let day = day_start_ms / MS_PER_DAY;
             let day_of_period = day % PERIOD_DAYS;
+            let p2p_id = String::from_utf8(ddn_id.clone()).unwrap();
 
             let key = MetricKeyDDN {
                 ddn_id,
@@ -830,6 +883,8 @@ mod ddc {
             };
 
             self.metrics_ddn.insert(key.clone(), metrics.clone());
+
+            self.report_ddn_status(p2p_id, true).unwrap();
 
             self.env().emit_event(NewMetricDDN {
                 reporter,
@@ -881,8 +936,8 @@ mod ddc {
                 Ok(metrics) => metrics,
             };
             let current_tier_limit = self.tier_limit_of(app_id);
-            let requests_ok = metrics.wcu_used <= current_tier_limit[0];
-            let bytes_ok = metrics.stored_bytes <= current_tier_limit[1];
+            let requests_ok = metrics.wcu_used <= current_tier_limit[0].into();
+            let bytes_ok = metrics.stored_bytes <= current_tier_limit[1].into();
             requests_ok && bytes_ok
         }
     }
@@ -906,6 +961,7 @@ mod ddc {
         ContractActive,
         UnexpectedTimestamp,
         NoSubscription,
+        DDNNotFound,
     }
 
     pub type Result<T> = core::result::Result<T, Error>;
