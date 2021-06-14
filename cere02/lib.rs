@@ -167,18 +167,18 @@ mod ddc {
         tier_id: u64,
         tier_fee: Balance,
         storage_bytes: u64,
-        wcu: u64,
-        rcu: u64,
+        wcu_per_minute: u64,
+        rcu_per_minute: u64,
     }
 
     impl ServiceTier {
-        pub fn new(tier_id: u64, tier_fee: Balance, storage_bytes: u64, wcu: u64, rcu: u64) -> ServiceTier {
+        pub fn new(tier_id: u64, tier_fee: Balance, storage_bytes: u64, wcu_per_minute: u64, rcu_per_minute: u64) -> ServiceTier {
             ServiceTier {
                 tier_id,
                 tier_fee,
                 storage_bytes,
-                wcu,
-                rcu,
+                wcu_per_minute,
+                rcu_per_minute,
             }
         }
     }
@@ -188,8 +188,8 @@ mod ddc {
         tier_id: u64,
         tier_fee: Balance,
         storage_bytes: u64,
-        wcu: u64,
-        rcu: u64,
+        wcu_per_minute: u64,
+        rcu_per_minute: u64,
     }
 
     impl Ddc {
@@ -206,14 +206,14 @@ mod ddc {
         }
 
         #[ink(message)]
-        pub fn add_tier(&mut self, tier_fee: Balance, storage_bytes: u64, wcu: u64, rcu: u64) -> Result<u64> {
+        pub fn add_tier(&mut self, tier_fee: Balance, storage_bytes: u64, wcu_per_minute: u64, rcu_per_minute: u64) -> Result<u64> {
             let caller = self.env().caller();
             self.only_owner(caller)?;
 
             let tier_id = self.calculate_new_tier_id();
-            let tier = ServiceTier { tier_id, tier_fee, storage_bytes, wcu, rcu };
+            let tier = ServiceTier { tier_id, tier_fee, storage_bytes, wcu_per_minute, rcu_per_minute };
             self.service_tiers.insert(tier_id, tier);
-            Self::env().emit_event(TierAdded { tier_id, tier_fee, storage_bytes, wcu, rcu });
+            Self::env().emit_event(TierAdded { tier_id, tier_fee, storage_bytes, wcu_per_minute, rcu_per_minute });
 
             Ok(tier_id)
         }
@@ -279,8 +279,8 @@ mod ddc {
 
             let mut tier = self.service_tiers.get_mut(&tier_id).unwrap();
             tier.storage_bytes = new_storage_bytes_limit;
-            tier.wcu = new_wcu_limit;
-            tier.rcu = new_rcu_limit;
+            tier.wcu_per_minute = new_wcu_limit;
+            tier.rcu_per_minute = new_rcu_limit;
 
             Ok(())
         }
@@ -333,16 +333,16 @@ mod ddc {
     #[cfg_attr(feature = "std", derive(Debug, scale_info::TypeInfo))]
     pub struct AppSubscriptionLimit {
         storage_bytes: u64,
-        wcu: u64,
-        rcu: u64,
+        wcu_per_minute: u64,
+        rcu_per_minute: u64,
     }
 
     impl AppSubscriptionLimit {
-        pub fn new(storage_bytes: u64, wcu: u64, rcu: u64) -> AppSubscriptionLimit {
+        pub fn new(storage_bytes: u64, wcu_per_minute: u64, rcu_per_minute: u64) -> AppSubscriptionLimit {
             AppSubscriptionLimit {
                 storage_bytes,
-                wcu,
-                rcu,
+                wcu_per_minute,
+                rcu_per_minute,
             }
         }
     }
@@ -409,16 +409,16 @@ mod ddc {
             if subscription.end_date_ms >= now_ms {
                 Ok(AppSubscriptionLimit::new(
                     current_tier.storage_bytes,
-                    current_tier.wcu,
-                    current_tier.rcu,
+                    current_tier.wcu_per_minute,
+                    current_tier.rcu_per_minute,
                 ))
             } else { // expired
                 let free_tier = self.get_free_tier()?;
 
                 Ok(AppSubscriptionLimit::new(
                     free_tier.storage_bytes,
-                    free_tier.wcu,
-                    free_tier.rcu,
+                    free_tier.wcu_per_minute,
+                    free_tier.rcu_per_minute,
                 ))
             }
         }
@@ -991,20 +991,6 @@ mod ddc {
                 }
                 Some(current_period_ms) => *current_period_ms,
             }
-        }
-
-        #[ink(message)]
-        pub fn is_within_limit(&self, app_id: AccountId) -> bool {
-            let metrics = match self.metrics_since_subscription(app_id) {
-                Err(_) => return false,
-                Ok(metrics) => metrics,
-            };
-            let current_tier_limit = self.tier_limit_of(app_id);
-            let bytes_ok = metrics.storage_bytes <= current_tier_limit.storage_bytes;
-            let wcu_ok = metrics.wcu_used <= current_tier_limit.wcu;
-            let rcu_ok = metrics.rcu_used <= current_tier_limit.rcu;
-
-            bytes_ok && wcu_ok && rcu_ok
         }
     }
 
