@@ -1,7 +1,7 @@
 {
   "metadataVersion": "0.1.0",
   "source": {
-    "hash": "0x47ab9fa2e9b0da58e21ae82dc492ba1be8795f8281a897d3112e843a77980b38",
+    "hash": "0xbe52e15b7937ae4cc2c4ab8d9dd49dc79e0c5c30918b2ab6d8fbb0b2e6e67944",
     "language": "ink! 3.0.0-rc3",
     "compiler": "rustc 1.53.0-nightly"
   },
@@ -120,7 +120,7 @@
               "displayName": [
                 "Option"
               ],
-              "type": 35
+              "type": 36
             }
           },
           {
@@ -189,7 +189,7 @@
               "displayName": [
                 "String"
               ],
-              "type": 20
+              "type": 21
             }
           },
           {
@@ -200,7 +200,7 @@
               "displayName": [
                 "String"
               ],
-              "type": 20
+              "type": 21
             }
           }
         ],
@@ -217,7 +217,7 @@
               "displayName": [
                 "String"
               ],
-              "type": 20
+              "type": 21
             }
           }
         ],
@@ -245,7 +245,7 @@
               "displayName": [
                 "MetricKey"
               ],
-              "type": 24
+              "type": 25
             }
           },
           {
@@ -256,7 +256,7 @@
               "displayName": [
                 "MetricValue"
               ],
-              "type": 26
+              "type": 27
             }
           }
         ],
@@ -284,7 +284,7 @@
               "displayName": [
                 "MetricKeyDDN"
               ],
-              "type": 28
+              "type": 29
             }
           },
           {
@@ -295,7 +295,7 @@
               "displayName": [
                 "MetricValue"
               ],
-              "type": 26
+              "type": 27
             }
           }
         ],
@@ -356,7 +356,7 @@
           "displayName": [
             "Result"
           ],
-          "type": 30
+          "type": 31
         },
         "selector": "0x107e33ea"
       },
@@ -412,7 +412,7 @@
           "displayName": [
             "Result"
           ],
-          "type": 30
+          "type": 31
         },
         "selector": "0x410fcc9d"
       },
@@ -448,7 +448,7 @@
           "displayName": [
             "Result"
           ],
-          "type": 30
+          "type": 31
         },
         "selector": "0xf41d073f"
       },
@@ -531,7 +531,7 @@
           "displayName": [
             "Result"
           ],
-          "type": 30
+          "type": 31
         },
         "selector": "0x308e4a4c"
       },
@@ -578,7 +578,7 @@
           "displayName": [
             "Result"
           ],
-          "type": 30
+          "type": 31
         },
         "selector": "0xe42d276d"
       },
@@ -693,7 +693,7 @@
           "displayName": [
             "Result"
           ],
-          "type": 30
+          "type": 31
         },
         "selector": "0xfb968a8f"
       },
@@ -745,7 +745,7 @@
           "displayName": [
             "Result"
           ],
-          "type": 30
+          "type": 31
         },
         "selector": "0x5bc40db0"
       },
@@ -771,7 +771,7 @@
           "displayName": [
             "Result"
           ],
-          "type": 30
+          "type": 31
         },
         "selector": "0x38623849"
       },
@@ -789,7 +789,7 @@
           "displayName": [
             "Vec"
           ],
-          "type": 32
+          "type": 33
         },
         "selector": "0xe6c98b60"
       },
@@ -801,7 +801,7 @@
               "displayName": [
                 "String"
               ],
-              "type": 20
+              "type": 21
             }
           },
           {
@@ -810,7 +810,7 @@
               "displayName": [
                 "String"
               ],
-              "type": 20
+              "type": 21
             }
           }
         ],
@@ -826,7 +826,7 @@
           "displayName": [
             "Result"
           ],
-          "type": 30
+          "type": 31
         },
         "selector": "0x11a9e1b9"
       },
@@ -838,7 +838,7 @@
               "displayName": [
                 "String"
               ],
-              "type": 20
+              "type": 21
             }
           }
         ],
@@ -866,7 +866,7 @@
               "displayName": [
                 "String"
               ],
-              "type": 20
+              "type": 21
             }
           }
         ],
@@ -882,7 +882,7 @@
           "displayName": [
             "Result"
           ],
-          "type": 30
+          "type": 31
         },
         "selector": "0xe1aa053e"
       },
@@ -908,7 +908,7 @@
           "displayName": [
             "Result"
           ],
-          "type": 33
+          "type": 34
         },
         "selector": "0xa7e90f2c"
       },
@@ -924,7 +924,7 @@
             }
           },
           {
-            "name": "start_date_ms",
+            "name": "subscription_start_ms",
             "type": {
               "displayName": [
                 "u64"
@@ -952,7 +952,7 @@
           "displayName": [
             "MetricValue"
           ],
-          "type": 26
+          "type": 27
         },
         "selector": "0x0f49f085"
       },
@@ -964,7 +964,7 @@
               "displayName": [
                 "Vec"
               ],
-              "type": 29
+              "type": 30
             }
           }
         ],
@@ -978,7 +978,7 @@
           "displayName": [
             "Vec"
           ],
-          "type": 34
+          "type": 35
         },
         "selector": "0xe8e28257"
       },
@@ -1012,7 +1012,16 @@
             }
           },
           {
-            "name": "requests",
+            "name": "wcu_used",
+            "type": {
+              "displayName": [
+                "u128"
+              ],
+              "type": 8
+            }
+          },
+          {
+            "name": "rcu_used",
             "type": {
               "displayName": [
                 "u128"
@@ -1031,7 +1040,7 @@
           "displayName": [
             "Result"
           ],
-          "type": 30
+          "type": 31
         },
         "selector": "0x35320bbe"
       },
@@ -1043,7 +1052,7 @@
               "displayName": [
                 "Vec"
               ],
-              "type": 29
+              "type": 30
             }
           },
           {
@@ -1065,7 +1074,16 @@
             }
           },
           {
-            "name": "requests",
+            "name": "wcu_used",
+            "type": {
+              "displayName": [
+                "u128"
+              ],
+              "type": 8
+            }
+          },
+          {
+            "name": "rcu_used",
             "type": {
               "displayName": [
                 "u128"
@@ -1084,7 +1102,7 @@
           "displayName": [
             "Result"
           ],
-          "type": 30
+          "type": 31
         },
         "selector": "0xde028ad8"
       },
@@ -1110,7 +1128,7 @@
           "displayName": [
             "Result"
           ],
-          "type": 30
+          "type": 31
         },
         "selector": "0xb269d557"
       },
@@ -1129,6 +1147,32 @@
           "type": 16
         },
         "selector": "0xace4ecb3"
+      },
+      {
+        "args": [
+          {
+            "name": "reporter_id",
+            "type": {
+              "displayName": [
+                "AccountId"
+              ],
+              "type": 1
+            }
+          }
+        ],
+        "docs": [],
+        "mutates": false,
+        "name": [
+          "get_current_period_ms_of"
+        ],
+        "payable": false,
+        "returnType": {
+          "displayName": [
+            "u64"
+          ],
+          "type": 16
+        },
+        "selector": "0x85391e52"
       },
       {
         "args": [
@@ -1536,7 +1580,7 @@
                                       "layout": {
                                         "cell": {
                                           "key": "0x0b00000005000000000000000000000000000000000000000000000000000000",
-                                          "ty": 19
+                                          "ty": 12
                                         }
                                       },
                                       "len": 4294967295,
@@ -1561,7 +1605,7 @@
                       "layout": {
                         "cell": {
                           "key": "0x0c00000005000000000000000000000000000000000000000000000000000000",
-                          "ty": 21
+                          "ty": 19
                         }
                       },
                       "offset": "0x0b00000005000000000000000000000000000000000000000000000000000000",
@@ -1577,7 +1621,7 @@
               ]
             }
           },
-          "name": "ddc_nodes"
+          "name": "current_period_ms"
         },
         {
           "layout": {
@@ -1616,7 +1660,7 @@
                                       "layout": {
                                         "cell": {
                                           "key": "0x0d00000006000000000000000000000000000000000000000000000000000000",
-                                          "ty": 23
+                                          "ty": 20
                                         }
                                       },
                                       "len": 4294967295,
@@ -1641,7 +1685,7 @@
                       "layout": {
                         "cell": {
                           "key": "0x0e00000006000000000000000000000000000000000000000000000000000000",
-                          "ty": 25
+                          "ty": 22
                         }
                       },
                       "offset": "0x0d00000006000000000000000000000000000000000000000000000000000000",
@@ -1657,16 +1701,7 @@
               ]
             }
           },
-          "name": "metrics"
-        },
-        {
-          "layout": {
-            "cell": {
-              "key": "0x0e00000006000000000000000000000000000000000000000000000000000000",
-              "ty": 16
-            }
-          },
-          "name": "current_period_ms"
+          "name": "ddc_nodes"
         },
         {
           "layout": {
@@ -1679,7 +1714,7 @@
                         {
                           "layout": {
                             "cell": {
-                              "key": "0x0f00000006000000000000000000000000000000000000000000000000000000",
+                              "key": "0x0e00000006000000000000000000000000000000000000000000000000000000",
                               "ty": 5
                             }
                           },
@@ -1692,7 +1727,7 @@
                                 {
                                   "layout": {
                                     "cell": {
-                                      "key": "0x1000000006000000000000000000000000000000000000000000000000000000",
+                                      "key": "0x0f00000006000000000000000000000000000000000000000000000000000000",
                                       "ty": 6
                                     }
                                   },
@@ -1704,12 +1739,12 @@
                                       "cellsPerElem": 1,
                                       "layout": {
                                         "cell": {
-                                          "key": "0x1000000007000000000000000000000000000000000000000000000000000000",
-                                          "ty": 27
+                                          "key": "0x0f00000007000000000000000000000000000000000000000000000000000000",
+                                          "ty": 24
                                         }
                                       },
                                       "len": 4294967295,
-                                      "offset": "0x1100000006000000000000000000000000000000000000000000000000000000"
+                                      "offset": "0x1000000006000000000000000000000000000000000000000000000000000000"
                                     }
                                   },
                                   "name": "elems"
@@ -1729,11 +1764,91 @@
                     "hash": {
                       "layout": {
                         "cell": {
-                          "key": "0x1100000007000000000000000000000000000000000000000000000000000000",
-                          "ty": 25
+                          "key": "0x1000000007000000000000000000000000000000000000000000000000000000",
+                          "ty": 26
                         }
                       },
-                      "offset": "0x1000000007000000000000000000000000000000000000000000000000000000",
+                      "offset": "0x0f00000007000000000000000000000000000000000000000000000000000000",
+                      "strategy": {
+                        "hasher": "Blake2x256",
+                        "postfix": "",
+                        "prefix": "0x696e6b20686173686d6170"
+                      }
+                    }
+                  },
+                  "name": "values"
+                }
+              ]
+            }
+          },
+          "name": "metrics"
+        },
+        {
+          "layout": {
+            "struct": {
+              "fields": [
+                {
+                  "layout": {
+                    "struct": {
+                      "fields": [
+                        {
+                          "layout": {
+                            "cell": {
+                              "key": "0x1000000007000000000000000000000000000000000000000000000000000000",
+                              "ty": 5
+                            }
+                          },
+                          "name": "header"
+                        },
+                        {
+                          "layout": {
+                            "struct": {
+                              "fields": [
+                                {
+                                  "layout": {
+                                    "cell": {
+                                      "key": "0x1100000007000000000000000000000000000000000000000000000000000000",
+                                      "ty": 6
+                                    }
+                                  },
+                                  "name": "len"
+                                },
+                                {
+                                  "layout": {
+                                    "array": {
+                                      "cellsPerElem": 1,
+                                      "layout": {
+                                        "cell": {
+                                          "key": "0x1100000008000000000000000000000000000000000000000000000000000000",
+                                          "ty": 28
+                                        }
+                                      },
+                                      "len": 4294967295,
+                                      "offset": "0x1200000007000000000000000000000000000000000000000000000000000000"
+                                    }
+                                  },
+                                  "name": "elems"
+                                }
+                              ]
+                            }
+                          },
+                          "name": "entries"
+                        }
+                      ]
+                    }
+                  },
+                  "name": "keys"
+                },
+                {
+                  "layout": {
+                    "hash": {
+                      "layout": {
+                        "cell": {
+                          "key": "0x1200000008000000000000000000000000000000000000000000000000000000",
+                          "ty": 26
+                        }
+                      },
+                      "offset": "0x1100000008000000000000000000000000000000000000000000000000000000",
                       "strategy": {
                         "hasher": "Blake2x256",
                         "postfix": "",
@@ -2080,6 +2195,33 @@
     },
     {
       "def": {
+        "composite": {
+          "fields": [
+            {
+              "name": "value",
+              "type": 16,
+              "typeName": "V"
+            },
+            {
+              "name": "key_index",
+              "type": 6,
+              "typeName": "KeyIndex"
+            }
+          ]
+        }
+      },
+      "params": [
+        16
+      ],
+      "path": [
+        "ink_storage",
+        "collections",
+        "hashmap",
+        "ValueEntry"
+      ]
+    },
+    {
+      "def": {
         "variant": {
           "variants": [
             {
@@ -2094,7 +2236,7 @@
             {
               "fields": [
                 {
-                  "type": 20,
+                  "type": 21,
                   "typeName": "T"
                 }
               ],
@@ -2104,7 +2246,7 @@
         }
       },
       "params": [
-        20
+        21
       ],
       "path": [
         "ink_storage",
@@ -2124,7 +2266,7 @@
           "fields": [
             {
               "name": "value",
-              "type": 22,
+              "type": 23,
               "typeName": "V"
             },
             {
@@ -2136,7 +2278,7 @@
         }
       },
       "params": [
-        22
+        23
       ],
       "path": [
         "ink_storage",
@@ -2151,12 +2293,12 @@
           "fields": [
             {
               "name": "p2p_id",
-              "type": 20,
+              "type": 21,
               "typeName": "String"
             },
             {
               "name": "url",
-              "type": 20,
+              "type": 21,
               "typeName": "String"
             }
           ]
@@ -2184,7 +2326,7 @@
             {
               "fields": [
                 {
-                  "type": 24,
+                  "type": 25,
                   "typeName": "T"
                 }
               ],
@@ -2194,7 +2336,7 @@
         }
       },
       "params": [
-        24
+        25
       ],
       "path": [
         "ink_storage",
@@ -2208,12 +2350,17 @@
         "composite": {
           "fields": [
             {
+              "name": "reporter",
+              "type": 1,
+              "typeName": "AccountId"
+            },
+            {
               "name": "app_id",
               "type": 1,
               "typeName": "AccountId"
             },
             {
-              "name": "day_of_month",
+              "name": "day_of_period",
               "type": 16,
               "typeName": "u64"
             }
@@ -2232,7 +2379,7 @@
           "fields": [
             {
               "name": "value",
-              "type": 26,
+              "type": 27,
               "typeName": "V"
             },
             {
@@ -2244,7 +2391,7 @@
         }
       },
       "params": [
-        26
+        27
       ],
       "path": [
         "ink_storage",
@@ -2258,12 +2405,22 @@
         "composite": {
           "fields": [
             {
+              "name": "start_ms",
+              "type": 16,
+              "typeName": "u64"
+            },
+            {
               "name": "stored_bytes",
               "type": 8,
               "typeName": "u128"
             },
             {
-              "name": "requests",
+              "name": "wcu_used",
+              "type": 8,
+              "typeName": "u128"
+            },
+            {
+              "name": "rcu_used",
               "type": 8,
               "typeName": "u128"
             }
@@ -2292,7 +2449,7 @@
             {
               "fields": [
                 {
-                  "type": 28,
+                  "type": 29,
                   "typeName": "T"
                 }
               ],
@@ -2302,7 +2459,7 @@
         }
       },
       "params": [
-        28
+        29
       ],
       "path": [
         "ink_storage",
@@ -2317,11 +2474,11 @@
           "fields": [
             {
               "name": "ddn_id",
-              "type": 29,
+              "type": 30,
               "typeName": "Vec<u8>"
             },
             {
-              "name": "day_of_month",
+              "name": "day_of_period",
               "type": 16,
               "typeName": "u64"
             }
@@ -2357,7 +2514,7 @@
             {
               "fields": [
                 {
-                  "type": 31,
+                  "type": 32,
                   "typeName": "E"
                 }
               ],
@@ -2368,7 +2525,7 @@
       },
       "params": [
         18,
-        31
+        32
       ],
       "path": [
         "Result"
@@ -2450,7 +2607,7 @@
     {
       "def": {
         "sequence": {
-          "type": 22
+          "type": 23
         }
       }
     },
@@ -2461,7 +2618,7 @@
             {
               "fields": [
                 {
-                  "type": 26,
+                  "type": 27,
                   "typeName": "T"
                 }
               ],
@@ -2470,7 +2627,7 @@
             {
               "fields": [
                 {
-                  "type": 31,
+                  "type": 32,
                   "typeName": "E"
                 }
               ],
@@ -2480,8 +2637,8 @@
         }
       },
       "params": [
-        26,
-        31
+        27,
+        32
       ],
       "path": [
         "Result"
@@ -2490,7 +2647,7 @@
     {
       "def": {
         "sequence": {
-          "type": 26
+          "type": 27
         }
       }
     },
