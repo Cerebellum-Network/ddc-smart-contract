@@ -1741,8 +1741,8 @@ fn report_metrics_updates_ddn_status_works() {
     let p2p_id = "12D3KooWPfi9EtgoZHFnHh1at85mdZJtj7L8n94g6LFk6e8EEk2b".to_string();
     let p2p_addr = "/dns4/localhost/tcp/5000/p2p/12D3KooWPfi9EtgoZHFnHh1at85mdZJtj7L8n94g6LFk6e8EEk2b".to_string();
     let stored_bytes = 99;
-    let wcu = 999;
-    let rcu = 999;
+    let wcu_used = 999;
+    let rcu_used = 999;
 
     let url = String::from("test_url");
 
@@ -1757,7 +1757,7 @@ fn report_metrics_updates_ddn_status_works() {
 
     // Report DDN metrics
     contract
-        .report_metrics_ddn(p2p_id.clone(), today_ms, stored_bytes, wcu, rcu)
+        .report_metrics_ddn(p2p_id.clone(), today_ms, stored_bytes, wcu_used, rcu_used)
         .unwrap();
 
     // DDN status should be online
