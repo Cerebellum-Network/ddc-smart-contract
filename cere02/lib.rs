@@ -400,9 +400,8 @@ mod ddc {
             let duration_consumed = now_ms - subscription.last_update_ms.clone();
             let tier_id = subscription.tier_id.clone();
             let tier = self.service_tiers.get(&tier_id).unwrap();
-            let price = tier.tier_fee / 31 / MS_PER_DAY as u128; // get tier fee
 
-            duration_consumed as u128 * price
+            duration_consumed as u128 * tier.tier_fee / 31 / MS_PER_DAY as u128
         }
 
         fn actualize_subscription(&mut self, subscription: &mut AppSubscription) {
@@ -510,7 +509,7 @@ mod ddc {
                 }
             }
 
-            self.subscriptions.insert(payer, subscription.clone());
+            self.subscriptions.insert(payer, subscription);
             self.env().emit_event(Deposit {
                 from: Some(payer),
                 value,
@@ -528,12 +527,14 @@ mod ddc {
             }
 
             let mut subscription = subscription_opt.unwrap().clone();
-            let consumed_balance = self.get_consumed_balance(subscription.clone()) as Balance;
-            if consumed_balance > subscription.balance {
-                return Ok(());
-            }
 
-            let to_refund = subscription.balance - consumed_balance;
+            self.actualize_subscription(&mut subscription);
+            let to_refund = subscription.balance;
+            subscription.balance = 0;
+
+            if to_refund == 0 {
+                return Ok(())
+            }
 
             let result = match self.env().transfer(caller, to_refund) {
                 Err(_e) => {
@@ -543,11 +544,9 @@ mod ddc {
             };
 
             if !result.is_ok() {
-                return result;
+                panic!("Transfer has failed!");
             }
 
-            subscription.balance = 0;
-            self.actualize_subscription(&mut subscription);
             self.subscriptions.insert(caller, subscription.clone());
 
             Ok(())
