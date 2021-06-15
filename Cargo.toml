@@ -1,6 +1,6 @@
 [package]
 name = "ddc"
-version = "1.0.0"
+version = "1.1.0"
 authors = ["[Cere Network] <[team@cere.io]>"]
 edition = "2018"
 
@@ -20,7 +20,7 @@ funty = "=1.1.0"
 
 [lib]
 name = "ddc"
-path = "lib.rs"
+path = "src/lib.rs"
 crate-type = [
 	# Used for normal contract Wasm blobs.
 	"cdylib",
