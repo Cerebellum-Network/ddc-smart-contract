@@ -537,9 +537,7 @@ mod ddc {
             }
 
             let result = match self.env().transfer(caller, to_refund) {
-                Err(_e) => {
-                    Err(Error::TransferFailed)
-                },
+                Err(_e) => Err(Error::TransferFailed),
                 Ok(_v) => Ok(()),
             };
 
