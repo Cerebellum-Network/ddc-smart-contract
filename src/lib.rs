@@ -162,7 +162,16 @@ mod ddc {
     // ---- Admin: Tiers ----
 
     #[derive(scale::Encode, Clone, scale::Decode, SpreadLayout, PackedLayout)]
-    #[cfg_attr(feature = "std", derive(Debug, PartialEq, Eq, scale_info::TypeInfo, ink_storage::traits::StorageLayout))]
+    #[cfg_attr(
+        feature = "std",
+        derive(
+            Debug,
+            PartialEq,
+            Eq,
+            scale_info::TypeInfo,
+            ink_storage::traits::StorageLayout
+        )
+    )]
     pub struct ServiceTier {
         tier_id: u64,
         tier_fee: Balance,
@@ -172,7 +181,13 @@ mod ddc {
     }
 
     impl ServiceTier {
-        pub fn new(tier_id: u64, tier_fee: Balance, storage_bytes: u64, wcu_per_minute: u64, rcu_per_minute: u64) -> ServiceTier {
+        pub fn new(
+            tier_id: u64,
+            tier_fee: Balance,
+            storage_bytes: u64,
+            wcu_per_minute: u64,
+            rcu_per_minute: u64,
+        ) -> ServiceTier {
             ServiceTier {
                 tier_id,
                 tier_fee,
@@ -206,14 +221,32 @@ mod ddc {
         }
 
         #[ink(message)]
-        pub fn add_tier(&mut self, tier_fee: Balance, storage_bytes: u64, wcu_per_minute: u64, rcu_per_minute: u64) -> Result<u64> {
+        pub fn add_tier(
+            &mut self,
+            tier_fee: Balance,
+            storage_bytes: u64,
+            wcu_per_minute: u64,
+            rcu_per_minute: u64,
+        ) -> Result<u64> {
             let caller = self.env().caller();
             self.only_owner(caller)?;
 
             let tier_id = self.calculate_new_tier_id();
-            let tier = ServiceTier { tier_id, tier_fee, storage_bytes, wcu_per_minute, rcu_per_minute };
+            let tier = ServiceTier {
+                tier_id,
+                tier_fee,
+                storage_bytes,
+                wcu_per_minute,
+                rcu_per_minute,
+            };
             self.service_tiers.insert(tier_id, tier);
-            Self::env().emit_event(TierAdded { tier_id, tier_fee, storage_bytes, wcu_per_minute, rcu_per_minute });
+            Self::env().emit_event(TierAdded {
+                tier_id,
+                tier_fee,
+                storage_bytes,
+                wcu_per_minute,
+                rcu_per_minute,
+            });
 
             Ok(tier_id)
         }
@@ -329,7 +362,7 @@ mod ddc {
     }
 
     #[derive(
-    Default, Clone, PartialEq, Eq, PartialOrd, Ord, Encode, Decode, SpreadLayout, PackedLayout,
+        Default, Clone, PartialEq, Eq, PartialOrd, Ord, Encode, Decode, SpreadLayout, PackedLayout,
     )]
     #[cfg_attr(feature = "std", derive(Debug, scale_info::TypeInfo))]
     pub struct AppSubscriptionLimit {
@@ -339,7 +372,11 @@ mod ddc {
     }
 
     impl AppSubscriptionLimit {
-        pub fn new(storage_bytes: u64, wcu_per_minute: u64, rcu_per_minute: u64) -> AppSubscriptionLimit {
+        pub fn new(
+            storage_bytes: u64,
+            wcu_per_minute: u64,
+            rcu_per_minute: u64,
+        ) -> AppSubscriptionLimit {
             AppSubscriptionLimit {
                 storage_bytes,
                 wcu_per_minute,
@@ -428,7 +465,11 @@ mod ddc {
             self.get_app_limit_at_time(app, now_ms)
         }
 
-        pub fn get_app_limit_at_time(&self, app: AccountId, now_ms: u64) -> Result<AppSubscriptionLimit> {
+        pub fn get_app_limit_at_time(
+            &self,
+            app: AccountId,
+            now_ms: u64,
+        ) -> Result<AppSubscriptionLimit> {
             let subscription_opt = self.subscriptions.get(&app);
             if subscription_opt.is_none() {
                 return Err(Error::NoSubscription);
@@ -441,7 +482,6 @@ mod ddc {
 
             let current_tier = self.service_tiers.get(&subscription.tier_id).unwrap();
 
-
             // actual
             if self.get_end_date_ms(subscription) >= now_ms {
                 Ok(AppSubscriptionLimit::new(
@@ -449,7 +489,8 @@ mod ddc {
                     current_tier.wcu_per_minute,
                     current_tier.rcu_per_minute,
                 ))
-            } else { // expired
+            } else {
+                // expired
                 let free_tier = self.get_free_tier()?;
 
                 Ok(AppSubscriptionLimit::new(
@@ -533,17 +574,15 @@ mod ddc {
             subscription.balance = 0;
 
             if to_refund == 0 {
-                return Ok(())
+                return Ok(());
             }
 
             self.subscriptions.insert(caller, subscription.clone());
 
             match self.env().transfer(caller, to_refund) {
                 Err(_e) => panic!("Transfer has failed!"),
-                Ok(_v) => Ok(()),
+                Ok(_) => return Ok(()),
             };
-
-            Ok(())
         }
     }
 
@@ -635,7 +674,12 @@ mod ddc {
 
         /// Add DDC node to the list
         #[ink(message)]
-        pub fn add_ddc_node(&mut self, p2p_id: String, p2p_addr: String, url: String) -> Result<()> {
+        pub fn add_ddc_node(
+            &mut self,
+            p2p_id: String,
+            p2p_addr: String,
+            url: String,
+        ) -> Result<()> {
             let caller = self.env().caller();
             self.only_owner(caller)?;
 
@@ -659,7 +703,11 @@ mod ddc {
                     url: url.clone(),
                 },
             );
-            Self::env().emit_event(DDCNodeAdded { p2p_id, url, p2p_addr });
+            Self::env().emit_event(DDCNodeAdded {
+                p2p_id,
+                url,
+                p2p_addr,
+            });
 
             Ok(())
         }
@@ -679,7 +727,10 @@ mod ddc {
             self.ddn_statuses.take(&p2p_id);
 
             let node = self.ddc_nodes.take(&p2p_id).unwrap();
-            Self::env().emit_event(DDCNodeRemoved { p2p_id, p2p_addr: node.p2p_addr });
+            Self::env().emit_event(DDCNodeRemoved {
+                p2p_id,
+                p2p_addr: node.p2p_addr,
+            });
 
             Ok(())
         }

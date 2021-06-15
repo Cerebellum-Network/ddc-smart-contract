@@ -1,6 +1,6 @@
-# CERE01: A Standard For Real-world App Assets On Ink!
+# DDC Smart Contract On Ink!
 
-Derivative Asset support for the enterprise needs, with attributes such as expiration, limit on transfers, longitudinal unlocking, redemptions, etc.
+This smart contract takes deposit from DDC node wallet; then accepts data metrics reported by the paying node; then store and increment the metrics in a hashmap.
 
 This doc will explain:
 * How to create Smart Contract artifacts
@@ -22,7 +22,7 @@ This doc will explain:
 ## How to create Smart Contract Artificats
 
 1. Clone this repository
-2. Install build tools ([ink setup](https://substrate.dev/substrate-contracts-workshop/#/0/setup)):
+1. Install build tools ([ink setup](https://substrate.dev/substrate-contracts-workshop/#/0/setup)):
     ```bash
     rustup component add rust-src --toolchain nightly
     rustup target add wasm32-unknown-unknown --toolchain stable
@@ -36,12 +36,7 @@ This doc will explain:
     # MacOS
     brew install binaryen
     ```
-3. Change directory:
-    ```bash
-    cd cere01
-    # or cd cere02
-    ```
-4. Now you can either test or build artifacts:
+1. Now you can either test or build artifacts:
     * Test Smart Contract Source Code
     ```bash
     cargo +nightly test
@@ -54,17 +49,34 @@ This doc will explain:
     ```bash
     cargo +nightly contract build
     ```
-    * Upload `ddc.wasm` and `metadata.json` using a block viewer (like [Cere Testnet](https://block-viewer.cere.network/?rpc=wss%3A%2F%2Frpc.testnet.cere.network%3A9945#/contracts))
-
-## Get artifacts (cere02.wasm and metadata.json) from docker image 
-
-```
- docker run -v $PWD:/smart-contracts --rm -ti $ECR_REGISTRY/crb-smart-contracts:$SMART_CONTRACT_VERSION bash -c "cp -r ./cere02/target/ink/cere02.wasm ./artifacts/"
- docker run -v $PWD:/smart-contracts --rm -ti $ECR_REGISTRY/crb-smart-contracts:$SMART_CONTRACT_VERSION bash -c "cp -r ./cere02/target/ink/metadata.json ./artifacts/"
-```
-
 ## Deploy Smart Contract and test it
 In order to deploy and test Smart Contract use [Quick Start Guide](https://github.com/Cerebellum-Network/private-standalone-network-node/blob/dev/docs/tutorial.md#quick-start-guide).
 
 ## Specification
-See [Specification](./cere01/specification.md)
+See [Specification](./SPECIFICATION.md)
+
+## Endowment
+
+The endowment is the balance the deployer give to the contract upon deployment
+
+Substrate's official recommendation is 1000 endowments - 1000 cere coins
+
+Unlike Ethereum, the contract's balance seems to be this endowment
+
+If someone pays 10 Cere subscription fee, the contract balance doesn't change, it is still 1000 endowment, not 1010;
+
+It seems that when you refund a customer, say, paying back 10 Cere, this balance will be deducted from the endowment, now the endowment becomes 990
+
+It seems the endowment is eroded (decreased) every block, see this official document
+
+line #702 /// Query how many blocks the contract stays alive given that the amount endowment
+
+https://github.com/paritytech/substrate/blob/master/frame/contracts/src/lib.rs
+
+lacks official explanation, the only useful info found is this function
+
+/// Query how many blocks the contract stays alive given that the amount endowment
+/// and consumed storage does not change.
+pub fn rent_projection(address: T::AccountId) -> RentProjectionResult<T::BlockNumber> {
+	Rent::<T, PrefabWasmModule<T>>::compute_projection(&address)
+}
