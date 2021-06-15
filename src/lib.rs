@@ -43,6 +43,8 @@ mod ddc {
         // -- Metrics Reporting --
         pub metrics: StorageHashMap<MetricKey, MetricValue>,
         pub metrics_ddn: StorageHashMap<MetricKeyDDN, MetricValue>,
+
+        pub total_ddc_balance: Balance,
     }
 
     impl Ddc {
@@ -63,6 +65,7 @@ mod ddc {
                 metrics: StorageHashMap::new(),
                 metrics_ddn: StorageHashMap::new(),
                 pause: false,
+                total_ddc_balance: 0,
             };
             instance
         }
@@ -445,12 +448,29 @@ mod ddc {
             let now_ms = Self::env().block_timestamp();
             let consumed = self.get_consumed_balance(subscription);
 
+            self.total_ddc_balance += consumed;
+
             if consumed > subscription.balance {
                 subscription.balance = 0;
             } else {
                 subscription.balance -= consumed;
             }
             subscription.last_update_ms = now_ms;
+        }
+
+        #[ink(message)]
+        pub fn actualize_subscriptions(&mut self) {
+            for account_id in self.subscriptions.keys() {
+                let subscription = self.subscriptions.get(&account_id).unwrap().clone();
+
+                self.actualize_subscription(&mut subscription);
+
+                self.subscriptions.insert(account_id.clone(), subscription.clone());
+            }
+        }
+
+        pub fn get_total_ddc_balance(&self)-> Balance {
+            self.total_ddc_balance
         }
 
         fn set_tier(&mut self, subscription: &mut AppSubscription, new_tier_id: u64) {
