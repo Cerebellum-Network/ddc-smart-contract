@@ -540,10 +540,8 @@ mod ddc {
 
             match self.env().transfer(caller, to_refund) {
                 Err(_e) => panic!("Transfer has failed!"),
-                Ok(_v) => Ok(()),
+                Ok(_) => return Ok(()),
             };
-
-            Ok(())
         }
     }
 
