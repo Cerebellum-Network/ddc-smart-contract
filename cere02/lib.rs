@@ -536,16 +536,12 @@ mod ddc {
                 return Ok(())
             }
 
-            let result = match self.env().transfer(caller, to_refund) {
-                Err(_e) => Err(Error::TransferFailed),
+            self.subscriptions.insert(caller, subscription.clone());
+
+            match self.env().transfer(caller, to_refund) {
+                Err(_e) => panic!("Transfer has failed!"),
                 Ok(_v) => Ok(()),
             };
-
-            if !result.is_ok() {
-                panic!("Transfer has failed!");
-            }
-
-            self.subscriptions.insert(caller, subscription.clone());
 
             Ok(())
         }
