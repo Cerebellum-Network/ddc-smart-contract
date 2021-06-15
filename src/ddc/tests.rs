@@ -117,7 +117,6 @@ fn get_all_tiers_works() {
     assert_eq!(tiers[2].storage_bytes, 8000);
     assert_eq!(tiers[2].wcu_per_minute, 8000);
     assert_eq!(tiers[2].rcu_per_minute, 8000);
-
 }
 
 /// Test the contract owner can change tier fees for all 3 tiers
@@ -141,9 +140,18 @@ fn change_tier_limit_works() {
     assert_eq!(contract.change_tier_limit(3, 100, 100, 100), Ok(()));
     assert_eq!(contract.change_tier_limit(2, 200, 200, 200), Ok(()));
     assert_eq!(contract.change_tier_limit(1, 300, 300, 300), Ok(()));
-    assert_eq!(contract.get_tier_limit(3), ServiceTier::new(3, 8, 100, 100, 100));
-    assert_eq!(contract.get_tier_limit(2), ServiceTier::new(2, 4, 200, 200, 200));
-    assert_eq!(contract.get_tier_limit(1), ServiceTier::new(1, 2, 300, 300, 300));
+    assert_eq!(
+        contract.get_tier_limit(3),
+        ServiceTier::new(3, 8, 100, 100, 100)
+    );
+    assert_eq!(
+        contract.get_tier_limit(2),
+        ServiceTier::new(2, 4, 200, 200, 200)
+    );
+    assert_eq!(
+        contract.get_tier_limit(1),
+        ServiceTier::new(1, 2, 300, 300, 300)
+    );
 }
 
 /// Test the contract owner can flip the status of the contract
@@ -202,7 +210,7 @@ fn set_exec_context(caller: AccountId, endowement: Balance) {
         caller,
         callee,
         1000000,
-        endowement, // transferred balance
+        endowement,                                          // transferred balance
         test::CallData::new(call::Selector::new([0x00; 4])), // dummy
     );
 }
@@ -281,7 +289,13 @@ fn report_metrics_works() {
     };
 
     // Unauthorized report, we are not a reporter.
-    let err = contract.report_metrics(app_id, 0, metrics.storage_bytes, metrics.wcu_used, metrics.rcu_used);
+    let err = contract.report_metrics(
+        app_id,
+        0,
+        metrics.storage_bytes,
+        metrics.wcu_used,
+        metrics.rcu_used,
+    );
     assert_eq!(err, Err(Error::OnlyReporter));
 
     // No metric yet.
@@ -300,7 +314,13 @@ fn report_metrics_works() {
     contract.add_reporter(reporter_id).unwrap();
 
     // Wrong day format.
-    let err = contract.report_metrics(app_id, today_ms + 1, metrics.storage_bytes, metrics.wcu_used, metrics.rcu_used);
+    let err = contract.report_metrics(
+        app_id,
+        today_ms + 1,
+        metrics.storage_bytes,
+        metrics.wcu_used,
+        metrics.rcu_used,
+    );
     assert_eq!(err, Err(Error::UnexpectedTimestamp));
 
     // Store metrics.
@@ -315,7 +335,13 @@ fn report_metrics_works() {
         .unwrap();
 
     contract
-        .report_metrics(app_id, today_ms, metrics.storage_bytes, metrics.wcu_used, metrics.rcu_used)
+        .report_metrics(
+            app_id,
+            today_ms,
+            metrics.storage_bytes,
+            metrics.wcu_used,
+            metrics.rcu_used,
+        )
         .unwrap();
 
     big_metrics.start_ms = yesterday_ms;
@@ -523,7 +549,7 @@ fn median_works() {
     contract.report_metrics(eve, day1_ms, 5, 4, 4).unwrap();
     contract.report_metrics(frank, day1_ms, 7, 5, 5).unwrap();
     contract.report_metrics(alice, day1_ms, 5, 6, 6).unwrap();
-   undo_set_exec_context();
+    undo_set_exec_context();
 
     set_exec_context(eve, 2);
     contract.report_metrics(bob, day1_ms, 0, 1, 1).unwrap();
@@ -572,7 +598,7 @@ fn median_works() {
     contract.report_metrics(charlie, day2_ms, 4, 2, 2).unwrap();
     contract.report_metrics(django, day2_ms, 5, 3, 3).unwrap();
     contract.report_metrics(eve, day2_ms, 5, 4, 4).unwrap();
-   undo_set_exec_context();
+    undo_set_exec_context();
 
     set_exec_context(frank, 2);
     contract.report_metrics(bob, day2_ms, 4, 1, 1).unwrap();
@@ -584,7 +610,9 @@ fn median_works() {
     set_exec_context(bob, 2);
     contract.report_metrics(bob, day3_ms, 11, 1, 1).unwrap();
     contract.report_metrics(charlie, day3_ms, 11, 2, 2).unwrap();
-    contract.report_metrics(django, day3_ms, 1000, 3, 3).unwrap();
+    contract
+        .report_metrics(django, day3_ms, 1000, 3, 3)
+        .unwrap();
     contract.report_metrics(eve, day3_ms, 1, 4, 4).unwrap();
     contract.report_metrics(frank, day3_ms, 10, 5, 5).unwrap();
     contract.report_metrics(alice, day3_ms, 7, 6, 6).unwrap();
@@ -1332,9 +1360,7 @@ fn add_and_remove_reporters_works() {
         panic!("Wrong event type");
     }
 
-    if let Event::ReporterRemoved(ReporterRemoved { reporter }) =
-        decode_event(&raw_events[4])
-    {
+    if let Event::ReporterRemoved(ReporterRemoved { reporter }) = decode_event(&raw_events[4]) {
         assert_eq!(reporter, new_reporter);
     } else {
         panic!("Wrong event type");
@@ -1360,7 +1386,10 @@ fn add_ddc_node_only_owner_works() {
 
     // Should be an owner
     set_exec_context(accounts.charlie, 2);
-    assert_eq!(contract.add_ddc_node(p2p_id, p2p_addr, url), Err(Error::OnlyOwner));
+    assert_eq!(
+        contract.add_ddc_node(p2p_id, p2p_addr, url),
+        Err(Error::OnlyOwner)
+    );
 }
 
 #[ink::test]
@@ -1371,7 +1400,9 @@ fn add_ddc_node_works() {
     let url = String::from("test_url");
 
     // Add DDC node to the list
-    contract.add_ddc_node(p2p_id.clone(), p2p_addr.clone(), url.clone()).unwrap();
+    contract
+        .add_ddc_node(p2p_id.clone(), p2p_addr.clone(), url.clone())
+        .unwrap();
 
     // Should be in the list
     assert_eq!(
@@ -1419,7 +1450,9 @@ fn add_ddn_node_update_url_works() {
     let new_url = String::from("test_url_new");
 
     // Add DDC node to the list
-    contract.add_ddc_node(p2p_id.clone(), p2p_addr.clone(), url.clone()).unwrap();
+    contract
+        .add_ddc_node(p2p_id.clone(), p2p_addr.clone(), url.clone())
+        .unwrap();
 
     // Update DDC node url
     contract
@@ -1447,7 +1480,9 @@ fn is_ddc_node_works() {
     assert_eq!(contract.is_ddc_node(p2p_id.clone()), false);
 
     // Add DDC node to the list
-    contract.add_ddc_node(p2p_id.clone(), p2p_addr.clone(), url.clone()).unwrap();
+    contract
+        .add_ddc_node(p2p_id.clone(), p2p_addr.clone(), url.clone())
+        .unwrap();
 
     // Should be in the list
     assert_eq!(contract.is_ddc_node(p2p_id), true);
@@ -1472,7 +1507,9 @@ fn remove_ddc_node_works() {
     let url = String::from("test_url");
 
     // Add DDC node to the list
-    contract.add_ddc_node(p2p_id.clone(), p2p_addr.clone(), url.clone()).unwrap();
+    contract
+        .add_ddc_node(p2p_id.clone(), p2p_addr.clone(), url.clone())
+        .unwrap();
 
     // Remove DDC node
     contract.remove_ddc_node(p2p_id.clone()).unwrap();
@@ -1517,7 +1554,9 @@ fn set_ddn_status_works() {
     let url = String::from("test_url");
 
     // Add DDC node to the list
-    contract.add_ddc_node(p2p_id.clone(), p2p_addr.clone(), url).unwrap();
+    contract
+        .add_ddc_node(p2p_id.clone(), p2p_addr.clone(), url)
+        .unwrap();
 
     // Calculations should work
     contract.set_ddn_status(p2p_id.clone(), 4, true).unwrap();
@@ -1606,7 +1645,9 @@ fn set_ddn_status_unexpected_timestamp_works() {
     let url = String::from("test_url");
 
     // Add DDC node to the list
-    contract.add_ddc_node(p2p_id.clone(), p2p_addr.clone(), url).unwrap();
+    contract
+        .add_ddc_node(p2p_id.clone(), p2p_addr.clone(), url)
+        .unwrap();
 
     // Set status for a timestamp
     assert_eq!(contract.set_ddn_status(p2p_id.clone(), 10, true), Ok(()));
@@ -1635,7 +1676,9 @@ fn get_ddn_status_works() {
     let url = String::from("test_url");
 
     // Add DDC node to the list
-    contract.add_ddc_node(p2p_id.clone(), p2p_addr.clone(), url).unwrap();
+    contract
+        .add_ddc_node(p2p_id.clone(), p2p_addr.clone(), url)
+        .unwrap();
 
     // Set new status
     contract.set_ddn_status(p2p_id.clone(), 2, false).unwrap();
@@ -1692,7 +1735,9 @@ fn report_ddn_status_works() {
     contract.add_reporter(accounts.alice).unwrap();
 
     // Add DDC node to the list
-    contract.add_ddc_node(p2p_id.clone(), p2p_addr.clone(), url).unwrap();
+    contract
+        .add_ddc_node(p2p_id.clone(), p2p_addr.clone(), url)
+        .unwrap();
 
     // Should return Ok
     assert_eq!(contract.report_ddn_status(p2p_id.clone(), true), Ok(()));
@@ -1707,7 +1752,9 @@ fn default_ddn_status_works() {
     let new_url = String::from("test_url_new");
 
     // Add DDC node to the list
-    contract.add_ddc_node(p2p_id.clone(), p2p_addr.clone(), url.clone()).unwrap();
+    contract
+        .add_ddc_node(p2p_id.clone(), p2p_addr.clone(), url.clone())
+        .unwrap();
 
     // Set new status
     contract.set_ddn_status(p2p_id.clone(), 2, false).unwrap();
@@ -1739,7 +1786,9 @@ fn report_metrics_updates_ddn_status_works() {
 
     let today_ms = (first_day + 17) * MS_PER_DAY;
     let p2p_id = "12D3KooWPfi9EtgoZHFnHh1at85mdZJtj7L8n94g6LFk6e8EEk2b".to_string();
-    let p2p_addr = "/dns4/localhost/tcp/5000/p2p/12D3KooWPfi9EtgoZHFnHh1at85mdZJtj7L8n94g6LFk6e8EEk2b".to_string();
+    let p2p_addr =
+        "/dns4/localhost/tcp/5000/p2p/12D3KooWPfi9EtgoZHFnHh1at85mdZJtj7L8n94g6LFk6e8EEk2b"
+            .to_string();
     let stored_bytes = 99;
     let wcu_used = 999;
     let rcu_used = 999;
@@ -1747,7 +1796,9 @@ fn report_metrics_updates_ddn_status_works() {
     let url = String::from("test_url");
 
     // Add DDC node to the list
-    contract.add_ddc_node(p2p_id.clone(), p2p_addr, url).unwrap();
+    contract
+        .add_ddc_node(p2p_id.clone(), p2p_addr, url)
+        .unwrap();
 
     // Set new DDC node status
     contract.set_ddn_status(p2p_id.clone(), 0, false).unwrap();
@@ -1781,14 +1832,18 @@ fn report_metrics_ddn_works() {
 
     let today_ms = (first_day + 17) * MS_PER_DAY;
     let p2p_id = "12D3KooWPfi9EtgoZHFnHh1at85mdZJtj7L8n94g6LFk6e8EEk2b".to_string();
-    let p2p_addr = "/dns4/localhost/tcp/5000/p2p/12D3KooWPfi9EtgoZHFnHh1at85mdZJtj7L8n94g6LFk6e8EEk2b".to_string();
+    let p2p_addr =
+        "/dns4/localhost/tcp/5000/p2p/12D3KooWPfi9EtgoZHFnHh1at85mdZJtj7L8n94g6LFk6e8EEk2b"
+            .to_string();
     let storage_bytes = 99;
     let wcu_used = 999;
     let rcu_used = 999;
 
     let url = String::from("test_url");
 
-    contract.add_ddc_node(p2p_id.clone(), p2p_addr.clone(), url).unwrap();
+    contract
+        .add_ddc_node(p2p_id.clone(), p2p_addr.clone(), url)
+        .unwrap();
 
     contract.add_reporter(accounts.alice).unwrap();
     contract
@@ -1898,11 +1953,7 @@ fn get_app_limit_works() {
 
     assert_eq!(
         contract.get_app_limit_at_time(app_id, 0),
-        Ok(AppSubscriptionLimit::new(
-            4000,
-            4000,
-            4000,
-        ))
+        Ok(AppSubscriptionLimit::new(4000, 4000, 4000,))
     );
 
     assert_eq!(
@@ -1910,15 +1961,10 @@ fn get_app_limit_works() {
         Err(NoFreeTier)
     );
 
-
     contract.add_tier(0, 1000, 1000, 1000).unwrap();
 
     assert_eq!(
         contract.get_app_limit_at_time(app_id, later),
-        Ok(AppSubscriptionLimit::new(
-            1000,
-            1000,
-            1000,
-        ))
+        Ok(AppSubscriptionLimit::new(1000, 1000, 1000,))
     );
 }
