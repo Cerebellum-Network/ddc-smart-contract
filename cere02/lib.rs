@@ -386,19 +386,19 @@ mod ddc {
             subscription.tier_id
         }
 
-        fn get_end_date_ms(&self, subscription: AppSubscription) -> u64 {
-            let tier_id = subscription.tier_id.clone();
+        fn get_end_date_ms(&self, subscription: &AppSubscription) -> u64 {
+            let tier_id = subscription.tier_id;
             let tier = self.service_tiers.get(&tier_id).unwrap();
             let price = tier.tier_fee; // get tier fee
             let prepaid_time_ms = subscription.balance * PERIOD_MS as u128 / price;
 
-            subscription.last_update_ms.clone() + prepaid_time_ms as u64
+            subscription.last_update_ms + prepaid_time_ms as u64
         }
 
-        fn get_consumed_balance(&self, subscription: AppSubscription) -> Balance {
+        fn get_consumed_balance(&self, subscription: &AppSubscription) -> Balance {
             let now_ms = Self::env().block_timestamp();
-            let duration_consumed = now_ms - subscription.last_update_ms.clone();
-            let tier_id = subscription.tier_id.clone();
+            let duration_consumed = now_ms - subscription.last_update_ms;
+            let tier_id = subscription.tier_id;
             let tier = self.service_tiers.get(&tier_id).unwrap();
 
             duration_consumed as u128 * tier.tier_fee / 31 / MS_PER_DAY as u128
@@ -406,7 +406,7 @@ mod ddc {
 
         fn actualize_subscription(&mut self, subscription: &mut AppSubscription) {
             let now_ms = Self::env().block_timestamp();
-            let consumed = self.get_consumed_balance(subscription.clone());
+            let consumed = self.get_consumed_balance(subscription);
 
             if consumed > subscription.balance {
                 subscription.balance = 0;
@@ -443,7 +443,7 @@ mod ddc {
 
 
             // actual
-            if self.get_end_date_ms(subscription.clone()) >= now_ms {
+            if self.get_end_date_ms(subscription) >= now_ms {
                 Ok(AppSubscriptionLimit::new(
                     current_tier.storage_bytes,
                     current_tier.wcu_per_minute,
@@ -491,7 +491,7 @@ mod ddc {
             let now = Self::env().block_timestamp();
             let mut subscription: AppSubscription;
 
-            if subscription_opt.is_none() || self.get_end_date_ms(subscription_opt.unwrap().clone()) < now {
+            if subscription_opt.is_none() || self.get_end_date_ms(subscription_opt.unwrap()) < now {
                 subscription = AppSubscription {
                     start_date_ms: now,
                     tier_id,

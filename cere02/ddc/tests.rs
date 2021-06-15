@@ -61,14 +61,14 @@ fn subscribe_works() {
 
     let mut subscription = contract.subscriptions.get(&payer).unwrap();
 
-    assert_eq!(contract.get_end_date_ms(subscription.clone()), PERIOD_MS);
+    assert_eq!(contract.get_end_date_ms(subscription), PERIOD_MS);
     assert_eq!(subscription.balance, 2);
 
     contract.subscribe(1).unwrap();
 
     subscription = contract.subscriptions.get(&payer).unwrap();
 
-    assert_eq!(contract.get_end_date_ms(subscription.clone()), PERIOD_MS * 2);
+    assert_eq!(contract.get_end_date_ms(subscription), PERIOD_MS * 2);
     assert_eq!(subscription.balance, 4);
 
     // assert_eq!(contract.balance_of(payer), 2);
@@ -1815,7 +1815,7 @@ fn set_tier_works() {
     contract.subscribe(1).unwrap();
 
     let mut subscription = contract.subscriptions.get(&payer).unwrap().clone();
-    assert_eq!(contract.get_end_date_ms(subscription.clone()), PERIOD_MS);
+    assert_eq!(contract.get_end_date_ms(&subscription), PERIOD_MS);
 
     assert_eq!(subscription.tier_id, 1);
 
@@ -1827,7 +1827,7 @@ fn set_tier_works() {
 
     assert_eq!(subscription.tier_id, 2);
     assert_eq!(subscription.balance, 6);
-    assert_eq!(contract.get_end_date_ms(subscription), PERIOD_MS * 15 / 10); // 15 / 10 = 1.5 period
+    assert_eq!(contract.get_end_date_ms(&subscription), PERIOD_MS * 15 / 10); // 15 / 10 = 1.5 period
 }
 
 #[ink::test]
