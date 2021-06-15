@@ -322,9 +322,10 @@ mod ddc {
     #[cfg_attr(feature = "std", derive(Debug, scale_info::TypeInfo))]
     pub struct AppSubscription {
         start_date_ms: u64,
-        end_date_ms: u64,
         tier_id: u64,
+
         balance: Balance,
+        last_update_ms: u64, // initially creation time
     }
 
     #[derive(
@@ -362,6 +363,7 @@ mod ddc {
             subscription.balance
         }
 
+        // TODO: Add tests in case if subscription is empty
         /// Return the tier id corresponding to the account
         #[ink(message)]
         pub fn tier_id_of(&self, acct: AccountId) -> u64 {
@@ -382,6 +384,41 @@ mod ddc {
         fn get_tier_id(&self, owner: &AccountId) -> u64 {
             let subscription = self.subscriptions.get(owner).unwrap();
             subscription.tier_id
+        }
+
+        fn get_end_date_ms(&self, subscription: &AppSubscription) -> u64 {
+            let tier_id = subscription.tier_id;
+            let tier = self.service_tiers.get(&tier_id).unwrap();
+            let price = tier.tier_fee; // get tier fee
+            let prepaid_time_ms = subscription.balance * PERIOD_MS as u128 / price;
+
+            subscription.last_update_ms + prepaid_time_ms as u64
+        }
+
+        fn get_consumed_balance(&self, subscription: &AppSubscription) -> Balance {
+            let now_ms = Self::env().block_timestamp();
+            let duration_consumed = now_ms - subscription.last_update_ms;
+            let tier_id = subscription.tier_id;
+            let tier = self.service_tiers.get(&tier_id).unwrap();
+
+            duration_consumed as u128 * tier.tier_fee / 31 / MS_PER_DAY as u128
+        }
+
+        fn actualize_subscription(&mut self, subscription: &mut AppSubscription) {
+            let now_ms = Self::env().block_timestamp();
+            let consumed = self.get_consumed_balance(subscription);
+
+            if consumed > subscription.balance {
+                subscription.balance = 0;
+            } else {
+                subscription.balance -= consumed;
+            }
+            subscription.last_update_ms = now_ms;
+        }
+
+        fn set_tier(&mut self, subscription: &mut AppSubscription, new_tier_id: u64) {
+            self.actualize_subscription(subscription);
+            subscription.tier_id = new_tier_id.clone();
         }
 
         #[ink(message)]
@@ -406,7 +443,7 @@ mod ddc {
 
 
             // actual
-            if subscription.end_date_ms >= now_ms {
+            if self.get_end_date_ms(subscription) >= now_ms {
                 Ok(AppSubscriptionLimit::new(
                     current_tier.storage_bytes,
                     current_tier.wcu_per_minute,
@@ -454,27 +491,59 @@ mod ddc {
             let now = Self::env().block_timestamp();
             let mut subscription: AppSubscription;
 
-            if subscription_opt.is_none() || subscription_opt.unwrap().end_date_ms < now {
+            if subscription_opt.is_none() || self.get_end_date_ms(subscription_opt.unwrap()) < now {
                 subscription = AppSubscription {
                     start_date_ms: now,
-                    end_date_ms: now + PERIOD_MS,
                     tier_id,
+
+                    last_update_ms: now,
                     balance: value,
                 };
             } else {
                 subscription = subscription_opt.unwrap().clone();
 
-                subscription.end_date_ms += PERIOD_MS;
                 subscription.balance = subscription.balance + value;
+
+                if subscription.tier_id != tier_id {
+                    self.set_tier(&mut subscription, tier_id);
+                }
             }
 
             self.subscriptions.insert(payer, subscription);
             self.env().emit_event(Deposit {
                 from: Some(payer),
-                value: value,
+                value,
             });
 
             return Ok(());
+        }
+
+        #[ink(message)]
+        pub fn refund(&mut self) -> Result<()> {
+            let caller = self.env().caller();
+            let subscription_opt = self.subscriptions.get(&caller);
+            if subscription_opt.is_none() {
+                return Err(Error::NoSubscription);
+            }
+
+            let mut subscription = subscription_opt.unwrap().clone();
+
+            self.actualize_subscription(&mut subscription);
+            let to_refund = subscription.balance;
+            subscription.balance = 0;
+
+            if to_refund == 0 {
+                return Ok(())
+            }
+
+            self.subscriptions.insert(caller, subscription.clone());
+
+            match self.env().transfer(caller, to_refund) {
+                Err(_e) => panic!("Transfer has failed!"),
+                Ok(_v) => Ok(()),
+            };
+
+            Ok(())
         }
     }
 
