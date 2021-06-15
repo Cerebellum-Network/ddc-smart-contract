@@ -1854,6 +1854,18 @@ fn refund_works() {
 }
 
 #[ink::test]
+#[should_panic(expected = "Transfer has failed!")]
+fn refund_failed_works() {
+    let mut contract = make_contract();
+    let caller = AccountId::from([0x1; 32]);
+    set_exec_context(caller, 2);
+
+    contract.subscribe(1).unwrap();
+
+    assert_eq!(contract.refund(), Ok(())); // contract account doesn't have enough balance to refund. should panic
+}
+
+#[ink::test]
 fn get_app_limit_works() {
     let mut contract = make_contract();
     let accounts = default_accounts::<DefaultEnvironment>().unwrap();
