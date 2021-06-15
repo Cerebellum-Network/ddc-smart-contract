@@ -40,5 +40,6 @@ RUN cargo +nightly contract build
 # ===== SECOND STAGE ======
 FROM phusion/baseimage:0.11
 WORKDIR /ddc-smart-contract
+COPY --from=builder /ddc-smart-contract/target/ink/ddc.contract /ddc-smart-contract/artifacts/
 COPY --from=builder /ddc-smart-contract/target/ink/ddc.wasm /ddc-smart-contract/artifacts/
 COPY --from=builder /ddc-smart-contract/target/ink/metadata.json /ddc-smart-contract/artifacts/
