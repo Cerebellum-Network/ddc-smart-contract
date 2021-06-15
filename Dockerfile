@@ -7,7 +7,7 @@ RUN apt-get -y update && \
     apt-get install -y binaryen wget
 
 WORKDIR /ddc-smart-contract
-COPY ./src /ddc-smart-contract/src
+COPY . /ddc-smart-contract/src
 
 # Install all dependencies
 ARG CARGO_CONTRACT_VERSION=0.12.1
