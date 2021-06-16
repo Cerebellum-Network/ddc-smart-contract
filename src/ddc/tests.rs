@@ -2001,4 +2001,47 @@ fn actualize_subscriptions_works() {
         contract.get_total_ddc_balance(),
         0
     );
+
+    let mut subscription = contract.subscriptions.get(&alice).unwrap().clone();
+    let tier = contract.tier_limit_of(alice);
+
+    let middle_of_period = PERIOD_MS / 2;
+    let end_of_period = PERIOD_MS;
+
+    assert_eq!(
+        Ddc::actualize_subscription_at_time(middle_of_period, &mut subscription, &tier),
+        1
+    );
+
+    assert_eq!(
+        Ddc::actualize_subscription_at_time(end_of_period, &mut subscription, &tier),
+        1
+    );
+
+    let mut subscription = contract.subscriptions.get(&bob).unwrap().clone();
+    let tier = contract.tier_limit_of(bob);
+
+    assert_eq!(
+        Ddc::actualize_subscription_at_time(middle_of_period, &mut subscription, &tier),
+        2
+    );
+
+    assert_eq!(
+        Ddc::actualize_subscription_at_time(end_of_period, &mut subscription, &tier),
+        2
+    );
+
+    let mut subscription = contract.subscriptions.get(&charlie).unwrap().clone();
+    let tier = contract.tier_limit_of(charlie);
+
+    assert_eq!(
+        Ddc::actualize_subscription_at_time(middle_of_period, &mut subscription, &tier),
+        4
+    );
+
+    assert_eq!(
+        Ddc::actualize_subscription_at_time(end_of_period, &mut subscription, &tier),
+        4
+    );
+
 }

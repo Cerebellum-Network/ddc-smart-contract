@@ -435,17 +435,14 @@ mod ddc {
             subscription.last_update_ms + prepaid_time_ms as u64
         }
 
-        fn get_consumed_balance(subscription: &AppSubscription, subscription_tier: &ServiceTier) -> Balance {
-            let now_ms = Self::env().block_timestamp();
+        fn get_consumed_balance_at_time(now_ms: u64, subscription: &AppSubscription, subscription_tier: &ServiceTier) -> Balance {
             let duration_consumed = now_ms - subscription.last_update_ms;
 
             duration_consumed as u128 * subscription_tier.tier_fee / 31 / MS_PER_DAY as u128
         }
 
-        fn actualize_subscription(subscription: &mut AppSubscription, subscription_tier: &ServiceTier) -> Balance {
-            let now_ms = Self::env().block_timestamp();
-
-            let consumed = Self::get_consumed_balance(subscription, subscription_tier);
+        fn actualize_subscription_at_time(now_ms: u64, subscription: &mut AppSubscription, subscription_tier: &ServiceTier) -> Balance {
+            let consumed = Self::get_consumed_balance_at_time(now_ms, subscription, subscription_tier);
             let actually_consumed;
 
             if consumed > subscription.balance {
@@ -458,6 +455,12 @@ mod ddc {
             subscription.last_update_ms = now_ms;
 
             actually_consumed
+        }
+
+        fn actualize_subscription(subscription: &mut AppSubscription, subscription_tier: &ServiceTier) -> Balance {
+            let now_ms = Self::env().block_timestamp();
+
+            Self::actualize_subscription_at_time(now_ms, subscription, subscription_tier)
         }
 
         #[ink(message)]
