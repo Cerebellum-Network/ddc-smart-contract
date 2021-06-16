@@ -38,7 +38,7 @@ mod ddc {
         ddc_nodes: StorageHashMap<String, DDCNode>,
 
         // -- Statuses of DDC Nodes--
-        ddn_statuses: StorageHashMap<String, DDNStatus>,
+        ddn_statuses: StorageHashMap<DDNStatusKey, DDNStatus>,
 
         // -- Metrics Reporting --
         pub metrics: StorageHashMap<MetricKey, MetricValue>,
@@ -737,9 +737,7 @@ mod ddc {
     }
 
     // ---- DDN Statuses ----
-    #[derive(
-        Default, Clone, PartialEq, Eq, PartialOrd, Ord, Encode, Decode, SpreadLayout, PackedLayout,
-    )]
+    #[derive(Default, Copy, Clone, PartialEq, Encode, Decode, SpreadLayout, PackedLayout)]
     #[cfg_attr(feature = "std", derive(Debug, scale_info::TypeInfo))]
     pub struct DDNStatus {
         is_online: bool,
@@ -748,13 +746,29 @@ mod ddc {
         last_timestamp: u64,
     }
 
+    // ---- DDN Status Key ----
+    #[derive(
+        Default, Clone, PartialEq, Eq, PartialOrd, Ord, Encode, Decode, SpreadLayout, PackedLayout,
+    )]
+    #[cfg_attr(feature = "std", derive(Debug, scale_info::TypeInfo))]
+    pub struct DDNStatusKey {
+        reporter: AccountId,
+        p2p_id: String,
+    }
+
     impl Ddc {
         // Private function to set DDN status (used in tests)
-        fn set_ddn_status(&mut self, p2p_id: String, now: u64, is_online: bool) -> Result<()> {
-            let ddn_status = match self.ddn_statuses.get_mut(&p2p_id) {
-                Some(ddn_status) => ddn_status,
-                None => return Err(Error::DDNNotFound),
-            };
+        fn set_ddn_status(
+            &mut self,
+            reporter: AccountId,
+            p2p_id: String,
+            now: u64,
+            is_online: bool,
+        ) -> Result<()> {
+            let ddn_status = self
+                .ddn_statuses
+                .get_mut(&DDNStatusKey { reporter, p2p_id })
+                .ok_or(Error::DDNNotFound)?;
 
             if now < ddn_status.last_timestamp || now < ddn_status.reference_timestamp {
                 return Err(Error::UnexpectedTimestamp);
@@ -781,18 +795,23 @@ mod ddc {
 
             let now = Self::env().block_timestamp();
 
-            self.set_ddn_status(p2p_id, now, is_online)
+            self.set_ddn_status(reporter, p2p_id, now, is_online)
         }
 
         /// Get DDC node status
         #[ink(message)]
         pub fn get_ddn_status(&self, p2p_id: String) -> Result<DDNStatus> {
-            let ddn_status = match self.ddn_statuses.get(&p2p_id) {
-                Some(ddn_status) => ddn_status.clone(),
-                None => return Err(Error::DDNNotFound),
-            };
-
-            Ok(ddn_status)
+            let mut day_statuses: Vec<DDNStatus> = Vec::new();
+            for reporter in self.reporters.keys() {
+                let ddn_status = self
+                    .ddn_statuses
+                    .get(&DDNStatusKey { reporter: *reporter, p2p_id })
+                    .cloned()
+                    .ok_or(Error::DDNNotFound)?;
+                day_statuses.push(ddn_status);
+            }
+            // TODO: Take the correct value
+            Ok(day_statuses[0])
         }
     }
 
@@ -813,6 +832,7 @@ mod ddc {
     )]
     #[cfg_attr(feature = "std", derive(Debug, scale_info::TypeInfo))]
     pub struct MetricKeyDDN {
+        reporter: AccountId,
         p2p_id: String,
         day_of_period: u64,
     }
@@ -829,7 +849,7 @@ mod ddc {
     }
 
     impl MetricValue {
-        pub fn add_assign(&mut self, other: &Self) {
+        pub fn add_assign(&mut self, other: Self) {
             self.storage_bytes += other.storage_bytes;
             self.wcu_used += other.wcu_used;
             self.rcu_used += other.rcu_used;
@@ -837,7 +857,7 @@ mod ddc {
     }
 
     #[ink(event)]
-    pub struct NewMetric {
+    pub struct MetricReported {
         #[ink(topic)]
         reporter: AccountId,
         #[ink(topic)]
@@ -846,7 +866,7 @@ mod ddc {
     }
 
     #[ink(event)]
-    pub struct NewMetricDDN {
+    pub struct MetricDDNReported {
         #[ink(topic)]
         reporter: AccountId,
         #[ink(topic)]
@@ -917,11 +937,11 @@ mod ddc {
                     }
                 }
 
-                period_metrics.add_assign(&MetricValue {
+                period_metrics.add_assign(MetricValue {
                     storage_bytes: get_median(day_storage_bytes).unwrap_or(0),
                     wcu_used: get_median(day_wcu_used).unwrap_or(0),
                     rcu_used: get_median(day_rcu_used).unwrap_or(0),
-                    start_ms: 0, // Ignored.
+                    start_ms: 0, // Ignored
                 });
             }
             period_metrics
@@ -968,16 +988,43 @@ mod ddc {
             };
 
             for day in first_day..last_day {
-                let metrics = self.metrics_for_ddn_day(p2p_id.clone(), day);
-                period_metrics.push(metrics);
+                let mut day_storage_bytes: Vec<u64> = Vec::new();
+                let mut day_wcu_used: Vec<u64> = Vec::new();
+                let mut day_rcu_used: Vec<u64> = Vec::new();
+
+                for reporter in self.reporters.keys() {
+                    let MetricValue {
+                        storage_bytes,
+                        wcu_used,
+                        rcu_used,
+                        ..
+                    } = self.metrics_for_ddn_day(reporter.clone(), p2p_id.clone(), day);
+
+                    day_storage_bytes.push(storage_bytes);
+                    day_wcu_used.push(wcu_used);
+                    day_rcu_used.push(rcu_used);
+                }
+
+                period_metrics.push(MetricValue {
+                    storage_bytes: get_median(day_storage_bytes).unwrap_or(0),
+                    wcu_used: get_median(day_wcu_used).unwrap_or(0),
+                    rcu_used: get_median(day_rcu_used).unwrap_or(0),
+                    start_ms: 0, // Ignored
+                });
             }
 
             period_metrics
         }
 
-        fn metrics_for_ddn_day(&self, p2p_id: String, day: u64) -> MetricValue {
+        fn metrics_for_ddn_day(
+            &self,
+            reporter: AccountId,
+            p2p_id: String,
+            day: u64,
+        ) -> MetricValue {
             let day_of_period = day % PERIOD_DAYS;
             let day_key = MetricKeyDDN {
+                reporter,
                 p2p_id,
                 day_of_period,
             };
@@ -1028,7 +1075,7 @@ mod ddc {
 
             self.metrics.insert(key.clone(), metrics.clone());
 
-            self.env().emit_event(NewMetric {
+            self.env().emit_event(MetricReported {
                 reporter,
                 key,
                 metrics,
@@ -1057,6 +1104,7 @@ mod ddc {
             let day_of_period = day % PERIOD_DAYS;
 
             let key = MetricKeyDDN {
+                reporter,
                 p2p_id: p2p_id.clone(),
                 day_of_period,
             };
@@ -1071,7 +1119,7 @@ mod ddc {
 
             self.report_ddn_status(p2p_id, true).unwrap();
 
-            self.env().emit_event(NewMetricDDN {
+            self.env().emit_event(MetricDDNReported {
                 reporter,
                 key,
                 metrics,

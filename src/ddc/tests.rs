@@ -1865,7 +1865,7 @@ fn report_metrics_ddn_works() {
     ];
 
     for i in 0..PERIOD_DAYS as usize {
-        expected[i].start_ms = (first_day + i as u64) * MS_PER_DAY;
+        expected[i].start_ms = 0; // Ignore
     }
 
     expected[17].storage_bytes = storage_bytes;
