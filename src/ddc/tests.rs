@@ -1968,3 +1968,37 @@ fn get_app_limit_works() {
         Ok(AppSubscriptionLimit::new(1000, 1000, 1000,))
     );
 }
+
+#[ink::test]
+fn actualize_subscriptions_works() {
+    let accounts = default_accounts::<DefaultEnvironment>().unwrap();
+    let mut contract = make_contract();
+
+    let alice = accounts.alice;
+    set_exec_context(alice, 2);
+    contract.subscribe(1).unwrap();
+    undo_set_exec_context();
+
+    let bob = accounts.bob;
+    set_exec_context(bob, 4);
+    contract.subscribe(2).unwrap();
+    undo_set_exec_context();
+
+    let charlie = accounts.charlie;
+    set_exec_context(charlie, 8);
+    contract.subscribe(3).unwrap();
+
+    assert_eq!(
+        contract.actualize_subscriptions(),
+        Err(Error::OnlyOwner)
+    );
+
+    undo_set_exec_context();
+
+    contract.actualize_subscriptions().unwrap();
+
+    assert_eq!(
+        contract.get_total_ddc_balance(),
+        0
+    );
+}
