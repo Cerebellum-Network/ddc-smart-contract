@@ -427,9 +427,9 @@ mod ddc {
             let tier_id = subscription.tier_id;
             let tier = self.service_tiers.get(&tier_id).unwrap();
             let price = tier.tier_fee; // get tier fee
-            let prepaid_time_ms = subscription.balance * PERIOD_MS as u128 / price;
+            let prepaid_time_ms = subscription.balance as u64 * PERIOD_MS / price as u64;
 
-            subscription.last_update_ms + prepaid_time_ms as u64
+            subscription.last_update_ms + prepaid_time_ms
         }
 
         fn get_consumed_balance(&self, subscription: &AppSubscription) -> Balance {
@@ -438,7 +438,7 @@ mod ddc {
             let tier_id = subscription.tier_id;
             let tier = self.service_tiers.get(&tier_id).unwrap();
 
-            duration_consumed as u128 * tier.tier_fee / 31 / MS_PER_DAY as u128
+            (duration_consumed as u64 * tier.tier_fee as u64 / 31 / MS_PER_DAY as u64) as u128
         }
 
         fn actualize_subscription(&mut self, subscription: &mut AppSubscription) {
