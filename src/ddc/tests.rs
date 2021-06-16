@@ -1988,19 +1988,13 @@ fn actualize_subscriptions_works() {
     set_exec_context(charlie, 8);
     contract.subscribe(3).unwrap();
 
-    assert_eq!(
-        contract.actualize_subscriptions(),
-        Err(Error::OnlyOwner)
-    );
+    assert_eq!(contract.actualize_subscriptions(), Err(Error::OnlyOwner));
 
     undo_set_exec_context();
 
     contract.actualize_subscriptions().unwrap();
 
-    assert_eq!(
-        contract.get_total_ddc_balance(),
-        0
-    );
+    assert_eq!(contract.get_total_ddc_balance(), 0);
 
     let mut subscription = contract.subscriptions.get(&alice).unwrap().clone();
     let tier = contract.tier_limit_of(alice);
@@ -2043,5 +2037,4 @@ fn actualize_subscriptions_works() {
         Ddc::actualize_subscription_at_time(end_of_period, &mut subscription, &tier),
         4
     );
-
 }
