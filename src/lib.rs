@@ -459,7 +459,10 @@ mod ddc {
         }
 
         #[ink(message)]
-        pub fn actualize_subscriptions(&mut self) {
+        pub fn actualize_subscriptions(&mut self) -> Result<()> {
+            let caller = self.env().caller();
+            self.only_owner(caller)?;
+
             for account_id in self.subscriptions.keys() {
                 let subscription = self.subscriptions.get(&account_id).unwrap().clone();
 
@@ -467,6 +470,8 @@ mod ddc {
 
                 self.subscriptions.insert(account_id.clone(), subscription.clone());
             }
+
+            Ok(())
         }
 
         pub fn get_total_ddc_balance(&self)-> Balance {
