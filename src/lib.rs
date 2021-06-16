@@ -447,14 +447,16 @@ mod ddc {
         fn actualize_subscription(&mut self, subscription: &mut AppSubscription) {
             let now_ms = Self::env().block_timestamp();
             let consumed = self.get_consumed_balance(subscription);
-
-            self.total_ddc_balance += consumed;
+            let actually_consumed;
 
             if consumed > subscription.balance {
+                actually_consumed = subscription.balance;
                 subscription.balance = 0;
             } else {
                 subscription.balance -= consumed;
+                actually_consumed = consumed;
             }
+            self.total_ddc_balance += actually_consumed;
             subscription.last_update_ms = now_ms;
         }
 
