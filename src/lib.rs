@@ -465,12 +465,8 @@ mod ddc {
             let caller = self.env().caller();
             self.only_owner(caller)?;
 
-            for account_id in self.subscriptions.keys() {
-                let subscription = self.subscriptions.get(&account_id).unwrap().clone();
-
-                self.actualize_subscription(&mut subscription);
-
-                self.subscriptions.insert(account_id.clone(), subscription.clone());
+            for (_, subscription) in self.subscriptions.iter_mut() {
+                self.actualize_subscription(subscription);
             }
 
             Ok(())
