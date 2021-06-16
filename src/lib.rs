@@ -466,6 +466,7 @@ mod ddc {
             actually_consumed
         }
 
+        #[must_use]
         fn actualize_subscription(
             subscription: &mut AppSubscription,
             subscription_tier: &ServiceTier,
@@ -479,7 +480,6 @@ mod ddc {
         pub fn actualize_subscriptions(&mut self) -> Result<()> {
             let caller = self.env().caller();
             self.only_owner(caller)?;
-            let mut consumed: Balance = 0;
 
             for (_, subscription) in self.subscriptions.iter_mut() {
                 let subscription_tier = match self.service_tiers.get(&subscription.tier_id) {
@@ -487,10 +487,8 @@ mod ddc {
                     Some(v) => v,
                 };
 
-                consumed += Self::actualize_subscription(subscription, subscription_tier);
+                self.total_ddc_balance += Self::actualize_subscription(subscription, subscription_tier);
             }
-
-            self.total_ddc_balance += consumed;
 
             Ok(())
         }
@@ -504,7 +502,7 @@ mod ddc {
                 None => return Err(Error::TidOutOfBound),
                 Some(v) => v,
             };
-            Self::actualize_subscription(subscription, subscription_tier);
+            self.total_ddc_balance += Self::actualize_subscription(subscription, subscription_tier);
 
             subscription.tier_id = new_tier_id.clone();
 
@@ -624,7 +622,7 @@ mod ddc {
                 None => return Err(Error::TidOutOfBound),
                 Some(v) => v,
             };
-            Self::actualize_subscription(subscription, subscription_tier);
+            self.total_ddc_balance += Self::actualize_subscription(subscription, subscription_tier);
             let to_refund = subscription.balance;
             subscription.balance = 0;
 
