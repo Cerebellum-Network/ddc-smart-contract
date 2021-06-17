@@ -1,7 +1,7 @@
 use crate::ddc::Error::*;
 use ink_env::{
     call, test,
-    test::{default_accounts, recorded_events},
+    test::{advance_block, default_accounts, initialize_or_reset_as_default, recorded_events},
     AccountId, DefaultEnvironment,
 };
 use ink_lang as ink;
@@ -205,7 +205,7 @@ fn withdraw_works() {
 
 /// Sets exec context
 fn set_exec_context(caller: AccountId, endowement: Balance) {
-    let callee = ink_env::account_id::<ink_env::DefaultEnvironment>().unwrap_or([0x0; 32].into());
+    let callee = ink_env::account_id::<DefaultEnvironment>().unwrap_or([0x0; 32].into());
     test::push_execution_context::<Environment>(
         caller,
         callee,
@@ -220,15 +220,15 @@ fn undo_set_exec_context() {
 }
 
 fn balance_of(account: AccountId) -> Balance {
-    test::get_account_balance::<ink_env::DefaultEnvironment>(account).unwrap()
+    test::get_account_balance::<DefaultEnvironment>(account).unwrap()
 }
 
 fn set_balance(account: AccountId, balance: Balance) {
-    ink_env::test::set_account_balance::<ink_env::DefaultEnvironment>(account, balance).unwrap();
+    ink_env::test::set_account_balance::<DefaultEnvironment>(account, balance).unwrap();
 }
 
 fn contract_id() -> AccountId {
-    ink_env::test::get_current_contract_account_id::<ink_env::DefaultEnvironment>().unwrap()
+    ink_env::test::get_current_contract_account_id::<DefaultEnvironment>().unwrap()
 }
 
 #[ink::test]
@@ -1413,17 +1413,6 @@ fn add_ddc_node_works() {
         },]
     );
 
-    // Should add the default DDN status
-    assert_eq!(
-        contract.get_ddn_status(p2p_id.clone()).unwrap(),
-        DDNStatus {
-            is_online: true,
-            total_downtime: 0,
-            reference_timestamp: 0,
-            last_timestamp: 0,
-        }
-    );
-
     // Should emit event
     let raw_events = recorded_events().collect::<Vec<_>>();
     assert_eq!(4, raw_events.len()); // 3 x tier added + node added
@@ -1535,154 +1524,6 @@ fn remove_ddc_node_works() {
 // ---- DDN Statuses ----
 
 #[ink::test]
-fn set_ddn_status_not_found_works() {
-    let mut contract = make_contract();
-    let p2p_id = String::from("test_p2p_id");
-    let accounts = default_accounts::<DefaultEnvironment>().unwrap();
-    let reporter = accounts.alice;
-
-    // DDC node should be in the list
-    assert_eq!(
-        contract.set_ddn_status(reporter, p2p_id, 4, true),
-        Err(Error::DDNNotFound)
-    );
-}
-
-#[ink::test]
-fn set_ddn_status_works() {
-    let mut contract = make_contract();
-    let accounts = default_accounts::<DefaultEnvironment>().unwrap();
-    let reporter = accounts.alice;
-    let p2p_id = "test_p2p_id".to_string();
-    let p2p_addr = "test_p2p_addr".to_string();
-    let url = String::from("test_url");
-
-    // Add DDC node to the list
-    contract
-        .add_ddc_node(p2p_id.clone(), p2p_addr.clone(), url)
-        .unwrap();
-
-    // Calculations should work
-    contract
-        .set_ddn_status(reporter, p2p_id.clone(), 4, true)
-        .unwrap();
-    assert_eq!(
-        contract.get_ddn_status(p2p_id.clone()).unwrap(),
-        DDNStatus {
-            is_online: true,
-            total_downtime: 0,
-            reference_timestamp: 0,
-            last_timestamp: 4,
-        }
-    );
-
-    contract
-        .set_ddn_status(reporter, p2p_id.clone(), 6, true)
-        .unwrap();
-    assert_eq!(
-        contract.get_ddn_status(p2p_id.clone()).unwrap(),
-        DDNStatus {
-            is_online: true,
-            total_downtime: 0,
-            reference_timestamp: 0,
-            last_timestamp: 6,
-        }
-    );
-
-    contract
-        .set_ddn_status(reporter, p2p_id.clone(), 8, false)
-        .unwrap();
-    assert_eq!(
-        contract.get_ddn_status(p2p_id.clone()),
-        Ok(DDNStatus {
-            is_online: false,
-            total_downtime: 0,
-            reference_timestamp: 0,
-            last_timestamp: 8,
-        })
-    );
-
-    contract
-        .set_ddn_status(reporter, p2p_id.clone(), 10, false)
-        .unwrap();
-    assert_eq!(
-        contract.get_ddn_status(p2p_id.clone()),
-        Ok(DDNStatus {
-            is_online: false,
-            total_downtime: 2,
-            reference_timestamp: 0,
-            last_timestamp: 10,
-        })
-    );
-
-    contract
-        .set_ddn_status(reporter, p2p_id.clone(), 12, true)
-        .unwrap();
-    assert_eq!(
-        contract.get_ddn_status(p2p_id.clone()),
-        Ok(DDNStatus {
-            is_online: true,
-            total_downtime: 4,
-            reference_timestamp: 0,
-            last_timestamp: 12,
-        })
-    );
-
-    contract
-        .set_ddn_status(reporter, p2p_id.clone(), 18, false)
-        .unwrap();
-    assert_eq!(
-        contract.get_ddn_status(p2p_id.clone()),
-        Ok(DDNStatus {
-            is_online: false,
-            total_downtime: 4,
-            reference_timestamp: 0,
-            last_timestamp: 18,
-        })
-    );
-
-    contract
-        .set_ddn_status(reporter, p2p_id.clone(), 25, true)
-        .unwrap();
-    assert_eq!(
-        contract.get_ddn_status(p2p_id.clone()),
-        Ok(DDNStatus {
-            is_online: true,
-            total_downtime: 11,
-            reference_timestamp: 0,
-            last_timestamp: 25,
-        })
-    );
-}
-
-#[ink::test]
-fn set_ddn_status_unexpected_timestamp_works() {
-    let mut contract = make_contract();
-    let accounts = default_accounts::<DefaultEnvironment>().unwrap();
-    let reporter = accounts.alice;
-    let p2p_id = "test_p2p_id".to_string();
-    let p2p_addr = "test_p2p_addr".to_string();
-    let url = String::from("test_url");
-
-    // Add DDC node to the list
-    contract
-        .add_ddc_node(p2p_id.clone(), p2p_addr.clone(), url)
-        .unwrap();
-
-    // Set status for a timestamp
-    assert_eq!(
-        contract.set_ddn_status(reporter, p2p_id.clone(), 10, true),
-        Ok(())
-    );
-
-    // Specified timestamp must be greater than the last one
-    assert_eq!(
-        contract.set_ddn_status(reporter, p2p_id, 8, true),
-        Err(Error::UnexpectedTimestamp)
-    );
-}
-
-#[ink::test]
 fn get_ddn_status_not_found_works() {
     let contract = make_contract();
     let p2p_id = String::from("test_p2p_id");
@@ -1695,10 +1536,12 @@ fn get_ddn_status_not_found_works() {
 fn get_ddn_status_works() {
     let mut contract = make_contract();
     let accounts = default_accounts::<DefaultEnvironment>().unwrap();
-    let reporter = accounts.alice;
     let p2p_id = "test_p2p_id".to_string();
     let p2p_addr = "test_p2p_addr".to_string();
     let url = String::from("test_url");
+
+    // Make admin a reporter
+    contract.add_reporter(accounts.alice).unwrap();
 
     // Add DDC node to the list
     contract
@@ -1706,9 +1549,7 @@ fn get_ddn_status_works() {
         .unwrap();
 
     // Set new status
-    contract
-        .set_ddn_status(reporter, p2p_id.clone(), 2, false)
-        .unwrap();
+    contract.report_ddn_status(p2p_id.clone(), false).unwrap();
 
     // Get updated status
     assert_eq!(
@@ -1717,7 +1558,7 @@ fn get_ddn_status_works() {
             is_online: false,
             total_downtime: 0,
             reference_timestamp: 0,
-            last_timestamp: 2,
+            last_timestamp: 0,
         })
     );
 }
@@ -1751,7 +1592,7 @@ fn report_ddn_status_not_found_works() {
 }
 
 #[ink::test]
-fn report_ddn_status_works() {
+fn report_ddn_status_unexpected_timestamp_works() {
     let mut contract = make_contract();
     let accounts = default_accounts::<DefaultEnvironment>().unwrap();
     let p2p_id = "test_p2p_id".to_string();
@@ -1766,46 +1607,122 @@ fn report_ddn_status_works() {
         .add_ddc_node(p2p_id.clone(), p2p_addr.clone(), url)
         .unwrap();
 
-    // Should return Ok
+    // Increase block time by 5
+    advance_block::<DefaultEnvironment>().unwrap();
+
+    // Report DDN status
     assert_eq!(contract.report_ddn_status(p2p_id.clone(), true), Ok(()));
+
+    // Reset off-chain testing environment
+    initialize_or_reset_as_default::<DefaultEnvironment>().unwrap();
+
+    // Specified timestamp must be greater than the last one
+    assert_eq!(
+        contract.report_ddn_status(p2p_id, true),
+        Err(Error::UnexpectedTimestamp)
+    );
 }
 
 #[ink::test]
-fn default_ddn_status_works() {
+fn report_ddn_status_works() {
     let mut contract = make_contract();
     let accounts = default_accounts::<DefaultEnvironment>().unwrap();
-    let reporter = accounts.alice;
     let p2p_id = "test_p2p_id".to_string();
     let p2p_addr = "test_p2p_addr".to_string();
     let url = String::from("test_url");
-    let new_url = String::from("test_url_new");
 
-    // Add DDC node to the list
+    // Make admin a reporter
+    contract.add_reporter(accounts.alice).unwrap();
+
+    // Add DDC node
     contract
-        .add_ddc_node(p2p_id.clone(), p2p_addr.clone(), url.clone())
+        .add_ddc_node(p2p_id.clone(), p2p_addr.clone(), url)
         .unwrap();
 
-    // Set new status
-    contract
-        .set_ddn_status(reporter, p2p_id.clone(), 2, false)
-        .unwrap();
-    contract
-        .set_ddn_status(reporter, p2p_id.clone(), 6, false)
-        .unwrap();
+    // Update block time from 0 to 5
+    advance_block::<DefaultEnvironment>().unwrap();
 
-    // Repeat adding DDC node (update url)
-    contract
-        .add_ddc_node(p2p_id.clone(), p2p_addr.clone(), new_url.clone())
-        .unwrap();
+    // Calculations should work
+    contract.report_ddn_status(p2p_id.clone(), true).unwrap();
+    assert_eq!(
+        contract.get_ddn_status(p2p_id.clone()).unwrap(),
+        DDNStatus {
+            is_online: true,
+            total_downtime: 0,
+            reference_timestamp: 5,
+            last_timestamp: 5,
+        }
+    );
 
-    // Get updated status
+    advance_block::<DefaultEnvironment>().unwrap();
+    contract.report_ddn_status(p2p_id.clone(), true).unwrap();
+    assert_eq!(
+        contract.get_ddn_status(p2p_id.clone()).unwrap(),
+        DDNStatus {
+            is_online: true,
+            total_downtime: 0,
+            reference_timestamp: 5,
+            last_timestamp: 10,
+        }
+    );
+
+    advance_block::<DefaultEnvironment>().unwrap();
+    contract.report_ddn_status(p2p_id.clone(), false).unwrap();
     assert_eq!(
         contract.get_ddn_status(p2p_id.clone()),
         Ok(DDNStatus {
             is_online: false,
-            total_downtime: 4,
-            reference_timestamp: 0,
-            last_timestamp: 6,
+            total_downtime: 0,
+            reference_timestamp: 5,
+            last_timestamp: 15,
+        })
+    );
+
+    advance_block::<DefaultEnvironment>().unwrap();
+    contract.report_ddn_status(p2p_id.clone(), false).unwrap();
+    assert_eq!(
+        contract.get_ddn_status(p2p_id.clone()),
+        Ok(DDNStatus {
+            is_online: false,
+            total_downtime: 5,
+            reference_timestamp: 5,
+            last_timestamp: 20,
+        })
+    );
+
+    advance_block::<DefaultEnvironment>().unwrap();
+    contract.report_ddn_status(p2p_id.clone(), true).unwrap();
+    assert_eq!(
+        contract.get_ddn_status(p2p_id.clone()),
+        Ok(DDNStatus {
+            is_online: true,
+            total_downtime: 10,
+            reference_timestamp: 5,
+            last_timestamp: 25,
+        })
+    );
+
+    advance_block::<DefaultEnvironment>().unwrap();
+    contract.report_ddn_status(p2p_id.clone(), false).unwrap();
+    assert_eq!(
+        contract.get_ddn_status(p2p_id.clone()),
+        Ok(DDNStatus {
+            is_online: false,
+            total_downtime: 10,
+            reference_timestamp: 5,
+            last_timestamp: 30,
+        })
+    );
+
+    advance_block::<DefaultEnvironment>().unwrap();
+    contract.report_ddn_status(p2p_id.clone(), true).unwrap();
+    assert_eq!(
+        contract.get_ddn_status(p2p_id.clone()),
+        Ok(DDNStatus {
+            is_online: true,
+            total_downtime: 15,
+            reference_timestamp: 5,
+            last_timestamp: 35,
         })
     );
 }
@@ -1814,7 +1731,6 @@ fn default_ddn_status_works() {
 fn report_metrics_updates_ddn_status_works() {
     let mut contract = make_contract();
     let accounts = default_accounts::<DefaultEnvironment>().unwrap();
-    let reporter = accounts.alice;
 
     let first_day = 1000;
 
@@ -1829,18 +1745,19 @@ fn report_metrics_updates_ddn_status_works() {
 
     let url = String::from("test_url");
 
+    // Make admin a reporter
+    contract.add_reporter(accounts.alice).unwrap();
+
     // Add DDC node to the list
     contract
         .add_ddc_node(p2p_id.clone(), p2p_addr, url)
         .unwrap();
 
     // Set new DDC node status
-    contract
-        .set_ddn_status(reporter, p2p_id.clone(), 0, false)
-        .unwrap();
+    contract.report_ddn_status(p2p_id.clone(), false).unwrap();
 
-    // Make admin a reporter
-    contract.add_reporter(accounts.alice).unwrap();
+    // Advance block time
+    advance_block::<DefaultEnvironment>().unwrap();
 
     // Report DDN metrics
     contract
@@ -1852,9 +1769,9 @@ fn report_metrics_updates_ddn_status_works() {
         contract.get_ddn_status(p2p_id),
         Ok(DDNStatus {
             is_online: true,
-            total_downtime: 0,
+            total_downtime: 5,
             reference_timestamp: 0,
-            last_timestamp: 0,
+            last_timestamp: 5,
         })
     );
 }

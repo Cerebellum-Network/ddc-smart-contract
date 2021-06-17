@@ -751,33 +751,34 @@ mod ddc {
     }
 
     impl Ddc {
-        // Private function to set DDN status (used in tests)
-        fn set_ddn_status(
-            &mut self,
-            reporter: AccountId,
-            p2p_id: String,
-            now: u64,
-            is_online: bool,
-        ) -> Result<()> {
+        /// Update DDC node connectivity status (online/offline)
+        /// Called by OCW to set DDN offline status if fetching of node metrics failed
+        /// Called by SC to set online status when metrics is reported
+        #[ink(message)]
+        pub fn report_ddn_status(&mut self, p2p_id: String, is_online: bool) -> Result<()> {
+            let reporter = self.env().caller();
+            self.only_reporter(&reporter)?;
+
+            if !self.ddc_nodes.contains_key(&p2p_id) {
+                return Err(Error::DDNNotFound);
+            }
+
+            let now = Self::env().block_timestamp();
             let key = DDNStatusKey { reporter, p2p_id };
 
             // Add new DDN status if not exists
             if !self.ddn_statuses.contains_key(&key) {
-                self.ddn_statuses.insert(
-                    key.clone(),
-                    DDNStatus {
-                        is_online,
-                        total_downtime: 0,
-                        reference_timestamp: now,
-                        last_timestamp: now,
-                    },
-                );
+                let new_ddn_status = DDNStatus {
+                    is_online,
+                    total_downtime: 0,
+                    reference_timestamp: now,
+                    last_timestamp: now,
+                };
+                self.ddn_statuses.insert(key.clone(), new_ddn_status);
             }
 
-            // Get reporter's DDN status
             let ddn_status = self.ddn_statuses.get_mut(&key).unwrap();
 
-            // Validate timestamp
             if now < ddn_status.last_timestamp || now < ddn_status.reference_timestamp {
                 return Err(Error::UnexpectedTimestamp);
             }
@@ -788,24 +789,10 @@ mod ddc {
                 ddn_status.total_downtime += last_downtime;
             }
 
-            // Update status and timestamp
             ddn_status.is_online = is_online;
             ddn_status.last_timestamp = now;
 
             Ok(())
-        }
-
-        /// Update DDC node connectivity status (online/offline)
-        /// Called by OCW to set DDN offline status if fetching of node metrics failed
-        /// Called by SC to set online status when metrics is reported
-        #[ink(message)]
-        pub fn report_ddn_status(&mut self, p2p_id: String, is_online: bool) -> Result<()> {
-            let reporter = self.env().caller();
-            self.only_reporter(&reporter)?;
-
-            let now = Self::env().block_timestamp();
-
-            self.set_ddn_status(reporter, p2p_id, now, is_online)
         }
 
         /// Get DDC node status
@@ -815,13 +802,13 @@ mod ddc {
 
             // Collect DDN statuses from all reporters
             for &reporter in self.reporters.keys() {
-                let ddn_status = self.ddn_statuses.get(&DDNStatusKey {
+                let key = DDNStatusKey {
                     reporter,
                     p2p_id: p2p_id.clone(),
-                });
+                };
 
-                if ddn_status.is_some() {
-                    ddn_statuses.push(ddn_status.unwrap())
+                if let Some(ddn_status) = self.ddn_statuses.get(&key) {
+                    ddn_statuses.push(ddn_status);
                 }
             }
 
@@ -1026,7 +1013,8 @@ mod ddc {
                 let mut day_rcu_used: Vec<u64> = Vec::new();
 
                 for reporter in self.reporters.keys() {
-                    let day_metric = self.metrics_for_ddn_day(reporter.clone(), p2p_id.clone(), day);
+                    let day_metric =
+                        self.metrics_for_ddn_day(reporter.clone(), p2p_id.clone(), day);
 
                     day_storage_bytes.push(day_metric.storage_bytes);
                     day_wcu_used.push(day_metric.wcu_used);
