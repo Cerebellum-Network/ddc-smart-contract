@@ -711,18 +711,20 @@ mod ddc {
             let caller = self.env().caller();
             self.only_owner(caller)?;
 
+            // Remove DDN if exists
+            let removed_node = self.ddc_nodes.take(&p2p_id).ok_or(Error::DDNNotFound)?;
+            Self::env().emit_event(DDCNodeRemoved {
+                p2p_id: p2p_id.clone(),
+                p2p_addr: removed_node.p2p_addr,
+            });
+
+            // Remove DDN status entries from all reporters
             for &reporter in self.reporters.keys() {
                 self.ddn_statuses.take(&DDNStatusKey {
                     reporter,
                     p2p_id: p2p_id.clone(),
                 });
             }
-
-            let node = self.ddc_nodes.take(&p2p_id).unwrap();
-            Self::env().emit_event(DDCNodeRemoved {
-                p2p_id,
-                p2p_addr: node.p2p_addr,
-            });
 
             Ok(())
         }
@@ -1024,16 +1026,11 @@ mod ddc {
                 let mut day_rcu_used: Vec<u64> = Vec::new();
 
                 for reporter in self.reporters.keys() {
-                    let MetricValue {
-                        storage_bytes,
-                        wcu_used,
-                        rcu_used,
-                        ..
-                    } = self.metrics_for_ddn_day(reporter.clone(), p2p_id.clone(), day);
+                    let day_metric = self.metrics_for_ddn_day(reporter.clone(), p2p_id.clone(), day);
 
-                    day_storage_bytes.push(storage_bytes);
-                    day_wcu_used.push(wcu_used);
-                    day_rcu_used.push(rcu_used);
+                    day_storage_bytes.push(day_metric.storage_bytes);
+                    day_wcu_used.push(day_metric.wcu_used);
+                    day_rcu_used.push(day_metric.rcu_used);
                 }
 
                 period_metrics.push(MetricValue {
