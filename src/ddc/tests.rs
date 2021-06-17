@@ -1538,10 +1538,12 @@ fn remove_ddc_node_works() {
 fn set_ddn_status_not_found_works() {
     let mut contract = make_contract();
     let p2p_id = String::from("test_p2p_id");
+    let accounts = default_accounts::<DefaultEnvironment>().unwrap();
+    let reporter = accounts.alice;
 
     // DDC node should be in the list
     assert_eq!(
-        contract.set_ddn_status(p2p_id, 4, true),
+        contract.set_ddn_status(reporter, p2p_id, 4, true),
         Err(Error::DDNNotFound)
     );
 }
@@ -1549,6 +1551,8 @@ fn set_ddn_status_not_found_works() {
 #[ink::test]
 fn set_ddn_status_works() {
     let mut contract = make_contract();
+    let accounts = default_accounts::<DefaultEnvironment>().unwrap();
+    let reporter = accounts.alice;
     let p2p_id = "test_p2p_id".to_string();
     let p2p_addr = "test_p2p_addr".to_string();
     let url = String::from("test_url");
@@ -1559,7 +1563,9 @@ fn set_ddn_status_works() {
         .unwrap();
 
     // Calculations should work
-    contract.set_ddn_status(p2p_id.clone(), 4, true).unwrap();
+    contract
+        .set_ddn_status(reporter, p2p_id.clone(), 4, true)
+        .unwrap();
     assert_eq!(
         contract.get_ddn_status(p2p_id.clone()).unwrap(),
         DDNStatus {
@@ -1570,7 +1576,9 @@ fn set_ddn_status_works() {
         }
     );
 
-    contract.set_ddn_status(p2p_id.clone(), 6, true).unwrap();
+    contract
+        .set_ddn_status(reporter, p2p_id.clone(), 6, true)
+        .unwrap();
     assert_eq!(
         contract.get_ddn_status(p2p_id.clone()).unwrap(),
         DDNStatus {
@@ -1581,7 +1589,9 @@ fn set_ddn_status_works() {
         }
     );
 
-    contract.set_ddn_status(p2p_id.clone(), 8, false).unwrap();
+    contract
+        .set_ddn_status(reporter, p2p_id.clone(), 8, false)
+        .unwrap();
     assert_eq!(
         contract.get_ddn_status(p2p_id.clone()),
         Ok(DDNStatus {
@@ -1592,7 +1602,9 @@ fn set_ddn_status_works() {
         })
     );
 
-    contract.set_ddn_status(p2p_id.clone(), 10, false).unwrap();
+    contract
+        .set_ddn_status(reporter, p2p_id.clone(), 10, false)
+        .unwrap();
     assert_eq!(
         contract.get_ddn_status(p2p_id.clone()),
         Ok(DDNStatus {
@@ -1603,7 +1615,9 @@ fn set_ddn_status_works() {
         })
     );
 
-    contract.set_ddn_status(p2p_id.clone(), 12, true).unwrap();
+    contract
+        .set_ddn_status(reporter, p2p_id.clone(), 12, true)
+        .unwrap();
     assert_eq!(
         contract.get_ddn_status(p2p_id.clone()),
         Ok(DDNStatus {
@@ -1614,7 +1628,9 @@ fn set_ddn_status_works() {
         })
     );
 
-    contract.set_ddn_status(p2p_id.clone(), 18, false).unwrap();
+    contract
+        .set_ddn_status(reporter, p2p_id.clone(), 18, false)
+        .unwrap();
     assert_eq!(
         contract.get_ddn_status(p2p_id.clone()),
         Ok(DDNStatus {
@@ -1625,7 +1641,9 @@ fn set_ddn_status_works() {
         })
     );
 
-    contract.set_ddn_status(p2p_id.clone(), 25, true).unwrap();
+    contract
+        .set_ddn_status(reporter, p2p_id.clone(), 25, true)
+        .unwrap();
     assert_eq!(
         contract.get_ddn_status(p2p_id.clone()),
         Ok(DDNStatus {
@@ -1640,6 +1658,8 @@ fn set_ddn_status_works() {
 #[ink::test]
 fn set_ddn_status_unexpected_timestamp_works() {
     let mut contract = make_contract();
+    let accounts = default_accounts::<DefaultEnvironment>().unwrap();
+    let reporter = accounts.alice;
     let p2p_id = "test_p2p_id".to_string();
     let p2p_addr = "test_p2p_addr".to_string();
     let url = String::from("test_url");
@@ -1650,11 +1670,14 @@ fn set_ddn_status_unexpected_timestamp_works() {
         .unwrap();
 
     // Set status for a timestamp
-    assert_eq!(contract.set_ddn_status(p2p_id.clone(), 10, true), Ok(()));
+    assert_eq!(
+        contract.set_ddn_status(reporter, p2p_id.clone(), 10, true),
+        Ok(())
+    );
 
     // Specified timestamp must be greater than the last one
     assert_eq!(
-        contract.set_ddn_status(p2p_id, 8, true),
+        contract.set_ddn_status(reporter, p2p_id, 8, true),
         Err(Error::UnexpectedTimestamp)
     );
 }
@@ -1671,6 +1694,8 @@ fn get_ddn_status_not_found_works() {
 #[ink::test]
 fn get_ddn_status_works() {
     let mut contract = make_contract();
+    let accounts = default_accounts::<DefaultEnvironment>().unwrap();
+    let reporter = accounts.alice;
     let p2p_id = "test_p2p_id".to_string();
     let p2p_addr = "test_p2p_addr".to_string();
     let url = String::from("test_url");
@@ -1681,7 +1706,9 @@ fn get_ddn_status_works() {
         .unwrap();
 
     // Set new status
-    contract.set_ddn_status(p2p_id.clone(), 2, false).unwrap();
+    contract
+        .set_ddn_status(reporter, p2p_id.clone(), 2, false)
+        .unwrap();
 
     // Get updated status
     assert_eq!(
@@ -1746,6 +1773,8 @@ fn report_ddn_status_works() {
 #[ink::test]
 fn default_ddn_status_works() {
     let mut contract = make_contract();
+    let accounts = default_accounts::<DefaultEnvironment>().unwrap();
+    let reporter = accounts.alice;
     let p2p_id = "test_p2p_id".to_string();
     let p2p_addr = "test_p2p_addr".to_string();
     let url = String::from("test_url");
@@ -1757,8 +1786,12 @@ fn default_ddn_status_works() {
         .unwrap();
 
     // Set new status
-    contract.set_ddn_status(p2p_id.clone(), 2, false).unwrap();
-    contract.set_ddn_status(p2p_id.clone(), 6, false).unwrap();
+    contract
+        .set_ddn_status(reporter, p2p_id.clone(), 2, false)
+        .unwrap();
+    contract
+        .set_ddn_status(reporter, p2p_id.clone(), 6, false)
+        .unwrap();
 
     // Repeat adding DDC node (update url)
     contract
@@ -1781,6 +1814,7 @@ fn default_ddn_status_works() {
 fn report_metrics_updates_ddn_status_works() {
     let mut contract = make_contract();
     let accounts = default_accounts::<DefaultEnvironment>().unwrap();
+    let reporter = accounts.alice;
 
     let first_day = 1000;
 
@@ -1801,7 +1835,9 @@ fn report_metrics_updates_ddn_status_works() {
         .unwrap();
 
     // Set new DDC node status
-    contract.set_ddn_status(p2p_id.clone(), 0, false).unwrap();
+    contract
+        .set_ddn_status(reporter, p2p_id.clone(), 0, false)
+        .unwrap();
 
     // Make admin a reporter
     contract.add_reporter(accounts.alice).unwrap();

@@ -683,19 +683,6 @@ mod ddc {
             let caller = self.env().caller();
             self.only_owner(caller)?;
 
-            if !self.ddn_statuses.contains_key(&p2p_id) {
-                let now = Self::env().block_timestamp();
-                self.ddn_statuses.insert(
-                    p2p_id.clone(),
-                    DDNStatus {
-                        is_online: true,
-                        total_downtime: 0,
-                        reference_timestamp: now,
-                        last_timestamp: now,
-                    },
-                );
-            }
-
             self.ddc_nodes.insert(
                 p2p_id.clone(),
                 DDCNode {
@@ -705,8 +692,8 @@ mod ddc {
             );
             Self::env().emit_event(DDCNodeAdded {
                 p2p_id,
-                url,
                 p2p_addr,
+                url,
             });
 
             Ok(())
@@ -724,7 +711,12 @@ mod ddc {
             let caller = self.env().caller();
             self.only_owner(caller)?;
 
-            self.ddn_statuses.take(&p2p_id);
+            for &reporter in self.reporters.keys() {
+                self.ddn_statuses.take(&DDNStatusKey {
+                    reporter,
+                    p2p_id: p2p_id.clone(),
+                });
+            }
 
             let node = self.ddc_nodes.take(&p2p_id).unwrap();
             Self::env().emit_event(DDCNodeRemoved {
@@ -765,22 +757,38 @@ mod ddc {
             now: u64,
             is_online: bool,
         ) -> Result<()> {
-            let ddn_status = self
-                .ddn_statuses
-                .get_mut(&DDNStatusKey { reporter, p2p_id })
-                .ok_or(Error::DDNNotFound)?;
+            let key = DDNStatusKey { reporter, p2p_id };
 
+            // Add new DDN status if not exists
+            if !self.ddn_statuses.contains_key(&key) {
+                self.ddn_statuses.insert(
+                    key.clone(),
+                    DDNStatus {
+                        is_online,
+                        total_downtime: 0,
+                        reference_timestamp: now,
+                        last_timestamp: now,
+                    },
+                );
+            }
+
+            // Get reporter's DDN status
+            let ddn_status = self.ddn_statuses.get_mut(&key).unwrap();
+
+            // Validate timestamp
             if now < ddn_status.last_timestamp || now < ddn_status.reference_timestamp {
                 return Err(Error::UnexpectedTimestamp);
             }
 
+            // Update total downlime
             if !ddn_status.is_online {
                 let last_downtime = now - ddn_status.last_timestamp;
                 ddn_status.total_downtime += last_downtime;
             }
 
-            ddn_status.last_timestamp = now;
+            // Update status and timestamp
             ddn_status.is_online = is_online;
+            ddn_status.last_timestamp = now;
 
             Ok(())
         }
@@ -801,17 +809,24 @@ mod ddc {
         /// Get DDC node status
         #[ink(message)]
         pub fn get_ddn_status(&self, p2p_id: String) -> Result<DDNStatus> {
-            let mut day_statuses: Vec<DDNStatus> = Vec::new();
-            for reporter in self.reporters.keys() {
-                let ddn_status = self
-                    .ddn_statuses
-                    .get(&DDNStatusKey { reporter: *reporter, p2p_id })
-                    .cloned()
-                    .ok_or(Error::DDNNotFound)?;
-                day_statuses.push(ddn_status);
+            let mut ddn_statuses: Vec<&DDNStatus> = Vec::new();
+
+            // Collect DDN statuses from all reporters
+            for &reporter in self.reporters.keys() {
+                let ddn_status = self.ddn_statuses.get(&DDNStatusKey {
+                    reporter,
+                    p2p_id: p2p_id.clone(),
+                });
+
+                if ddn_status.is_some() {
+                    ddn_statuses.push(ddn_status.unwrap())
+                }
             }
-            // TODO: Take the correct value
-            Ok(day_statuses[0])
+
+            // Get DDN status by using median value of total downtime
+            get_median_by_key(ddn_statuses, |item| item.total_downtime)
+                .cloned()
+                .ok_or(Error::DDNNotFound)
         }
     }
 
@@ -883,13 +898,29 @@ mod ddc {
 
     /// Get median value from a vector
     fn get_median<T: Clone + Ord>(source: Vec<T>) -> Option<T> {
-        let length = source.len();
-        let mut sorted_source = source;
+        let mut values = source;
+        let length = values.len();
         // sort_unstable is faster, it doesn't preserve the order of equal elements
-        sorted_source.sort_unstable();
+        values.sort_unstable();
         let index_correction = length != 0 && length % 2 == 0;
         let median_index = length / 2 - index_correction as usize;
-        sorted_source.get(median_index).cloned()
+        values.get(median_index).cloned()
+    }
+
+    /// Get median value from a vector of structs by key
+    fn get_median_by_key<T, F, K>(source: Vec<T>, f: F) -> Option<T>
+    where
+        T: Clone,
+        F: FnMut(&T) -> K,
+        K: Ord,
+    {
+        let mut values = source.clone();
+        let length = values.len();
+        // sort_unstable is faster, it doesn't preserve the order of equal elements
+        values.sort_unstable_by_key(f);
+        let index_correction = length != 0 && length % 2 == 0;
+        let median_index = length / 2 - index_correction as usize;
+        values.get(median_index).cloned()
     }
 
     impl Ddc {
