@@ -2233,15 +2233,15 @@ fn report_metrics_ddn_median_works() {
     contract.add_reporter(eve).unwrap();
     contract.add_reporter(frank).unwrap();
 
-    let day1 = 10001;
+    let day1 = 1;
     let day1_ms = day1 * MS_PER_DAY;
-    let day2 = 10002;
+    let day2 = 2;
     let day2_ms = day2 * MS_PER_DAY;
-    let day3 = 10003;
+    let day3 = 3;
     let day3_ms = day3 * MS_PER_DAY;
-    let day4 = 10004;
+    let day4 = 4;
     let day4_ms = day4 * MS_PER_DAY;
-    let day5 = 10005;
+    let day5 = 5;
     let day5_ms = day5 * MS_PER_DAY;
 
     let alice_p2p_id = String::from("alice");
@@ -2250,9 +2250,11 @@ fn report_metrics_ddn_median_works() {
     let django_p2p_id = String::from("django");
     let eve_p2p_id = String::from("eve");
     let frank_p2p_id = String::from("frank");
-    let url = String::from("test_url");
 
-    // Add DDC node
+    let url = String::from("test_url");
+    let last_day_ms = PERIOD_DAYS * MS_PER_DAY;
+
+    // Add DDC nodes
     contract
         .add_ddc_node(alice_p2p_id.clone(), alice_p2p_id.clone(), url.clone())
         .unwrap();
@@ -2271,28 +2273,6 @@ fn report_metrics_ddn_median_works() {
     contract
         .add_ddc_node(frank_p2p_id.clone(), frank_p2p_id.clone(), url.clone())
         .unwrap();
-
-    /*
-    let day1_alice_django_key = MetricKey {
-        reporter: alice,
-        app_id: django,
-        day_of_period: day1 % PERIOD_DAYS,
-    };
-    */
-
-    // No metrics yet
-    /*
-    assert_eq!(contract.metrics_ddn.get(&day1_alice_django_key), None);
-    assert_eq!(
-        contract.metrics_for_ddn_at_time(django_p2p_id.clone(), day1_ms, day5_ms),
-        MetricValue {
-            start_ms: day1_ms,
-            storage_bytes: 0,
-            wcu_used: 0,
-            rcu_used: 0,
-        }
-    );
-    */
 
     // Expected median values
 
@@ -2334,483 +2314,651 @@ fn report_metrics_ddn_median_works() {
 
     // Day 1
     set_exec_context(bob, 2);
-    contract.report_metrics_ddn(bob_p2p_id.clone(), day1_ms, 8, 1, 1).unwrap();
-    contract.report_metrics_ddn(charlie_p2p_id.clone(), day1_ms, 0, 2, 2).unwrap();
-    contract.report_metrics_ddn(django_p2p_id.clone(), day1_ms, 1, 3, 3).unwrap();
-    contract.report_metrics_ddn(eve_p2p_id.clone(), day1_ms, 5, 4, 4).unwrap();
-    contract.report_metrics_ddn(frank_p2p_id.clone(), day1_ms, 7, 5, 5).unwrap();
-    contract.report_metrics_ddn(alice_p2p_id.clone(), day1_ms, 2, 6, 6).unwrap();
+    contract
+        .report_metrics_ddn(bob_p2p_id.clone(), day1_ms, 8, 1, 1)
+        .unwrap();
+    contract
+        .report_metrics_ddn(charlie_p2p_id.clone(), day1_ms, 0, 2, 2)
+        .unwrap();
+    contract
+        .report_metrics_ddn(django_p2p_id.clone(), day1_ms, 1, 3, 3)
+        .unwrap();
+    contract
+        .report_metrics_ddn(eve_p2p_id.clone(), day1_ms, 5, 4, 4)
+        .unwrap();
+    contract
+        .report_metrics_ddn(frank_p2p_id.clone(), day1_ms, 7, 5, 5)
+        .unwrap();
+    contract
+        .report_metrics_ddn(alice_p2p_id.clone(), day1_ms, 2, 6, 6)
+        .unwrap();
     undo_set_exec_context();
 
     set_exec_context(charlie, 2);
-    contract.report_metrics_ddn(bob_p2p_id.clone(), day1_ms, 6, 1, 1).unwrap();
-    contract.report_metrics_ddn(charlie_p2p_id.clone(), day1_ms, 1, 2, 2).unwrap();
-    contract.report_metrics_ddn(django_p2p_id.clone(), day1_ms, 1, 3, 3).unwrap();
-    contract.report_metrics_ddn(eve_p2p_id.clone(), day1_ms, 5, 4, 4).unwrap();
+    contract
+        .report_metrics_ddn(bob_p2p_id.clone(), day1_ms, 6, 1, 1)
+        .unwrap();
+    contract
+        .report_metrics_ddn(charlie_p2p_id.clone(), day1_ms, 1, 2, 2)
+        .unwrap();
+    contract
+        .report_metrics_ddn(django_p2p_id.clone(), day1_ms, 1, 3, 3)
+        .unwrap();
+    contract
+        .report_metrics_ddn(eve_p2p_id.clone(), day1_ms, 5, 4, 4)
+        .unwrap();
     undo_set_exec_context();
 
     set_exec_context(django, 2);
-    contract.report_metrics_ddn(bob_p2p_id.clone(), day1_ms, 8, 1, 1).unwrap();
-    contract.report_metrics_ddn(charlie_p2p_id.clone(), day1_ms, 4, 2, 2).unwrap();
-    contract.report_metrics_ddn(django_p2p_id.clone(), day1_ms, 5, 3, 3).unwrap();
-    contract.report_metrics_ddn(eve_p2p_id.clone(), day1_ms, 5, 4, 4).unwrap();
-    contract.report_metrics_ddn(frank_p2p_id.clone(), day1_ms, 7, 5, 5).unwrap();
-    contract.report_metrics_ddn(alice_p2p_id.clone(), day1_ms, 5, 6, 6).unwrap();
+    contract
+        .report_metrics_ddn(bob_p2p_id.clone(), day1_ms, 8, 1, 1)
+        .unwrap();
+    contract
+        .report_metrics_ddn(charlie_p2p_id.clone(), day1_ms, 4, 2, 2)
+        .unwrap();
+    contract
+        .report_metrics_ddn(django_p2p_id.clone(), day1_ms, 5, 3, 3)
+        .unwrap();
+    contract
+        .report_metrics_ddn(eve_p2p_id.clone(), day1_ms, 5, 4, 4)
+        .unwrap();
+    contract
+        .report_metrics_ddn(frank_p2p_id.clone(), day1_ms, 7, 5, 5)
+        .unwrap();
+    contract
+        .report_metrics_ddn(alice_p2p_id.clone(), day1_ms, 5, 6, 6)
+        .unwrap();
     undo_set_exec_context();
 
     set_exec_context(eve, 2);
-    contract.report_metrics_ddn(bob_p2p_id.clone(), day1_ms, 0, 1, 1).unwrap();
-    contract.report_metrics_ddn(charlie_p2p_id.clone(), day1_ms, 5, 2, 2).unwrap();
-    contract.report_metrics_ddn(django_p2p_id.clone(), day1_ms, 1, 3, 3).unwrap();
-    contract.report_metrics_ddn(eve_p2p_id.clone(), day1_ms, 5, 4, 4).unwrap();
-    contract.report_metrics_ddn(frank_p2p_id.clone(), day1_ms, 7, 5, 5).unwrap();
+    contract
+        .report_metrics_ddn(bob_p2p_id.clone(), day1_ms, 0, 1, 1)
+        .unwrap();
+    contract
+        .report_metrics_ddn(charlie_p2p_id.clone(), day1_ms, 5, 2, 2)
+        .unwrap();
+    contract
+        .report_metrics_ddn(django_p2p_id.clone(), day1_ms, 1, 3, 3)
+        .unwrap();
+    contract
+        .report_metrics_ddn(eve_p2p_id.clone(), day1_ms, 5, 4, 4)
+        .unwrap();
+    contract
+        .report_metrics_ddn(frank_p2p_id.clone(), day1_ms, 7, 5, 5)
+        .unwrap();
 
     undo_set_exec_context();
 
     set_exec_context(frank, 2);
-    contract.report_metrics_ddn(bob_p2p_id.clone(), day1_ms, 100, 1, 1).unwrap();
-    contract.report_metrics_ddn(charlie_p2p_id.clone(), day1_ms, 5, 2, 2).unwrap();
-    contract.report_metrics_ddn(django_p2p_id.clone(), day1_ms, 1, 3, 3).unwrap();
+    contract
+        .report_metrics_ddn(bob_p2p_id.clone(), day1_ms, 100, 1, 1)
+        .unwrap();
+    contract
+        .report_metrics_ddn(charlie_p2p_id.clone(), day1_ms, 5, 2, 2)
+        .unwrap();
+    contract
+        .report_metrics_ddn(django_p2p_id.clone(), day1_ms, 1, 3, 3)
+        .unwrap();
     undo_set_exec_context();
 
     // Day 2
     set_exec_context(bob, 2);
-    contract.report_metrics_ddn(bob_p2p_id.clone(), day2_ms, 2, 1, 1).unwrap();
-    contract.report_metrics_ddn(charlie_p2p_id.clone(), day2_ms, 5, 2, 2).unwrap();
-    contract.report_metrics_ddn(django_p2p_id.clone(), day2_ms, 5, 3, 3).unwrap();
-    contract.report_metrics_ddn(eve_p2p_id.clone(), day2_ms, 5, 4, 4).unwrap();
-    contract.report_metrics_ddn(frank_p2p_id.clone(), day2_ms, 0, 5, 5).unwrap();
-    contract.report_metrics_ddn(alice_p2p_id.clone(), day2_ms, 0, 6, 6).unwrap();
+    contract
+        .report_metrics_ddn(bob_p2p_id.clone(), day2_ms, 2, 1, 1)
+        .unwrap();
+    contract
+        .report_metrics_ddn(charlie_p2p_id.clone(), day2_ms, 5, 2, 2)
+        .unwrap();
+    contract
+        .report_metrics_ddn(django_p2p_id.clone(), day2_ms, 5, 3, 3)
+        .unwrap();
+    contract
+        .report_metrics_ddn(eve_p2p_id.clone(), day2_ms, 5, 4, 4)
+        .unwrap();
+    contract
+        .report_metrics_ddn(frank_p2p_id.clone(), day2_ms, 0, 5, 5)
+        .unwrap();
+    contract
+        .report_metrics_ddn(alice_p2p_id.clone(), day2_ms, 0, 6, 6)
+        .unwrap();
     undo_set_exec_context();
 
     set_exec_context(charlie, 2);
-    contract.report_metrics_ddn(bob_p2p_id.clone(), day2_ms, 4, 1, 1).unwrap();
-    contract.report_metrics_ddn(charlie_p2p_id.clone(), day2_ms, 5, 2, 2).unwrap();
-    contract.report_metrics_ddn(django_p2p_id.clone(), day2_ms, 0, 3, 3).unwrap();
-    contract.report_metrics_ddn(eve_p2p_id.clone(), day2_ms, 1, 4, 4).unwrap();
-    contract.report_metrics_ddn(frank_p2p_id.clone(), day2_ms, 10, 5, 5).unwrap();
+    contract
+        .report_metrics_ddn(bob_p2p_id.clone(), day2_ms, 4, 1, 1)
+        .unwrap();
+    contract
+        .report_metrics_ddn(charlie_p2p_id.clone(), day2_ms, 5, 2, 2)
+        .unwrap();
+    contract
+        .report_metrics_ddn(django_p2p_id.clone(), day2_ms, 0, 3, 3)
+        .unwrap();
+    contract
+        .report_metrics_ddn(eve_p2p_id.clone(), day2_ms, 1, 4, 4)
+        .unwrap();
+    contract
+        .report_metrics_ddn(frank_p2p_id.clone(), day2_ms, 10, 5, 5)
+        .unwrap();
     undo_set_exec_context();
 
     set_exec_context(django, 2);
-    contract.report_metrics_ddn(bob_p2p_id.clone(), day2_ms, 5, 1, 1).unwrap();
-    contract.report_metrics_ddn(charlie_p2p_id.clone(), day2_ms, 4, 2, 2).unwrap();
-    contract.report_metrics_ddn(django_p2p_id.clone(), day2_ms, 5, 3, 3).unwrap();
-    contract.report_metrics_ddn(eve_p2p_id.clone(), day2_ms, 5, 4, 4).unwrap();
-    contract.report_metrics_ddn(frank_p2p_id.clone(), day2_ms, 10, 5, 5).unwrap();
-    contract.report_metrics_ddn(alice_p2p_id.clone(), day2_ms, 10, 6, 6).unwrap();
+    contract
+        .report_metrics_ddn(bob_p2p_id.clone(), day2_ms, 5, 1, 1)
+        .unwrap();
+    contract
+        .report_metrics_ddn(charlie_p2p_id.clone(), day2_ms, 4, 2, 2)
+        .unwrap();
+    contract
+        .report_metrics_ddn(django_p2p_id.clone(), day2_ms, 5, 3, 3)
+        .unwrap();
+    contract
+        .report_metrics_ddn(eve_p2p_id.clone(), day2_ms, 5, 4, 4)
+        .unwrap();
+    contract
+        .report_metrics_ddn(frank_p2p_id.clone(), day2_ms, 10, 5, 5)
+        .unwrap();
+    contract
+        .report_metrics_ddn(alice_p2p_id.clone(), day2_ms, 10, 6, 6)
+        .unwrap();
     undo_set_exec_context();
 
     set_exec_context(eve, 2);
-    contract.report_metrics_ddn(bob_p2p_id.clone(), day2_ms, 6, 1, 1).unwrap();
-    contract.report_metrics_ddn(charlie_p2p_id.clone(), day2_ms, 4, 2, 2).unwrap();
-    contract.report_metrics_ddn(django_p2p_id.clone(), day2_ms, 5, 3, 3).unwrap();
-    contract.report_metrics_ddn(eve_p2p_id.clone(), day2_ms, 5, 4, 4).unwrap();
+    contract
+        .report_metrics_ddn(bob_p2p_id.clone(), day2_ms, 6, 1, 1)
+        .unwrap();
+    contract
+        .report_metrics_ddn(charlie_p2p_id.clone(), day2_ms, 4, 2, 2)
+        .unwrap();
+    contract
+        .report_metrics_ddn(django_p2p_id.clone(), day2_ms, 5, 3, 3)
+        .unwrap();
+    contract
+        .report_metrics_ddn(eve_p2p_id.clone(), day2_ms, 5, 4, 4)
+        .unwrap();
     undo_set_exec_context();
 
     set_exec_context(frank, 2);
-    contract.report_metrics_ddn(bob_p2p_id.clone(), day2_ms, 4, 1, 1).unwrap();
-    contract.report_metrics_ddn(charlie_p2p_id.clone(), day2_ms, 2, 2, 2).unwrap();
-    contract.report_metrics_ddn(django_p2p_id.clone(), day2_ms, 5, 3, 3).unwrap();
+    contract
+        .report_metrics_ddn(bob_p2p_id.clone(), day2_ms, 4, 1, 1)
+        .unwrap();
+    contract
+        .report_metrics_ddn(charlie_p2p_id.clone(), day2_ms, 2, 2, 2)
+        .unwrap();
+    contract
+        .report_metrics_ddn(django_p2p_id.clone(), day2_ms, 5, 3, 3)
+        .unwrap();
     undo_set_exec_context();
 
     // Day3
     set_exec_context(bob, 2);
-    contract.report_metrics_ddn(bob_p2p_id.clone(), day3_ms, 11, 1, 1).unwrap();
-    contract.report_metrics_ddn(charlie_p2p_id.clone(), day3_ms, 11, 2, 2).unwrap();
+    contract
+        .report_metrics_ddn(bob_p2p_id.clone(), day3_ms, 11, 1, 1)
+        .unwrap();
+    contract
+        .report_metrics_ddn(charlie_p2p_id.clone(), day3_ms, 11, 2, 2)
+        .unwrap();
     contract
         .report_metrics_ddn(django_p2p_id.clone(), day3_ms, 1000, 3, 3)
         .unwrap();
-    contract.report_metrics_ddn(eve_p2p_id.clone(), day3_ms, 1, 4, 4).unwrap();
-    contract.report_metrics_ddn(frank_p2p_id.clone(), day3_ms, 10, 5, 5).unwrap();
-    contract.report_metrics_ddn(alice_p2p_id.clone(), day3_ms, 7, 6, 6).unwrap();
+    contract
+        .report_metrics_ddn(eve_p2p_id.clone(), day3_ms, 1, 4, 4)
+        .unwrap();
+    contract
+        .report_metrics_ddn(frank_p2p_id.clone(), day3_ms, 10, 5, 5)
+        .unwrap();
+    contract
+        .report_metrics_ddn(alice_p2p_id.clone(), day3_ms, 7, 6, 6)
+        .unwrap();
     undo_set_exec_context();
 
     set_exec_context(charlie, 2);
-    contract.report_metrics_ddn(bob_p2p_id.clone(), day3_ms, 11, 1, 1).unwrap();
-    contract.report_metrics_ddn(charlie_p2p_id.clone(), day3_ms, 2, 2, 2).unwrap();
-    contract.report_metrics_ddn(django_p2p_id.clone(), day3_ms, 8, 3, 3).unwrap();
-    contract.report_metrics_ddn(eve_p2p_id.clone(), day3_ms, 6, 4, 4).unwrap();
+    contract
+        .report_metrics_ddn(bob_p2p_id.clone(), day3_ms, 11, 1, 1)
+        .unwrap();
+    contract
+        .report_metrics_ddn(charlie_p2p_id.clone(), day3_ms, 2, 2, 2)
+        .unwrap();
+    contract
+        .report_metrics_ddn(django_p2p_id.clone(), day3_ms, 8, 3, 3)
+        .unwrap();
+    contract
+        .report_metrics_ddn(eve_p2p_id.clone(), day3_ms, 6, 4, 4)
+        .unwrap();
     undo_set_exec_context();
 
     set_exec_context(django, 2);
-    contract.report_metrics_ddn(bob_p2p_id.clone(), day3_ms, 8, 1, 1).unwrap();
-    contract.report_metrics_ddn(charlie_p2p_id.clone(), day3_ms, 11, 2, 2).unwrap();
-    contract.report_metrics_ddn(django_p2p_id.clone(), day3_ms, 8, 3, 3).unwrap();
-    contract.report_metrics_ddn(eve_p2p_id.clone(), day3_ms, 6, 4, 4).unwrap();
-    contract.report_metrics_ddn(frank_p2p_id.clone(), day3_ms, 2, 5, 5).unwrap();
-    contract.report_metrics_ddn(alice_p2p_id.clone(), day3_ms, 7, 6, 6).unwrap();
+    contract
+        .report_metrics_ddn(bob_p2p_id.clone(), day3_ms, 8, 1, 1)
+        .unwrap();
+    contract
+        .report_metrics_ddn(charlie_p2p_id.clone(), day3_ms, 11, 2, 2)
+        .unwrap();
+    contract
+        .report_metrics_ddn(django_p2p_id.clone(), day3_ms, 8, 3, 3)
+        .unwrap();
+    contract
+        .report_metrics_ddn(eve_p2p_id.clone(), day3_ms, 6, 4, 4)
+        .unwrap();
+    contract
+        .report_metrics_ddn(frank_p2p_id.clone(), day3_ms, 2, 5, 5)
+        .unwrap();
+    contract
+        .report_metrics_ddn(alice_p2p_id.clone(), day3_ms, 7, 6, 6)
+        .unwrap();
     undo_set_exec_context();
 
     set_exec_context(eve, 2);
-    contract.report_metrics_ddn(bob_p2p_id.clone(), day3_ms, 10, 1, 1).unwrap();
-    contract.report_metrics_ddn(charlie_p2p_id.clone(), day3_ms, 2, 2, 2).unwrap();
-    contract.report_metrics_ddn(django_p2p_id.clone(), day3_ms, 8, 3, 3).unwrap();
-    contract.report_metrics_ddn(frank_p2p_id.clone(), day3_ms, 2, 5, 5).unwrap();
+    contract
+        .report_metrics_ddn(bob_p2p_id.clone(), day3_ms, 10, 1, 1)
+        .unwrap();
+    contract
+        .report_metrics_ddn(charlie_p2p_id.clone(), day3_ms, 2, 2, 2)
+        .unwrap();
+    contract
+        .report_metrics_ddn(django_p2p_id.clone(), day3_ms, 8, 3, 3)
+        .unwrap();
+    contract
+        .report_metrics_ddn(frank_p2p_id.clone(), day3_ms, 2, 5, 5)
+        .unwrap();
     undo_set_exec_context();
 
     set_exec_context(frank, 2);
-    contract.report_metrics_ddn(bob_p2p_id.clone(), day3_ms, 5, 1, 1).unwrap();
-    contract.report_metrics_ddn(charlie_p2p_id.clone(), day3_ms, 2, 2, 2).unwrap();
-    contract.report_metrics_ddn(django_p2p_id.clone(), day3_ms, 1, 3, 3).unwrap();
-    contract.report_metrics_ddn(eve_p2p_id.clone(), day3_ms, 10, 4, 4).unwrap();
+    contract
+        .report_metrics_ddn(bob_p2p_id.clone(), day3_ms, 5, 1, 1)
+        .unwrap();
+    contract
+        .report_metrics_ddn(charlie_p2p_id.clone(), day3_ms, 2, 2, 2)
+        .unwrap();
+    contract
+        .report_metrics_ddn(django_p2p_id.clone(), day3_ms, 1, 3, 3)
+        .unwrap();
+    contract
+        .report_metrics_ddn(eve_p2p_id.clone(), day3_ms, 10, 4, 4)
+        .unwrap();
     undo_set_exec_context();
 
     // Day 4
     set_exec_context(bob, 2);
-    contract.report_metrics_ddn(bob_p2p_id.clone(), day4_ms, 80, 1, 1).unwrap();
-    contract.report_metrics_ddn(charlie_p2p_id.clone(), day4_ms, 5, 2, 2).unwrap();
-    contract.report_metrics_ddn(django_p2p_id.clone(), day4_ms, 10, 3, 3).unwrap();
-    contract.report_metrics_ddn(frank_p2p_id.clone(), day4_ms, 20, 5, 5).unwrap();
-    contract.report_metrics_ddn(alice_p2p_id.clone(), day4_ms, 2, 6, 6).unwrap();
+    contract
+        .report_metrics_ddn(bob_p2p_id.clone(), day4_ms, 80, 1, 1)
+        .unwrap();
+    contract
+        .report_metrics_ddn(charlie_p2p_id.clone(), day4_ms, 5, 2, 2)
+        .unwrap();
+    contract
+        .report_metrics_ddn(django_p2p_id.clone(), day4_ms, 10, 3, 3)
+        .unwrap();
+    contract
+        .report_metrics_ddn(frank_p2p_id.clone(), day4_ms, 20, 5, 5)
+        .unwrap();
+    contract
+        .report_metrics_ddn(alice_p2p_id.clone(), day4_ms, 2, 6, 6)
+        .unwrap();
     undo_set_exec_context();
 
     set_exec_context(charlie, 2);
-    contract.report_metrics_ddn(bob_p2p_id.clone(), day4_ms, 20, 1, 1).unwrap();
-    contract.report_metrics_ddn(charlie_p2p_id.clone(), day4_ms, 0, 2, 2).unwrap();
-    contract.report_metrics_ddn(django_p2p_id.clone(), day4_ms, 2, 3, 3).unwrap();
-    contract.report_metrics_ddn(eve_p2p_id.clone(), day4_ms, 2, 4, 4).unwrap();
-    contract.report_metrics_ddn(frank_p2p_id.clone(), day4_ms, 10, 5, 5).unwrap();
+    contract
+        .report_metrics_ddn(bob_p2p_id.clone(), day4_ms, 20, 1, 1)
+        .unwrap();
+    contract
+        .report_metrics_ddn(charlie_p2p_id.clone(), day4_ms, 0, 2, 2)
+        .unwrap();
+    contract
+        .report_metrics_ddn(django_p2p_id.clone(), day4_ms, 2, 3, 3)
+        .unwrap();
+    contract
+        .report_metrics_ddn(eve_p2p_id.clone(), day4_ms, 2, 4, 4)
+        .unwrap();
+    contract
+        .report_metrics_ddn(frank_p2p_id.clone(), day4_ms, 10, 5, 5)
+        .unwrap();
     undo_set_exec_context();
 
     set_exec_context(django, 2);
-    contract.report_metrics_ddn(bob_p2p_id.clone(), day4_ms, 50, 1, 1).unwrap();
-    contract.report_metrics_ddn(charlie_p2p_id.clone(), day4_ms, 5, 2, 2).unwrap();
-    contract.report_metrics_ddn(django_p2p_id.clone(), day4_ms, 10, 3, 3).unwrap();
-    contract.report_metrics_ddn(eve_p2p_id.clone(), day4_ms, 4, 4, 4).unwrap();
-    contract.report_metrics_ddn(frank_p2p_id.clone(), day4_ms, 0, 5, 5).unwrap();
+    contract
+        .report_metrics_ddn(bob_p2p_id.clone(), day4_ms, 50, 1, 1)
+        .unwrap();
+    contract
+        .report_metrics_ddn(charlie_p2p_id.clone(), day4_ms, 5, 2, 2)
+        .unwrap();
+    contract
+        .report_metrics_ddn(django_p2p_id.clone(), day4_ms, 10, 3, 3)
+        .unwrap();
+    contract
+        .report_metrics_ddn(eve_p2p_id.clone(), day4_ms, 4, 4, 4)
+        .unwrap();
+    contract
+        .report_metrics_ddn(frank_p2p_id.clone(), day4_ms, 0, 5, 5)
+        .unwrap();
     undo_set_exec_context();
 
     set_exec_context(eve, 2);
-    contract.report_metrics_ddn(bob_p2p_id.clone(), day4_ms, 8, 1, 1).unwrap();
-    contract.report_metrics_ddn(charlie_p2p_id.clone(), day4_ms, 5, 2, 2).unwrap();
-    contract.report_metrics_ddn(django_p2p_id.clone(), day4_ms, 2, 3, 3).unwrap();
-    contract.report_metrics_ddn(eve_p2p_id.clone(), day4_ms, 6, 4, 4).unwrap();
+    contract
+        .report_metrics_ddn(bob_p2p_id.clone(), day4_ms, 8, 1, 1)
+        .unwrap();
+    contract
+        .report_metrics_ddn(charlie_p2p_id.clone(), day4_ms, 5, 2, 2)
+        .unwrap();
+    contract
+        .report_metrics_ddn(django_p2p_id.clone(), day4_ms, 2, 3, 3)
+        .unwrap();
+    contract
+        .report_metrics_ddn(eve_p2p_id.clone(), day4_ms, 6, 4, 4)
+        .unwrap();
     undo_set_exec_context();
 
     set_exec_context(frank, 2);
-    contract.report_metrics_ddn(bob_p2p_id.clone(), day4_ms, 16, 1, 1).unwrap();
-    contract.report_metrics_ddn(charlie_p2p_id.clone(), day4_ms, 4, 2, 2).unwrap();
-    contract.report_metrics_ddn(eve_p2p_id.clone(), day4_ms, 10, 4, 4).unwrap();
+    contract
+        .report_metrics_ddn(bob_p2p_id.clone(), day4_ms, 16, 1, 1)
+        .unwrap();
+    contract
+        .report_metrics_ddn(charlie_p2p_id.clone(), day4_ms, 4, 2, 2)
+        .unwrap();
+    contract
+        .report_metrics_ddn(eve_p2p_id.clone(), day4_ms, 10, 4, 4)
+        .unwrap();
     undo_set_exec_context();
 
     // Day 5
     set_exec_context(bob, 2);
-    contract.report_metrics_ddn(bob_p2p_id.clone(), day5_ms, 2, 1, 1).unwrap();
-    contract.report_metrics_ddn(charlie_p2p_id.clone(), day5_ms, 11, 2, 2).unwrap();
-    contract.report_metrics_ddn(django_p2p_id.clone(), day5_ms, 10, 3, 3).unwrap();
-    contract.report_metrics_ddn(eve_p2p_id.clone(), day5_ms, 1, 4, 4).unwrap();
-    contract.report_metrics_ddn(frank_p2p_id.clone(), day5_ms, 1, 5, 5).unwrap();
+    contract
+        .report_metrics_ddn(bob_p2p_id.clone(), day5_ms, 2, 1, 1)
+        .unwrap();
+    contract
+        .report_metrics_ddn(charlie_p2p_id.clone(), day5_ms, 11, 2, 2)
+        .unwrap();
+    contract
+        .report_metrics_ddn(django_p2p_id.clone(), day5_ms, 10, 3, 3)
+        .unwrap();
+    contract
+        .report_metrics_ddn(eve_p2p_id.clone(), day5_ms, 1, 4, 4)
+        .unwrap();
+    contract
+        .report_metrics_ddn(frank_p2p_id.clone(), day5_ms, 1, 5, 5)
+        .unwrap();
     undo_set_exec_context();
 
     set_exec_context(charlie, 2);
-    contract.report_metrics_ddn(bob_p2p_id.clone(), day5_ms, 0, 1, 1).unwrap();
-    contract.report_metrics_ddn(charlie_p2p_id.clone(), day5_ms, 10, 2, 2).unwrap();
-    contract.report_metrics_ddn(django_p2p_id.clone(), day5_ms, 2, 3, 3).unwrap();
-    contract.report_metrics_ddn(frank_p2p_id.clone(), day5_ms, 2, 5, 5).unwrap();
+    contract
+        .report_metrics_ddn(bob_p2p_id.clone(), day5_ms, 0, 1, 1)
+        .unwrap();
+    contract
+        .report_metrics_ddn(charlie_p2p_id.clone(), day5_ms, 10, 2, 2)
+        .unwrap();
+    contract
+        .report_metrics_ddn(django_p2p_id.clone(), day5_ms, 2, 3, 3)
+        .unwrap();
+    contract
+        .report_metrics_ddn(frank_p2p_id.clone(), day5_ms, 2, 5, 5)
+        .unwrap();
     undo_set_exec_context();
 
     set_exec_context(django, 2);
-    contract.report_metrics_ddn(bob_p2p_id.clone(), day5_ms, 0, 1, 1).unwrap();
-    contract.report_metrics_ddn(charlie_p2p_id.clone(), day5_ms, 11, 2, 2).unwrap();
-    contract.report_metrics_ddn(django_p2p_id.clone(), day5_ms, 2, 3, 3).unwrap();
-    contract.report_metrics_ddn(eve_p2p_id.clone(), day5_ms, 100, 4, 5).unwrap();
-    contract.report_metrics_ddn(frank_p2p_id.clone(), day5_ms, 3, 5, 5).unwrap();
+    contract
+        .report_metrics_ddn(bob_p2p_id.clone(), day5_ms, 0, 1, 1)
+        .unwrap();
+    contract
+        .report_metrics_ddn(charlie_p2p_id.clone(), day5_ms, 11, 2, 2)
+        .unwrap();
+    contract
+        .report_metrics_ddn(django_p2p_id.clone(), day5_ms, 2, 3, 3)
+        .unwrap();
+    contract
+        .report_metrics_ddn(eve_p2p_id.clone(), day5_ms, 100, 4, 5)
+        .unwrap();
+    contract
+        .report_metrics_ddn(frank_p2p_id.clone(), day5_ms, 3, 5, 5)
+        .unwrap();
     undo_set_exec_context();
 
     set_exec_context(eve, 2);
-    contract.report_metrics_ddn(bob_p2p_id.clone(), day5_ms, 2, 1, 1).unwrap();
-    contract.report_metrics_ddn(charlie_p2p_id.clone(), day5_ms, 0, 2, 2).unwrap();
-    contract.report_metrics_ddn(django_p2p_id.clone(), day5_ms, 2, 3, 3).unwrap();
-    contract.report_metrics_ddn(eve_p2p_id.clone(), day5_ms, 1, 4, 4).unwrap();
+    contract
+        .report_metrics_ddn(bob_p2p_id.clone(), day5_ms, 2, 1, 1)
+        .unwrap();
+    contract
+        .report_metrics_ddn(charlie_p2p_id.clone(), day5_ms, 0, 2, 2)
+        .unwrap();
+    contract
+        .report_metrics_ddn(django_p2p_id.clone(), day5_ms, 2, 3, 3)
+        .unwrap();
+    contract
+        .report_metrics_ddn(eve_p2p_id.clone(), day5_ms, 1, 4, 4)
+        .unwrap();
     undo_set_exec_context();
 
     set_exec_context(frank, 2);
-    contract.report_metrics_ddn(bob_p2p_id.clone(), day5_ms, 2, 1, 1).unwrap();
-    contract.report_metrics_ddn(charlie_p2p_id.clone(), day5_ms, 0, 2, 2).unwrap();
-    contract.report_metrics_ddn(eve_p2p_id.clone(), day5_ms, 1, 4, 4).unwrap();
+    contract
+        .report_metrics_ddn(bob_p2p_id.clone(), day5_ms, 2, 1, 1)
+        .unwrap();
+    contract
+        .report_metrics_ddn(charlie_p2p_id.clone(), day5_ms, 0, 2, 2)
+        .unwrap();
+    contract
+        .report_metrics_ddn(eve_p2p_id.clone(), day5_ms, 1, 4, 4)
+        .unwrap();
     undo_set_exec_context();
 
     // Bob
     assert_eq!(
-        contract.metrics_for_ddn_at_time(bob_p2p_id.clone(), day1_ms),
-        vec![MetricValue {
-            start_ms: day1_ms,
-            storage_bytes: 8,
-            wcu_used: 1,
-            rcu_used: 1,
-        }]
-    );
-    assert_eq!(
-        contract.metrics_for_ddn_at_time(bob_p2p_id.clone(), day2_ms),
-        vec![MetricValue {
-            start_ms: day2_ms,
-            storage_bytes: 4,
-            wcu_used: 1,
-            rcu_used: 1,
-        }]
-    );
-    assert_eq!(
-        contract.metrics_for_ddn_at_time(bob_p2p_id.clone(), day3_ms),
-        vec![MetricValue {
-            start_ms: day3_ms,
-            storage_bytes: 10,
-            wcu_used: 1,
-            rcu_used: 1,
-        }]
-    );
-    assert_eq!(
-        contract.metrics_for_ddn_at_time(bob_p2p_id.clone(), day4_ms),
-        vec![MetricValue {
-            start_ms: day4_ms,
-            storage_bytes: 20,
-            wcu_used: 1,
-            rcu_used: 1,
-        }]
-    );
-    assert_eq!(
-        contract.metrics_for_ddn_at_time(bob_p2p_id.clone(), day5_ms),
-        vec![MetricValue {
-            start_ms: day5_ms,
-            storage_bytes: 2,
-            wcu_used: 1,
-            rcu_used: 1,
-        }]
+        &contract.metrics_for_ddn_at_time(bob_p2p_id.clone(), last_day_ms)[0..5],
+        [
+            MetricValue {
+                start_ms: 86400000,
+                storage_bytes: 8,
+                wcu_used: 1,
+                rcu_used: 1,
+            },
+            MetricValue {
+                start_ms: 172800000,
+                storage_bytes: 4,
+                wcu_used: 1,
+                rcu_used: 1,
+            },
+            MetricValue {
+                start_ms: 259200000,
+                storage_bytes: 10,
+                wcu_used: 1,
+                rcu_used: 1,
+            },
+            MetricValue {
+                start_ms: 345600000,
+                storage_bytes: 20,
+                wcu_used: 1,
+                rcu_used: 1,
+            },
+            MetricValue {
+                start_ms: 432000000,
+                storage_bytes: 2,
+                wcu_used: 1,
+                rcu_used: 1,
+            },
+        ]
     );
 
     // Charlie
     assert_eq!(
-        contract.metrics_for_ddn_at_time(charlie_p2p_id.clone(), day1_ms),
-        vec![MetricValue {
-            start_ms: day1_ms,
-            storage_bytes: 4,
-            wcu_used: 2,
-            rcu_used: 2,
-        }]
-    );
-    assert_eq!(
-        contract.metrics_for_ddn_at_time(charlie_p2p_id.clone(), day2_ms),
-        vec![MetricValue {
-            start_ms: day2_ms,
-            storage_bytes: 4,
-            wcu_used: 2,
-            rcu_used: 2,
-        }]
-    );
-    assert_eq!(
-        contract.metrics_for_ddn_at_time(charlie_p2p_id.clone(), day3_ms),
-        vec![MetricValue {
-            start_ms: day3_ms,
-            storage_bytes: 2,
-            wcu_used: 2,
-            rcu_used: 2,
-        }]
-    );
-    assert_eq!(
-        contract.metrics_for_ddn_at_time(charlie_p2p_id.clone(), day4_ms),
-        vec![MetricValue {
-            start_ms: day4_ms,
-            storage_bytes: 5,
-            wcu_used: 2,
-            rcu_used: 2,
-        }]
-    );
-    assert_eq!(
-        contract.metrics_for_ddn_at_time(charlie_p2p_id.clone(), day5_ms),
-        vec![MetricValue {
-            start_ms: day5_ms,
-            storage_bytes: 10,
-            wcu_used: 2,
-            rcu_used: 2,
-        }]
+        &contract.metrics_for_ddn_at_time(charlie_p2p_id.clone(), last_day_ms)[0..5],
+        [
+            MetricValue {
+                start_ms: 86400000,
+                storage_bytes: 4,
+                wcu_used: 2,
+                rcu_used: 2,
+            },
+            MetricValue {
+                start_ms: 172800000,
+                storage_bytes: 4,
+                wcu_used: 2,
+                rcu_used: 2,
+            },
+            MetricValue {
+                start_ms: 259200000,
+                storage_bytes: 2,
+                wcu_used: 2,
+                rcu_used: 2,
+            },
+            MetricValue {
+                start_ms: 345600000,
+                storage_bytes: 5,
+                wcu_used: 2,
+                rcu_used: 2,
+            },
+            MetricValue {
+                start_ms: 432000000,
+                storage_bytes: 10,
+                wcu_used: 2,
+                rcu_used: 2,
+            },
+        ]
     );
 
     // Django
     assert_eq!(
-        contract.metrics_for_ddn_at_time(django_p2p_id.clone(), day1_ms),
-        vec![MetricValue {
-            start_ms: day1_ms,
-            storage_bytes: 1,
-            wcu_used: 3,
-            rcu_used: 3,
-        }]
-    );
-    assert_eq!(
-        contract.metrics_for_ddn_at_time(django_p2p_id.clone(), day2_ms),
-        vec![MetricValue {
-            start_ms: day2_ms,
-            storage_bytes: 5,
-            wcu_used: 3,
-            rcu_used: 3,
-        }]
-    );
-    assert_eq!(
-        contract.metrics_for_ddn_at_time(django_p2p_id.clone(), day3_ms),
-        vec![MetricValue {
-            start_ms: day3_ms,
-            storage_bytes: 8,
-            wcu_used: 3,
-            rcu_used: 3,
-        }]
-    );
-    assert_eq!(
-        contract.metrics_for_ddn_at_time(django_p2p_id.clone(), day4_ms),
-        vec![MetricValue {
-            start_ms: day4_ms,
-            storage_bytes: 2,
-            wcu_used: 3,
-            rcu_used: 3,
-        }]
-    );
-    assert_eq!(
-        contract.metrics_for_ddn_at_time(django_p2p_id.clone(), day5_ms),
-        vec![MetricValue {
-            start_ms: day5_ms,
-            storage_bytes: 2,
-            wcu_used: 3,
-            rcu_used: 3,
-        }]
+        &contract.metrics_for_ddn_at_time(django_p2p_id.clone(), last_day_ms)[0..5],
+        [
+            MetricValue {
+                start_ms: 86400000,
+                storage_bytes: 1,
+                wcu_used: 3,
+                rcu_used: 3,
+            },
+            MetricValue {
+                start_ms: 172800000,
+                storage_bytes: 5,
+                wcu_used: 3,
+                rcu_used: 3,
+            },
+            MetricValue {
+                start_ms: 259200000,
+                storage_bytes: 8,
+                wcu_used: 3,
+                rcu_used: 3,
+            },
+            MetricValue {
+                start_ms: 345600000,
+                storage_bytes: 2,
+                wcu_used: 3,
+                rcu_used: 3,
+            },
+            MetricValue {
+                start_ms: 432000000,
+                storage_bytes: 2,
+                wcu_used: 3,
+                rcu_used: 3,
+            },
+        ]
     );
 
     // Eve
     assert_eq!(
-        contract.metrics_for_ddn_at_time(eve_p2p_id.clone(), day1_ms),
-        vec![MetricValue {
-            start_ms: day1_ms,
-            storage_bytes: 5,
-            wcu_used: 4,
-            rcu_used: 4,
-        }]
-    );
-    assert_eq!(
-        contract.metrics_for_ddn_at_time(eve_p2p_id.clone(), day2_ms),
-        vec![MetricValue {
-            start_ms: day2_ms,
-            storage_bytes: 5,
-            wcu_used: 4,
-            rcu_used: 4,
-        }]
-    );
-    assert_eq!(
-        contract.metrics_for_ddn_at_time(eve_p2p_id.clone(), day3_ms),
-        vec![MetricValue {
-            start_ms: day3_ms,
-            storage_bytes: 6,
-            wcu_used: 4,
-            rcu_used: 4,
-        }]
-    );
-    assert_eq!(
-        contract.metrics_for_ddn_at_time(eve_p2p_id.clone(), day4_ms),
-        vec![MetricValue {
-            start_ms: day4_ms,
-            storage_bytes: 4,
-            wcu_used: 4,
-            rcu_used: 4,
-        }]
-    );
-    assert_eq!(
-        contract.metrics_for_ddn_at_time(eve_p2p_id.clone(), day5_ms),
-        vec![MetricValue {
-            start_ms: day5_ms,
-            storage_bytes: 1,
-            wcu_used: 4,
-            rcu_used: 4,
-        }]
+        &contract.metrics_for_ddn_at_time(eve_p2p_id.clone(), last_day_ms)[0..5],
+        [
+            MetricValue {
+                start_ms: 86400000,
+                storage_bytes: 5,
+                wcu_used: 4,
+                rcu_used: 4,
+            },
+            MetricValue {
+                start_ms: 172800000,
+                storage_bytes: 5,
+                wcu_used: 4,
+                rcu_used: 4,
+            },
+            MetricValue {
+                start_ms: 259200000,
+                storage_bytes: 6,
+                wcu_used: 4,
+                rcu_used: 4,
+            },
+            MetricValue {
+                start_ms: 345600000,
+                storage_bytes: 4,
+                wcu_used: 4,
+                rcu_used: 4,
+            },
+            MetricValue {
+                start_ms: 432000000,
+                storage_bytes: 1,
+                wcu_used: 4,
+                rcu_used: 4,
+            },
+        ]
     );
 
     // Frank
     assert_eq!(
-        contract.metrics_for_ddn_at_time(frank_p2p_id.clone(), day1_ms),
-        vec![MetricValue {
-            start_ms: day1_ms,
-            storage_bytes: 7,
-            wcu_used: 5,
-            rcu_used: 5,
-        }]
-    );
-    assert_eq!(
-        contract.metrics_for_ddn_at_time(frank_p2p_id.clone(), day2_ms),
-        vec![MetricValue {
-            start_ms: day2_ms,
-            storage_bytes: 10,
-            wcu_used: 5,
-            rcu_used: 5,
-        }]
-    );
-    assert_eq!(
-        contract.metrics_for_ddn_at_time(frank_p2p_id.clone(), day3_ms),
-        vec![MetricValue {
-            start_ms: day3_ms,
-            storage_bytes: 2,
-            wcu_used: 5,
-            rcu_used: 5,
-        }]
-    );
-    assert_eq!(
-        contract.metrics_for_ddn_at_time(frank_p2p_id.clone(), day4_ms),
-        vec![MetricValue {
-            start_ms: day4_ms,
-            storage_bytes: 10,
-            wcu_used: 5,
-            rcu_used: 5,
-        }]
-    );
-    assert_eq!(
-        contract.metrics_for_ddn_at_time(frank_p2p_id.clone(), day5_ms),
-        vec![MetricValue {
-            start_ms: day5_ms,
-            storage_bytes: 2,
-            wcu_used: 5,
-            rcu_used: 5,
-        }]
+        &contract.metrics_for_ddn_at_time(frank_p2p_id.clone(), last_day_ms)[0..5],
+        [
+            MetricValue {
+                start_ms: 86400000,
+                storage_bytes: 7,
+                wcu_used: 5,
+                rcu_used: 5,
+            },
+            MetricValue {
+                start_ms: 172800000,
+                storage_bytes: 10,
+                wcu_used: 5,
+                rcu_used: 5,
+            },
+            MetricValue {
+                start_ms: 259200000,
+                storage_bytes: 2,
+                wcu_used: 5,
+                rcu_used: 5,
+            },
+            MetricValue {
+                start_ms: 345600000,
+                storage_bytes: 10,
+                wcu_used: 5,
+                rcu_used: 5,
+            },
+            MetricValue {
+                start_ms: 432000000,
+                storage_bytes: 2,
+                wcu_used: 5,
+                rcu_used: 5,
+            },
+        ]
     );
 
     // Alice
     assert_eq!(
-        contract.metrics_for_ddn_at_time(alice_p2p_id.clone(), day1_ms),
-        vec![MetricValue {
-            start_ms: day1_ms,
-            storage_bytes: 2,
-            wcu_used: 6,
-            rcu_used: 6,
-        }]
-    );
-    assert_eq!(
-        contract.metrics_for_ddn_at_time(alice_p2p_id.clone(), day2_ms),
-        vec![MetricValue {
-            start_ms: day2_ms,
-            storage_bytes: 0,
-            wcu_used: 6,
-            rcu_used: 6,
-        }]
-    );
-    assert_eq!(
-        contract.metrics_for_ddn_at_time(alice_p2p_id.clone(), day3_ms),
-        vec![MetricValue {
-            start_ms: day3_ms,
-            storage_bytes: 7,
-            wcu_used: 6,
-            rcu_used: 6,
-        }]
-    );
-    assert_eq!(
-        contract.metrics_for_ddn_at_time(alice_p2p_id.clone(), day4_ms),
-        vec![MetricValue {
-            start_ms: day4_ms,
-            storage_bytes: 2,
-            wcu_used: 6,
-            rcu_used: 6,
-        }]
-    );
-    // no metrics
-    assert_eq!(
-        contract.metrics_for_ddn_at_time(alice_p2p_id.clone(), day5_ms),
-        vec![MetricValue {
-            start_ms: day5_ms,
-            storage_bytes: 0,
-            wcu_used: 0,
-            rcu_used: 0,
-        }]
+        &contract.metrics_for_ddn_at_time(alice_p2p_id.clone(), last_day_ms)[0..5],
+        [
+            MetricValue {
+                start_ms: 86400000,
+                storage_bytes: 2,
+                wcu_used: 6,
+                rcu_used: 6,
+            },
+            MetricValue {
+                start_ms: 172800000,
+                storage_bytes: 0,
+                wcu_used: 6,
+                rcu_used: 6,
+            },
+            MetricValue {
+                start_ms: 259200000,
+                storage_bytes: 7,
+                wcu_used: 6,
+                rcu_used: 6,
+            },
+            MetricValue {
+                start_ms: 345600000,
+                storage_bytes: 2,
+                wcu_used: 6,
+                rcu_used: 6,
+            },
+            // No metrics
+            MetricValue {
+                start_ms: 432000000,
+                storage_bytes: 0,
+                wcu_used: 0,
+                rcu_used: 0,
+            },
+        ]
     );
 }
 

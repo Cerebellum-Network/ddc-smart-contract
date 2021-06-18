@@ -1021,9 +1021,11 @@ mod ddc {
                     let day_metric =
                         self.metrics_for_ddn_day(reporter.clone(), p2p_id.clone(), day);
 
-                    day_storage_bytes.push(day_metric.storage_bytes);
-                    day_wcu_used.push(day_metric.wcu_used);
-                    day_rcu_used.push(day_metric.rcu_used);
+                    if let Some(day_metric) = day_metric {
+                        day_storage_bytes.push(day_metric.storage_bytes);
+                        day_wcu_used.push(day_metric.wcu_used);
+                        day_rcu_used.push(day_metric.rcu_used);
+                    }
                 }
 
                 period_metrics.push(MetricValue {
@@ -1042,28 +1044,15 @@ mod ddc {
             reporter: AccountId,
             p2p_id: String,
             day: u64,
-        ) -> MetricValue {
+        ) -> Option<MetricValue> {
             let day_of_period = day % PERIOD_DAYS;
             let day_key = MetricKeyDDN {
                 reporter,
                 p2p_id,
                 day_of_period,
             };
-            let start_ms = day * MS_PER_DAY;
 
-            let day_metrics = self.metrics_ddn.get(&day_key);
-            match day_metrics {
-                // Return metrics that exists and is not outdated.
-                Some(metrics) if metrics.start_ms == start_ms => metrics.clone(),
-
-                // Otherwise, return 0 for missing or outdated metrics from a previous period.
-                _ => MetricValue {
-                    start_ms,
-                    storage_bytes: 0,
-                    wcu_used: 0,
-                    rcu_used: 0,
-                },
-            }
+            self.metrics_ddn.get(&day_key).cloned()
         }
 
         #[ink(message)]
