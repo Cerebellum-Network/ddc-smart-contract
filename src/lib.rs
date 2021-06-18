@@ -813,7 +813,7 @@ mod ddc {
             }
 
             // Get DDN status by using median value of total downtime
-            get_median_by_key(ddn_statuses, |item| item.total_downtime)
+            get_median_by_key(&ddn_statuses, |item| item.total_downtime)
                 .cloned()
                 .ok_or(Error::DDNNotFound)
         }
@@ -886,8 +886,8 @@ mod ddc {
     }
 
     /// Get median value from a vector
-    fn get_median<T: Clone + Ord>(source: Vec<T>) -> Option<T> {
-        let mut values = source;
+    fn get_median<T: Clone + Ord>(source: &Vec<T>) -> Option<T> {
+        let mut values = source.clone();
         let length = values.len();
         // sort_unstable is faster, it doesn't preserve the order of equal elements
         values.sort_unstable();
@@ -897,7 +897,7 @@ mod ddc {
     }
 
     /// Get median value from a vector of structs by key
-    fn get_median_by_key<T, F, K>(source: Vec<T>, f: F) -> Option<T>
+    fn get_median_by_key<T, F, K>(source: &Vec<T>, f: F) -> Option<T>
     where
         T: Clone,
         F: FnMut(&T) -> K,
@@ -958,9 +958,9 @@ mod ddc {
                 }
 
                 period_metrics.add_assign(MetricValue {
-                    storage_bytes: get_median(day_storage_bytes).unwrap_or(0),
-                    wcu_used: get_median(day_wcu_used).unwrap_or(0),
-                    rcu_used: get_median(day_rcu_used).unwrap_or(0),
+                    storage_bytes: get_median(&day_storage_bytes).unwrap_or(0),
+                    wcu_used: get_median(&day_wcu_used).unwrap_or(0),
+                    rcu_used: get_median(&day_rcu_used).unwrap_or(0),
                     start_ms: 0, // Ignored
                 });
             }
@@ -1022,9 +1022,9 @@ mod ddc {
                 }
 
                 period_metrics.push(MetricValue {
-                    storage_bytes: get_median(day_storage_bytes).unwrap_or(0),
-                    wcu_used: get_median(day_wcu_used).unwrap_or(0),
-                    rcu_used: get_median(day_rcu_used).unwrap_or(0),
+                    storage_bytes: get_median(&day_storage_bytes).unwrap_or(0),
+                    wcu_used: get_median(&day_wcu_used).unwrap_or(0),
+                    rcu_used: get_median(&day_rcu_used).unwrap_or(0),
                     start_ms: 0, // Ignored
                 });
             }

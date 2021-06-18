@@ -203,7 +203,6 @@ fn withdraw_works() {
     assert_eq!(contract.balance_of_contract(), 800);
 }
 
-/// Sets exec context
 fn set_exec_context(caller: AccountId, endowement: Balance) {
     let callee = ink_env::account_id::<DefaultEnvironment>().unwrap_or([0x0; 32].into());
     test::push_execution_context::<Environment>(
@@ -234,7 +233,24 @@ fn contract_id() -> AccountId {
 #[ink::test]
 fn get_median_works() {
     let vec = vec![7, 1, 7, 9999, 9, 7, 0];
-    assert_eq!(get_median(vec), Some(7));
+    assert_eq!(get_median(&vec), Some(7));
+}
+
+#[ink::test]
+fn get_median_by_key_works() {
+    #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+    struct Item {
+        id: u8,
+        value: i32,
+    }
+    let vec = vec![
+        Item { id: 1, value: 5 },
+        Item { id: 2, value: 100 },
+        Item { id: 3, value: -1 },
+        Item { id: 4, value: 5 },
+        Item { id: 5, value: 5 },
+    ];
+    assert_eq!(get_median_by_key(&vec, |item| item.value), Some(Item { id: 4, value: 5 }));
 }
 
 #[ink::test]
