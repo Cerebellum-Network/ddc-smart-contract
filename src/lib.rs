@@ -697,6 +697,7 @@ mod ddc {
     )]
     #[cfg_attr(feature = "std", derive(Debug, scale_info::TypeInfo))]
     pub struct DDCNode {
+        p2p_id: String,
         p2p_addr: String,
         url: String,
     }
@@ -750,6 +751,7 @@ mod ddc {
             self.ddc_nodes.insert(
                 p2p_id.clone(),
                 DDCNode {
+                    p2p_id: p2p_id.clone(),
                     p2p_addr: p2p_addr.clone(),
                     url: url.clone(),
                 },
