@@ -498,7 +498,7 @@ fn report_metrics_median_works() {
         day_of_period: day1 % PERIOD_DAYS,
     };
 
-    // No metric yet.
+    // No metrics yet
     assert_eq!(contract.metrics.get(&day1_alice_django_key), None);
     assert_eq!(
         contract.metrics_for_period(django, day1_ms, day5_ms),
@@ -509,6 +509,8 @@ fn report_metrics_median_works() {
             rcu_used: 0,
         }
     );
+
+    // Expected median values
 
     // bob day1: [0, 6, 8, 8, 100] -> 8
     // bob day2: [2, 4, 4, 5, 6] -> 4
@@ -1788,6 +1790,295 @@ fn report_ddn_status_works() {
             reference_timestamp: 5,
             last_timestamp: 35,
         })
+    );
+}
+
+#[ink::test]
+fn report_ddn_status_median_works() {
+    let mut contract = make_contract();
+    let p2p_id = "test_p2p_id".to_string();
+    let p2p_addr = "test_p2p_addr".to_string();
+    let url = String::from("test_url");
+
+    let DefaultAccounts {
+        alice,
+        bob,
+        charlie,
+        django,
+        eve,
+        frank,
+    } = default_accounts::<DefaultEnvironment>().unwrap();
+
+    contract.add_reporter(alice).unwrap();
+    contract.add_reporter(bob).unwrap();
+    contract.add_reporter(charlie).unwrap();
+    contract.add_reporter(django).unwrap();
+    contract.add_reporter(eve).unwrap();
+    contract.add_reporter(frank).unwrap();
+
+    // Add DDC node
+    contract
+        .add_ddc_node(p2p_id.clone(), p2p_addr, url)
+        .unwrap();
+
+    // No status yet
+    let alice_key = DDNStatusKey {
+        reporter: alice,
+        p2p_id: p2p_id.clone(),
+    };
+    assert_eq!(contract.ddn_statuses.get(&alice_key), None);
+    assert_eq!(
+        contract.get_ddn_status(p2p_id.clone()),
+        Err(Error::DDNNoStatus)
+    );
+
+    // DDN statuses over time:
+    // 1.on
+    // 2.on
+    // 3.off -
+    // 4.off -
+    // 5.on
+    // 6.off -
+    // 7.on
+
+    // Alice is always right
+    // Bob left too early
+    // Charlie failed 2 times
+    // Django is late
+    // Eve always lies
+    // Frank is franky but failed 1 time
+
+    // Block 1 - DDN is online (no Django, Eve is lying)
+    advance_block::<DefaultEnvironment>().unwrap();
+
+    set_exec_context(alice, 2);
+    contract.report_ddn_status(p2p_id.clone(), true).unwrap();
+    undo_set_exec_context();
+
+    set_exec_context(bob, 2);
+    contract.report_ddn_status(p2p_id.clone(), true).unwrap();
+    undo_set_exec_context();
+
+    set_exec_context(charlie, 2);
+    contract.report_ddn_status(p2p_id.clone(), true).unwrap();
+    undo_set_exec_context();
+
+    set_exec_context(eve, 2);
+    contract.report_ddn_status(p2p_id.clone(), false).unwrap();
+    undo_set_exec_context();
+
+    set_exec_context(frank, 2);
+    contract.report_ddn_status(p2p_id.clone(), true).unwrap();
+    undo_set_exec_context();
+
+    // Block 2 - DDN is online (+ Django, Charlie failed, Eve is lying)
+    advance_block::<DefaultEnvironment>().unwrap();
+
+    set_exec_context(alice, 2);
+    contract.report_ddn_status(p2p_id.clone(), true).unwrap();
+    undo_set_exec_context();
+
+    set_exec_context(bob, 2);
+    contract.report_ddn_status(p2p_id.clone(), true).unwrap();
+    undo_set_exec_context();
+
+    set_exec_context(charlie, 2);
+    contract.report_ddn_status(p2p_id.clone(), false).unwrap();
+    undo_set_exec_context();
+
+    set_exec_context(django, 2);
+    contract.report_ddn_status(p2p_id.clone(), true).unwrap();
+    undo_set_exec_context();
+
+    set_exec_context(eve, 2);
+    contract.report_ddn_status(p2p_id.clone(), false).unwrap();
+    undo_set_exec_context();
+
+    set_exec_context(frank, 2);
+    contract.report_ddn_status(p2p_id.clone(), true).unwrap();
+    undo_set_exec_context();
+
+    // Block3 - DDN is offline (Eve is lying)
+    advance_block::<DefaultEnvironment>().unwrap();
+
+    set_exec_context(alice, 2);
+    contract.report_ddn_status(p2p_id.clone(), false).unwrap();
+    undo_set_exec_context();
+
+    set_exec_context(bob, 2);
+    contract.report_ddn_status(p2p_id.clone(), false).unwrap();
+    undo_set_exec_context();
+
+    set_exec_context(charlie, 2);
+    contract.report_ddn_status(p2p_id.clone(), false).unwrap();
+    undo_set_exec_context();
+
+    set_exec_context(django, 2);
+    contract.report_ddn_status(p2p_id.clone(), false).unwrap();
+    undo_set_exec_context();
+
+    set_exec_context(eve, 2);
+    contract.report_ddn_status(p2p_id.clone(), true).unwrap();
+    undo_set_exec_context();
+
+    set_exec_context(frank, 2);
+    contract.report_ddn_status(p2p_id.clone(), false).unwrap();
+    undo_set_exec_context();
+
+    // Block4 - DDN is offline (Eve is lying)
+    advance_block::<DefaultEnvironment>().unwrap();
+
+    set_exec_context(alice, 2);
+    contract.report_ddn_status(p2p_id.clone(), false).unwrap();
+    undo_set_exec_context();
+
+    set_exec_context(bob, 2);
+    contract.report_ddn_status(p2p_id.clone(), false).unwrap();
+    undo_set_exec_context();
+
+    set_exec_context(charlie, 2);
+    contract.report_ddn_status(p2p_id.clone(), false).unwrap();
+    undo_set_exec_context();
+
+    set_exec_context(django, 2);
+    contract.report_ddn_status(p2p_id.clone(), false).unwrap();
+    undo_set_exec_context();
+
+    set_exec_context(eve, 2);
+    contract.report_ddn_status(p2p_id.clone(), true).unwrap();
+    undo_set_exec_context();
+
+    set_exec_context(frank, 2);
+    contract.report_ddn_status(p2p_id.clone(), false).unwrap();
+    undo_set_exec_context();
+
+    // Block5 - DDN is online (Frank failed, Eve is lying)
+    advance_block::<DefaultEnvironment>().unwrap();
+
+    set_exec_context(alice, 2);
+    contract.report_ddn_status(p2p_id.clone(), true).unwrap();
+    undo_set_exec_context();
+
+    set_exec_context(bob, 2);
+    contract.report_ddn_status(p2p_id.clone(), true).unwrap();
+    undo_set_exec_context();
+
+    set_exec_context(charlie, 2);
+    contract.report_ddn_status(p2p_id.clone(), true).unwrap();
+    undo_set_exec_context();
+
+    set_exec_context(django, 2);
+    contract.report_ddn_status(p2p_id.clone(), true).unwrap();
+    undo_set_exec_context();
+
+    set_exec_context(eve, 2);
+    contract.report_ddn_status(p2p_id.clone(), false).unwrap();
+    undo_set_exec_context();
+
+    set_exec_context(frank, 2);
+    contract.report_ddn_status(p2p_id.clone(), false).unwrap();
+    undo_set_exec_context();
+
+    // Block6 - DDN is offline (Eve is lying)
+    advance_block::<DefaultEnvironment>().unwrap();
+
+    set_exec_context(alice, 2);
+    contract.report_ddn_status(p2p_id.clone(), false).unwrap();
+    undo_set_exec_context();
+
+    set_exec_context(bob, 2);
+    contract.report_ddn_status(p2p_id.clone(), false).unwrap();
+    undo_set_exec_context();
+
+    set_exec_context(charlie, 2);
+    contract.report_ddn_status(p2p_id.clone(), false).unwrap();
+    undo_set_exec_context();
+
+    set_exec_context(django, 2);
+    contract.report_ddn_status(p2p_id.clone(), false).unwrap();
+    undo_set_exec_context();
+
+    set_exec_context(eve, 2);
+    contract.report_ddn_status(p2p_id.clone(), true).unwrap();
+    undo_set_exec_context();
+
+    set_exec_context(frank, 2);
+    contract.report_ddn_status(p2p_id.clone(), false).unwrap();
+    undo_set_exec_context();
+
+    // Block7 - DDN is online (Bob left, Charlie failed, Eve is lying)
+    advance_block::<DefaultEnvironment>().unwrap();
+
+    set_exec_context(alice, 2);
+    contract.report_ddn_status(p2p_id.clone(), true).unwrap();
+    undo_set_exec_context();
+
+    set_exec_context(charlie, 2);
+    contract.report_ddn_status(p2p_id.clone(), false).unwrap();
+    undo_set_exec_context();
+
+    set_exec_context(django, 2);
+    contract.report_ddn_status(p2p_id.clone(), true).unwrap();
+    undo_set_exec_context();
+
+    set_exec_context(eve, 2);
+    contract.report_ddn_status(p2p_id.clone(), false).unwrap();
+    undo_set_exec_context();
+
+    set_exec_context(frank, 2);
+    contract.report_ddn_status(p2p_id.clone(), true).unwrap();
+    undo_set_exec_context();
+
+    /*
+    ddn_statuses = [
+        DDNStatus {
+            is_online: true,
+            total_downtime: 15,
+            reference_timestamp: 5,
+            last_timestamp: 35,
+        },
+        DDNStatus {
+            is_online: false,
+            total_downtime: 10,
+            reference_timestamp: 5,
+            last_timestamp: 30,
+        },
+        DDNStatus {
+            is_online: false,
+            total_downtime: 20,
+            reference_timestamp: 5,
+            last_timestamp: 35,
+        },
+        DDNStatus {
+            is_online: false,
+            total_downtime: 15,
+            reference_timestamp: 5,
+            last_timestamp: 35,
+        },
+        DDNStatus {
+            is_online: true,
+            total_downtime: 20,
+            reference_timestamp: 5,
+            last_timestamp: 35,
+        },
+        DDNStatus {
+            is_online: true,
+            total_downtime: 15,
+            reference_timestamp: 10,
+            last_timestamp: 35,
+        },
+    ]
+    */
+
+    // Total downtime should be the median value
+    assert_eq!(
+        contract.get_ddn_status(p2p_id.clone()).unwrap(),
+        DDNStatus {
+            is_online: true,
+            total_downtime: 15,
+            reference_timestamp: 10,
+            last_timestamp: 35,
+        }
     );
 }
 
