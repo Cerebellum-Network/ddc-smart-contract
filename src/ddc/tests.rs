@@ -1408,6 +1408,7 @@ fn add_ddc_node_works() {
     assert_eq!(
         contract.get_all_ddc_nodes(),
         vec![DDCNode {
+            p2p_id: p2p_id.clone(),
             p2p_addr: p2p_addr.clone(),
             url: url.clone()
         },]
@@ -1463,6 +1464,7 @@ fn add_ddn_node_update_url_works() {
     assert_eq!(
         contract.get_all_ddc_nodes(),
         vec![DDCNode {
+            p2p_id,
             p2p_addr,
             url: new_url
         }]
