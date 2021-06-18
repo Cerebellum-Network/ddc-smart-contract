@@ -798,6 +798,10 @@ mod ddc {
         /// Get DDC node status
         #[ink(message)]
         pub fn get_ddn_status(&self, p2p_id: String) -> Result<DDNStatus> {
+            if !self.ddc_nodes.contains_key(&p2p_id) {
+                return Err(Error::DDNNotFound);
+            }
+
             let mut ddn_statuses: Vec<&DDNStatus> = Vec::new();
 
             // Collect DDN statuses from all reporters
@@ -815,7 +819,7 @@ mod ddc {
             // Get DDN status by using median value of total downtime
             get_median_by_key(&ddn_statuses, |item| item.total_downtime)
                 .cloned()
-                .ok_or(Error::DDNNotFound)
+                .ok_or(Error::DDNNoStatus)
         }
     }
 
@@ -961,9 +965,10 @@ mod ddc {
                     storage_bytes: get_median(&day_storage_bytes).unwrap_or(0),
                     wcu_used: get_median(&day_wcu_used).unwrap_or(0),
                     rcu_used: get_median(&day_rcu_used).unwrap_or(0),
-                    start_ms: 0, // Ignored
+                    start_ms: 0, // Ignored by add_assign, but required by type
                 });
             }
+
             period_metrics
         }
 
@@ -1025,7 +1030,7 @@ mod ddc {
                     storage_bytes: get_median(&day_storage_bytes).unwrap_or(0),
                     wcu_used: get_median(&day_wcu_used).unwrap_or(0),
                     rcu_used: get_median(&day_rcu_used).unwrap_or(0),
-                    start_ms: 0, // Ignored
+                    start_ms: day * MS_PER_DAY,
                 });
             }
 
@@ -1200,6 +1205,7 @@ mod ddc {
         NoSubscription,
         NoFreeTier,
         DDNNotFound,
+        DDNNoStatus,
     }
 
     pub type Result<T> = core::result::Result<T, Error>;

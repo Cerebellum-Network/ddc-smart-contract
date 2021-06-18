@@ -1,6 +1,7 @@
 use crate::ddc::Error::*;
 use ink_env::{
     call, test,
+    test::DefaultAccounts,
     test::{advance_block, default_accounts, initialize_or_reset_as_default, recorded_events},
     AccountId, DefaultEnvironment,
 };
@@ -250,7 +251,10 @@ fn get_median_by_key_works() {
         Item { id: 4, value: 5 },
         Item { id: 5, value: 5 },
     ];
-    assert_eq!(get_median_by_key(&vec, |item| item.value), Some(Item { id: 4, value: 5 }));
+    assert_eq!(
+        get_median_by_key(&vec, |item| item.value),
+        Some(Item { id: 4, value: 5 })
+    );
 }
 
 #[ink::test]
@@ -459,15 +463,16 @@ fn get_current_period_days_works() {
 }
 
 #[ink::test]
-fn median_works() {
+fn report_metrics_median_works() {
     let mut contract = make_contract();
-
-    let alice = AccountId::from([0x01; 32]);
-    let bob = AccountId::from([0x02; 32]);
-    let charlie = AccountId::from([0x03; 32]);
-    let django = AccountId::from([0x04; 32]);
-    let eve = AccountId::from([0x05; 32]);
-    let frank = AccountId::from([0x06; 32]);
+    let DefaultAccounts {
+        alice,
+        bob,
+        charlie,
+        django,
+        eve,
+        frank,
+    } = default_accounts::<DefaultEnvironment>().unwrap();
 
     contract.add_reporter(alice).unwrap();
     contract.add_reporter(bob).unwrap();
@@ -1505,6 +1510,15 @@ fn remove_ddc_node_only_owner_works() {
 }
 
 #[ink::test]
+fn remove_ddc_node_not_found_works() {
+    let mut contract = make_contract();
+    let p2p_id = String::from("test_p2p_id");
+
+    // Should return an error if not found
+    assert_eq!(contract.remove_ddc_node(p2p_id), Err(Error::DDNNotFound));
+}
+
+#[ink::test]
 fn remove_ddc_node_works() {
     let mut contract = make_contract();
     let p2p_id = String::from("test_p2p_id");
@@ -1546,6 +1560,32 @@ fn get_ddn_status_not_found_works() {
 
     // Should return an error if not found
     assert_eq!(contract.get_ddn_status(p2p_id), Err(Error::DDNNotFound));
+}
+
+#[ink::test]
+fn get_ddn_status_no_status_works() {
+    let mut contract = make_contract();
+    let accounts = default_accounts::<DefaultEnvironment>().unwrap();
+    let p2p_id = String::from("test_p2p_id");
+    let p2p_addr = "test_p2p_addr".to_string();
+    let url = String::from("test_url");
+
+    // Add DDC node to the list
+    contract
+        .add_ddc_node(p2p_id.clone(), p2p_addr.clone(), url)
+        .unwrap();
+
+    // Should return an error if no reporters
+    assert_eq!(
+        contract.get_ddn_status(p2p_id.clone()),
+        Err(Error::DDNNoStatus)
+    );
+
+    // Make admin a reporter
+    contract.add_reporter(accounts.alice).unwrap();
+
+    // Should return an error if status not found
+    assert_eq!(contract.get_ddn_status(p2p_id), Err(Error::DDNNoStatus));
 }
 
 #[ink::test]
@@ -1658,7 +1698,13 @@ fn report_ddn_status_works() {
     // Update block time from 0 to 5
     advance_block::<DefaultEnvironment>().unwrap();
 
-    // Calculations should work
+    // No status initially
+    assert_eq!(
+        contract.get_ddn_status(p2p_id.clone()),
+        Err(Error::DDNNoStatus)
+    );
+
+    // Adds a new status
     contract.report_ddn_status(p2p_id.clone(), true).unwrap();
     assert_eq!(
         contract.get_ddn_status(p2p_id.clone()).unwrap(),
@@ -1670,6 +1716,7 @@ fn report_ddn_status_works() {
         }
     );
 
+    // Status should be updated
     advance_block::<DefaultEnvironment>().unwrap();
     contract.report_ddn_status(p2p_id.clone(), true).unwrap();
     assert_eq!(
@@ -1682,6 +1729,7 @@ fn report_ddn_status_works() {
         }
     );
 
+    // Calculations should work
     advance_block::<DefaultEnvironment>().unwrap();
     contract.report_ddn_status(p2p_id.clone(), false).unwrap();
     assert_eq!(
@@ -1793,6 +1841,37 @@ fn report_metrics_updates_ddn_status_works() {
 }
 
 #[ink::test]
+fn remove_ddc_node_removes_statuses_works() {
+    let mut contract = make_contract();
+    let accounts = default_accounts::<DefaultEnvironment>().unwrap();
+    let p2p_id = String::from("test_p2p_id");
+    let p2p_addr = String::from("test_p2p_addr");
+    let url = String::from("test_url");
+
+    // Make admin a reporter
+    contract.add_reporter(accounts.alice).unwrap();
+
+    // Add DDC node
+    contract
+        .add_ddc_node(p2p_id.clone(), p2p_addr.clone(), url.clone())
+        .unwrap();
+
+    // Set new status
+    contract.report_ddn_status(p2p_id.clone(), false).unwrap();
+
+    // Remove DDC node
+    contract.remove_ddc_node(p2p_id.clone()).unwrap();
+
+    // Add the same DDC node again to check for statuses
+    contract
+        .add_ddc_node(p2p_id.clone(), p2p_addr.clone(), url.clone())
+        .unwrap();
+
+    // Should remove DDN statuses
+    assert_eq!(contract.get_ddn_status(p2p_id), Err(Error::DDNNoStatus));
+}
+
+#[ink::test]
 fn report_metrics_ddn_works() {
     let mut contract = make_contract();
     let accounts = default_accounts::<DefaultEnvironment>().unwrap();
@@ -1834,7 +1913,7 @@ fn report_metrics_ddn_works() {
     ];
 
     for i in 0..PERIOD_DAYS as usize {
-        expected[i].start_ms = 0; // Ignore
+        expected[i].start_ms = (first_day + i as u64) * MS_PER_DAY;
     }
 
     expected[17].storage_bytes = storage_bytes;
