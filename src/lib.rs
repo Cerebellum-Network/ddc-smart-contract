@@ -442,7 +442,7 @@ mod ddc {
         ) -> Balance {
             let duration_consumed = now_ms - subscription.last_update_ms;
 
-            duration_consumed as u128 * subscription_tier.tier_fee / 31 / MS_PER_DAY as u128
+            duration_consumed as u128 * subscription_tier.tier_fee as u128 / PERIOD_MS as u128
         }
 
         fn actualize_subscription_at_time(
