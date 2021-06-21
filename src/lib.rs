@@ -438,7 +438,7 @@ mod ddc {
             let tier_id = subscription.tier_id;
             let tier = self.service_tiers.get(&tier_id).unwrap();
 
-            duration_consumed as u128 * tier.tier_fee / 31 / MS_PER_DAY as u128
+            duration_consumed as u128 * tier.tier_fee as u128 / PERIOD_MS as u128
         }
 
         fn actualize_subscription(&mut self, subscription: &mut AppSubscription) {
