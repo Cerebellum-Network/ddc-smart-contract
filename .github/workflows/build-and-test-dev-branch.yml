@@ -2,7 +2,7 @@ name: Build and Test dev branch
 on:
   push:
     branches:
-      - feature/fixCiCd
+      - dev
 
 jobs:
   build-and-push:
