@@ -261,7 +261,7 @@ fn get_median_by_key_works() {
 fn report_metrics_works() {
     let mut contract = make_contract();
     let accounts = default_accounts::<DefaultEnvironment>().unwrap();
-    let reporter_id = accounts.alice;
+    let inspector_id = accounts.alice;
     let app_id = accounts.charlie;
 
     let mut metrics = MetricValue {
@@ -289,26 +289,26 @@ fn report_metrics_works() {
 
     let today_ms = some_day * MS_PER_DAY; // Midnight time on some day.
     let today_key = MetricKey {
-        reporter: reporter_id,
+        inspector: inspector_id,
         app_id,
         day_of_period: some_day % PERIOD_DAYS,
     };
 
     let yesterday_ms = (some_day - 1) * MS_PER_DAY; // Midnight time on some day.
     let yesterday_key = MetricKey {
-        reporter: reporter_id,
+        inspector: inspector_id,
         app_id,
         day_of_period: (some_day - 1) % PERIOD_DAYS,
     };
 
     let next_month_ms = (some_day + PERIOD_DAYS) * MS_PER_DAY; // Midnight time on some day.
     let next_month_key = MetricKey {
-        reporter: reporter_id,
+        inspector: inspector_id,
         app_id,
         day_of_period: (some_day + PERIOD_DAYS) % PERIOD_DAYS,
     };
 
-    // Unauthorized report, we are not a reporter.
+    // Unauthorized report, we are not an inspector.
     let err = contract.report_metrics(
         app_id,
         0,
@@ -316,7 +316,7 @@ fn report_metrics_works() {
         metrics.wcu_used,
         metrics.rcu_used,
     );
-    assert_eq!(err, Err(Error::OnlyReporter));
+    assert_eq!(err, Err(Error::OnlyInspector));
 
     // No metric yet.
     assert_eq!(contract.metrics.get(&today_key), None);
@@ -330,8 +330,8 @@ fn report_metrics_works() {
         }
     );
 
-    // Authorize our admin account to be a reporter too.
-    contract.add_reporter(reporter_id).unwrap();
+    // Authorize our admin account to be an inspector too.
+    contract.add_inspector(inspector_id).unwrap();
 
     // Wrong day format.
     let err = contract.report_metrics(
@@ -418,7 +418,7 @@ fn report_metrics_works() {
 
     // Some other account has no metrics.
     let other_key = MetricKey {
-        reporter: reporter_id,
+        inspector: inspector_id,
         app_id: accounts.bob,
         day_of_period: 0,
     };
@@ -474,12 +474,12 @@ fn report_metrics_median_works() {
         frank,
     } = default_accounts::<DefaultEnvironment>().unwrap();
 
-    contract.add_reporter(alice).unwrap();
-    contract.add_reporter(bob).unwrap();
-    contract.add_reporter(charlie).unwrap();
-    contract.add_reporter(django).unwrap();
-    contract.add_reporter(eve).unwrap();
-    contract.add_reporter(frank).unwrap();
+    contract.add_inspector(alice).unwrap();
+    contract.add_inspector(bob).unwrap();
+    contract.add_inspector(charlie).unwrap();
+    contract.add_inspector(django).unwrap();
+    contract.add_inspector(eve).unwrap();
+    contract.add_inspector(frank).unwrap();
 
     let day1 = 10001;
     let day1_ms = day1 * MS_PER_DAY;
@@ -493,7 +493,7 @@ fn report_metrics_median_works() {
     let day5_ms = day5 * MS_PER_DAY;
 
     let day1_alice_django_key = MetricKey {
-        reporter: alice,
+        inspector: alice,
         app_id: django,
         day_of_period: day1 % PERIOD_DAYS,
     };
@@ -1281,7 +1281,7 @@ fn metrics_since_subscription_works() {
     );
 
     // Subscription with metrics.
-    contract.add_reporter(accounts.alice).unwrap();
+    contract.add_inspector(accounts.alice).unwrap();
     contract.report_metrics(app_id, 0, 12, 34, 34).unwrap();
     assert_eq!(
         contract.metrics_since_subscription(app_id),
@@ -1298,17 +1298,17 @@ fn metrics_since_subscription_works() {
 fn finalize_metric_period_works() {
     let mut contract = make_contract();
     let accounts = default_accounts::<DefaultEnvironment>().unwrap();
-    let yesterday_ms = 9999 * MS_PER_DAY; // Midnight time on some day.
+    let yesterday_ms = 9999 * MS_PER_DAY; // Midnight time on some day
     let today_ms = yesterday_ms + MS_PER_DAY;
 
-    // Unauthorized report, we are not a reporter.
+    // Unauthorized report, we are not an inspector
     let err = contract.finalize_metric_period(yesterday_ms);
-    assert_eq!(err, Err(Error::OnlyReporter));
+    assert_eq!(err, Err(Error::OnlyInspector));
 
-    // Authorize our admin account to be a reporter too.
-    contract.add_reporter(accounts.alice).unwrap();
+    // Authorize our admin account to be an inspector too
+    contract.add_inspector(accounts.alice).unwrap();
 
-    // Wrong day format.
+    // Wrong day format
     let err = contract.finalize_metric_period(yesterday_ms + 1);
     assert_eq!(err, Err(Error::UnexpectedTimestamp));
 
@@ -1326,9 +1326,9 @@ fn get_current_period_ms_works() {
     let day1 = day0 + MS_PER_DAY;
     let day2 = day1 + MS_PER_DAY;
 
-    // Authorize our accounts to be a reporters.
-    contract.add_reporter(accounts.alice).unwrap();
-    contract.add_reporter(accounts.bob).unwrap();
+    // Authorize our accounts to be inspectors.
+    contract.add_inspector(accounts.alice).unwrap();
+    contract.add_inspector(accounts.bob).unwrap();
 
     // Initial values are the current day (0 because that is the current time in the test env).
     assert_eq!(contract.get_current_period_ms_of(accounts.alice), 0);
@@ -1361,30 +1361,30 @@ fn decode_event(event: &ink_env::test::EmittedEvent) -> Event {
         .expect("encountered invalid contract event data buffer")
 }
 
-// ---- Admin: Reporters ----
+// ---- Admin: Inspectors ----
 #[ink::test]
-fn add_and_remove_reporters_works() {
+fn add_and_remove_inspectors_works() {
     let mut contract = make_contract();
 
-    let new_reporter = AccountId::from([0x1; 32]);
+    let new_inspector = AccountId::from([0x1; 32]);
 
-    assert!(!contract.is_reporter(new_reporter));
-    contract.add_reporter(new_reporter).unwrap();
-    assert!(contract.is_reporter(new_reporter));
-    contract.remove_reporter(new_reporter).unwrap();
-    assert!(!contract.is_reporter(new_reporter));
+    assert!(!contract.is_inspector(new_inspector));
+    contract.add_inspector(new_inspector).unwrap();
+    assert!(contract.is_inspector(new_inspector));
+    contract.remove_inspector(new_inspector).unwrap();
+    assert!(!contract.is_inspector(new_inspector));
 
     let raw_events = recorded_events().collect::<Vec<_>>();
-    assert_eq!(5, raw_events.len()); // 3 x tier added + added reporter + remove reporter
+    assert_eq!(5, raw_events.len()); // 3 x tier added + added inspector + remove inspector
 
-    if let Event::ReporterAdded(ReporterAdded { reporter }) = decode_event(&raw_events[3]) {
-        assert_eq!(reporter, new_reporter);
+    if let Event::InspectorAdded(InspectorAdded { inspector }) = decode_event(&raw_events[3]) {
+        assert_eq!(inspector, new_inspector);
     } else {
         panic!("Wrong event type");
     }
 
-    if let Event::ReporterRemoved(ReporterRemoved { reporter }) = decode_event(&raw_events[4]) {
-        assert_eq!(reporter, new_reporter);
+    if let Event::InspectorRemoved(InspectorRemoved { inspector }) = decode_event(&raw_events[4]) {
+        assert_eq!(inspector, new_inspector);
     } else {
         panic!("Wrong event type");
     }
@@ -1579,14 +1579,14 @@ fn get_ddn_status_no_status_works() {
         .add_ddc_node(p2p_id.clone(), p2p_addr.clone(), url)
         .unwrap();
 
-    // Should return an error if no reporters
+    // Should return an error if no inspectors
     assert_eq!(
         contract.get_ddn_status(p2p_id.clone()),
         Err(Error::DDNNoStatus)
     );
 
-    // Make admin a reporter
-    contract.add_reporter(accounts.alice).unwrap();
+    // Make admin an inspector
+    contract.add_inspector(accounts.alice).unwrap();
 
     // Should return an error if status not found
     assert_eq!(contract.get_ddn_status(p2p_id), Err(Error::DDNNoStatus));
@@ -1600,8 +1600,8 @@ fn get_ddn_status_works() {
     let p2p_addr = "test_p2p_addr".to_string();
     let url = String::from("test_url");
 
-    // Make admin a reporter
-    contract.add_reporter(accounts.alice).unwrap();
+    // Make admin an inspector
+    contract.add_inspector(accounts.alice).unwrap();
 
     // Add DDC node to the list
     contract
@@ -1624,14 +1624,14 @@ fn get_ddn_status_works() {
 }
 
 #[ink::test]
-fn report_ddn_status_only_reporter_works() {
+fn report_ddn_status_only_inspector_works() {
     let mut contract = make_contract();
     let p2p_id = String::from("test_p2p_id");
 
-    // Caller should be a reporter
+    // Caller should be an inspector
     assert_eq!(
         contract.report_ddn_status(p2p_id.clone(), true),
-        Err(Error::OnlyReporter)
+        Err(Error::OnlyInspector)
     );
 }
 
@@ -1641,8 +1641,8 @@ fn report_ddn_status_not_found_works() {
     let accounts = default_accounts::<DefaultEnvironment>().unwrap();
     let p2p_id = String::from("test_p2p_id");
 
-    // Make admin a reporter
-    contract.add_reporter(accounts.alice).unwrap();
+    // Make admin an inspector
+    contract.add_inspector(accounts.alice).unwrap();
 
     // Should report only for listed DDC node
     assert_eq!(
@@ -1659,8 +1659,8 @@ fn report_ddn_status_unexpected_timestamp_works() {
     let p2p_addr = "test_p2p_addr".to_string();
     let url = String::from("test_url");
 
-    // Make admin a reporter
-    contract.add_reporter(accounts.alice).unwrap();
+    // Make admin an inspector
+    contract.add_inspector(accounts.alice).unwrap();
 
     // Add DDC node to the list
     contract
@@ -1691,8 +1691,8 @@ fn report_ddn_status_works() {
     let p2p_addr = "test_p2p_addr".to_string();
     let url = String::from("test_url");
 
-    // Make admin a reporter
-    contract.add_reporter(accounts.alice).unwrap();
+    // Make admin an inspector
+    contract.add_inspector(accounts.alice).unwrap();
 
     // Add DDC node
     contract
@@ -1811,12 +1811,12 @@ fn report_ddn_status_median_works() {
         frank,
     } = default_accounts::<DefaultEnvironment>().unwrap();
 
-    contract.add_reporter(alice).unwrap();
-    contract.add_reporter(bob).unwrap();
-    contract.add_reporter(charlie).unwrap();
-    contract.add_reporter(django).unwrap();
-    contract.add_reporter(eve).unwrap();
-    contract.add_reporter(frank).unwrap();
+    contract.add_inspector(alice).unwrap();
+    contract.add_inspector(bob).unwrap();
+    contract.add_inspector(charlie).unwrap();
+    contract.add_inspector(django).unwrap();
+    contract.add_inspector(eve).unwrap();
+    contract.add_inspector(frank).unwrap();
 
     // Add DDC node
     contract
@@ -1825,7 +1825,7 @@ fn report_ddn_status_median_works() {
 
     // No status yet
     let alice_key = DDNStatusKey {
-        reporter: alice,
+        inspector: alice,
         p2p_id: p2p_id.clone(),
     };
     assert_eq!(contract.ddn_statuses.get(&alice_key), None);
@@ -2102,8 +2102,8 @@ fn report_metrics_updates_ddn_status_works() {
 
     let url = String::from("test_url");
 
-    // Make admin a reporter
-    contract.add_reporter(accounts.alice).unwrap();
+    // Make admin an inspector
+    contract.add_inspector(accounts.alice).unwrap();
 
     // Add DDC node to the list
     contract
@@ -2141,8 +2141,8 @@ fn remove_ddc_node_removes_statuses_works() {
     let p2p_addr = String::from("test_p2p_addr");
     let url = String::from("test_url");
 
-    // Make admin a reporter
-    contract.add_reporter(accounts.alice).unwrap();
+    // Make admin an inspector
+    contract.add_inspector(accounts.alice).unwrap();
 
     // Add DDC node
     contract
@@ -2186,7 +2186,7 @@ fn report_metrics_ddn_works() {
         .add_ddc_node(p2p_id.clone(), p2p_addr.clone(), url)
         .unwrap();
 
-    contract.add_reporter(accounts.alice).unwrap();
+    contract.add_inspector(accounts.alice).unwrap();
     contract
         .report_metrics_ddn(p2p_id.clone(), today_ms, storage_bytes, wcu_used, rcu_used)
         .unwrap();
@@ -2228,12 +2228,12 @@ fn report_metrics_ddn_median_works() {
         frank,
     } = default_accounts::<DefaultEnvironment>().unwrap();
 
-    contract.add_reporter(alice).unwrap();
-    contract.add_reporter(bob).unwrap();
-    contract.add_reporter(charlie).unwrap();
-    contract.add_reporter(django).unwrap();
-    contract.add_reporter(eve).unwrap();
-    contract.add_reporter(frank).unwrap();
+    contract.add_inspector(alice).unwrap();
+    contract.add_inspector(bob).unwrap();
+    contract.add_inspector(charlie).unwrap();
+    contract.add_inspector(django).unwrap();
+    contract.add_inspector(eve).unwrap();
+    contract.add_inspector(frank).unwrap();
 
     let day1 = 1;
     let day1_ms = day1 * MS_PER_DAY;
@@ -3055,5 +3055,75 @@ fn get_app_limit_works() {
     assert_eq!(
         contract.get_app_limit_at_time(app_id, later),
         Ok(AppSubscriptionLimit::new(1000, 1000, 1000,))
+    );
+}
+
+#[ink::test]
+fn actualize_subscriptions_works() {
+    let accounts = default_accounts::<DefaultEnvironment>().unwrap();
+    let mut contract = make_contract();
+
+    let alice = accounts.alice;
+    set_exec_context(alice, 2);
+    contract.subscribe(1).unwrap();
+    undo_set_exec_context();
+
+    let bob = accounts.bob;
+    set_exec_context(bob, 4);
+    contract.subscribe(2).unwrap();
+    undo_set_exec_context();
+
+    let charlie = accounts.charlie;
+    set_exec_context(charlie, 8);
+    contract.subscribe(3).unwrap();
+
+    assert_eq!(contract.actualize_subscriptions(), Err(Error::OnlyOwner));
+
+    undo_set_exec_context();
+
+    contract.actualize_subscriptions().unwrap();
+
+    assert_eq!(contract.get_total_ddc_balance(), 0);
+
+    let mut subscription = contract.subscriptions.get(&alice).unwrap().clone();
+    let tier = contract.tier_limit_of(alice);
+
+    let middle_of_period = PERIOD_MS / 2;
+    let end_of_period = PERIOD_MS;
+
+    assert_eq!(
+        Ddc::actualize_subscription_at_time(middle_of_period, &mut subscription, &tier),
+        1
+    );
+
+    assert_eq!(
+        Ddc::actualize_subscription_at_time(end_of_period, &mut subscription, &tier),
+        1
+    );
+
+    let mut subscription = contract.subscriptions.get(&bob).unwrap().clone();
+    let tier = contract.tier_limit_of(bob);
+
+    assert_eq!(
+        Ddc::actualize_subscription_at_time(middle_of_period, &mut subscription, &tier),
+        2
+    );
+
+    assert_eq!(
+        Ddc::actualize_subscription_at_time(end_of_period, &mut subscription, &tier),
+        2
+    );
+
+    let mut subscription = contract.subscriptions.get(&charlie).unwrap().clone();
+    let tier = contract.tier_limit_of(charlie);
+
+    assert_eq!(
+        Ddc::actualize_subscription_at_time(middle_of_period, &mut subscription, &tier),
+        4
+    );
+
+    assert_eq!(
+        Ddc::actualize_subscription_at_time(end_of_period, &mut subscription, &tier),
+        4
     );
 }
