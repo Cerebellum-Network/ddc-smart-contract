@@ -51,7 +51,7 @@ mod ddc {
         pub fn new() -> Self {
             let caller = Self::env().caller();
 
-            let instance = Self {
+            Self {
                 owner: Lazy::new(caller),
                 service_tiers: StorageHashMap::new(),
                 balances: StorageHashMap::new(),
@@ -63,8 +63,7 @@ mod ddc {
                 metrics: StorageHashMap::new(),
                 metrics_ddn: StorageHashMap::new(),
                 pause: false,
-            };
-            instance
+            }
         }
     }
 
@@ -75,7 +74,7 @@ mod ddc {
             if *self.owner == caller {
                 Ok(())
             } else {
-                return Err(Error::OnlyOwner);
+                Err(Error::OnlyOwner)
             }
         }
 
@@ -84,6 +83,7 @@ mod ddc {
         pub fn transfer_ownership(&mut self, to: AccountId) -> Result<()> {
             self.only_active()?;
             self.only_owner(self.env().caller())?;
+
             *self.owner = to;
             Ok(())
         }
@@ -137,7 +137,7 @@ mod ddc {
             if self.pause == false {
                 Ok(())
             } else {
-                return Err(Error::ContractPaused);
+                Err(Error::ContractPaused)
             }
         }
 
@@ -148,14 +148,9 @@ mod ddc {
         pub fn flip_contract_status(&mut self) -> Result<()> {
             let caller = self.env().caller();
             self.only_owner(caller)?;
-            let status = self.pause;
-            if status == false {
-                self.pause = true;
-                Ok(())
-            } else {
-                self.pause = false;
-                Ok(())
-            }
+
+            self.pause = !self.pause;
+            Ok(())
         }
     }
 
@@ -270,10 +265,10 @@ mod ddc {
         /// check if tid is within 1, 2 ,3
         /// return ok or error
         fn tid_in_bound(&self, tier_id: u64) -> Result<()> {
-            if self.service_tiers.get(&tier_id).is_none() {
-                return Err(Error::TidOutOfBound);
-            } else {
+            if self.service_tiers.get(&tier_id).is_some() {
                 Ok(())
+            } else {
+                Err(Error::TidOutOfBound)
             }
         }
 
@@ -324,9 +319,9 @@ mod ddc {
             self.tid_in_bound(tier_id)?;
             let v = self.service_tiers.get(&tier_id).unwrap();
             if v.tier_fee as Balance != new_value {
-                return Ok(());
+                Ok(())
             } else {
-                return Err(Error::SameDepositValue);
+                Err(Error::SameDepositValue)
             }
         }
 
@@ -404,17 +399,14 @@ mod ddc {
         /// Return the tier id corresponding to the account
         #[ink(message)]
         pub fn tier_id_of(&self, acct: AccountId) -> u64 {
-            let tier_id = self.get_tier_id(&acct);
-            tier_id
+            self.get_tier_id(&acct)
         }
 
         /// Return the tier limit corresponding the account
         #[ink(message)]
         pub fn tier_limit_of(&self, acct: AccountId) -> ServiceTier {
             let tier_id = self.get_tier_id(&acct);
-            let tl = self.get_tier_limit(tier_id);
-
-            tl.clone()
+            self.get_tier_limit(tier_id)
         }
 
         /// Return tier id given an account
@@ -455,7 +447,7 @@ mod ddc {
 
         fn set_tier(&mut self, subscription: &mut AppSubscription, new_tier_id: u64) {
             self.actualize_subscription(subscription);
-            subscription.tier_id = new_tier_id.clone();
+            subscription.tier_id = new_tier_id;
         }
 
         #[ink(message)]
@@ -543,7 +535,7 @@ mod ddc {
             } else {
                 subscription = subscription_opt.unwrap().clone();
 
-                subscription.balance = subscription.balance + value;
+                subscription.balance += value;
 
                 if subscription.tier_id != tier_id {
                     self.set_tier(&mut subscription, tier_id);
@@ -556,7 +548,7 @@ mod ddc {
                 value,
             });
 
-            return Ok(());
+            Ok(())
         }
 
         #[ink(message)]
@@ -577,12 +569,12 @@ mod ddc {
                 return Ok(());
             }
 
-            self.subscriptions.insert(caller, subscription.clone());
+            self.subscriptions.insert(caller, subscription);
 
             match self.env().transfer(caller, to_refund) {
                 Err(_e) => panic!("Transfer has failed!"),
-                Ok(_) => return Ok(()),
-            };
+                Ok(_) => Ok(()),
+            }
         }
     }
 
@@ -817,7 +809,7 @@ mod ddc {
             }
 
             // Get DDN status by using median value of total downtime
-            get_median_by_key(&ddn_statuses, |item| item.total_downtime)
+            get_median_by_key(ddn_statuses, |item| item.total_downtime)
                 .cloned()
                 .ok_or(Error::DDNNoStatus)
         }
@@ -890,30 +882,28 @@ mod ddc {
     }
 
     /// Get median value from a vector
-    fn get_median<T: Clone + Ord>(source: &Vec<T>) -> Option<T> {
-        let mut values = source.clone();
-        let length = values.len();
+    fn get_median<T: Clone + Ord>(mut source: Vec<T>) -> Option<T> {
+        let length = source.len();
         // sort_unstable is faster, it doesn't preserve the order of equal elements
-        values.sort_unstable();
+        source.sort_unstable();
         let index_correction = length != 0 && length % 2 == 0;
         let median_index = length / 2 - index_correction as usize;
-        values.get(median_index).cloned()
+        source.get(median_index).cloned()
     }
 
     /// Get median value from a vector of structs by key
-    fn get_median_by_key<T, F, K>(source: &Vec<T>, f: F) -> Option<T>
+    fn get_median_by_key<T, F, K>(mut source: Vec<T>, f: F) -> Option<T>
     where
         T: Clone,
         F: FnMut(&T) -> K,
         K: Ord,
     {
-        let mut values = source.clone();
-        let length = values.len();
+        let length = source.len();
         // sort_unstable is faster, it doesn't preserve the order of equal elements
-        values.sort_unstable_by_key(f);
+        source.sort_unstable_by_key(f);
         let index_correction = length != 0 && length % 2 == 0;
         let median_index = length / 2 - index_correction as usize;
-        values.get(median_index).cloned()
+        source.get(median_index).cloned()
     }
 
     impl Ddc {
@@ -926,6 +916,7 @@ mod ddc {
 
             let now_ms = Self::env().block_timestamp() as u64;
             let metrics = self.metrics_for_period(app_id, subscription.start_date_ms, now_ms);
+
             Ok(metrics)
         }
 
@@ -953,7 +944,7 @@ mod ddc {
                 let mut day_rcu_used: Vec<u64> = Vec::new();
 
                 for reporter in self.reporters.keys() {
-                    let reporter_day_metric = self.metrics_for_day(reporter.clone(), app_id, day);
+                    let reporter_day_metric = self.metrics_for_day(*reporter, app_id, day);
                     if let Some(reporter_day_metric) = reporter_day_metric {
                         day_storage_bytes.push(reporter_day_metric.storage_bytes);
                         day_wcu_used.push(reporter_day_metric.wcu_used);
@@ -962,9 +953,9 @@ mod ddc {
                 }
 
                 period_metrics.add_assign(MetricValue {
-                    storage_bytes: get_median(&day_storage_bytes).unwrap_or(0),
-                    wcu_used: get_median(&day_wcu_used).unwrap_or(0),
-                    rcu_used: get_median(&day_rcu_used).unwrap_or(0),
+                    storage_bytes: get_median(day_storage_bytes).unwrap_or(0),
+                    wcu_used: get_median(day_wcu_used).unwrap_or(0),
+                    rcu_used: get_median(day_rcu_used).unwrap_or(0),
                     start_ms: 0, // Ignored by add_assign, but required by type
                 });
             }
@@ -1018,8 +1009,7 @@ mod ddc {
                 let mut day_rcu_used: Vec<u64> = Vec::new();
 
                 for reporter in self.reporters.keys() {
-                    let day_metric =
-                        self.metrics_for_ddn_day(reporter.clone(), p2p_id.clone(), day);
+                    let day_metric = self.metrics_for_ddn_day(*reporter, p2p_id.clone(), day);
 
                     if let Some(day_metric) = day_metric {
                         day_storage_bytes.push(day_metric.storage_bytes);
@@ -1029,9 +1019,9 @@ mod ddc {
                 }
 
                 period_metrics.push(MetricValue {
-                    storage_bytes: get_median(&day_storage_bytes).unwrap_or(0),
-                    wcu_used: get_median(&day_wcu_used).unwrap_or(0),
-                    rcu_used: get_median(&day_rcu_used).unwrap_or(0),
+                    storage_bytes: get_median(day_storage_bytes).unwrap_or(0),
+                    wcu_used: get_median(day_wcu_used).unwrap_or(0),
+                    rcu_used: get_median(day_rcu_used).unwrap_or(0),
                     start_ms: day * MS_PER_DAY,
                 });
             }
