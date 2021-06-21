@@ -30,8 +30,8 @@ mod ddc {
         balances: StorageHashMap<AccountId, Balance>,
         subscriptions: StorageHashMap<AccountId, AppSubscription>,
 
-        // -- Admin: Reporters --
-        reporters: StorageHashMap<AccountId, ()>,
+        // -- Admin: Inspectors --
+        inspectors: StorageHashMap<AccountId, ()>,
         current_period_ms: StorageHashMap<AccountId, u64>,
 
         // -- DDC Nodes --
@@ -43,6 +43,8 @@ mod ddc {
         // -- Metrics Reporting --
         pub metrics: StorageHashMap<MetricKey, MetricValue>,
         pub metrics_ddn: StorageHashMap<MetricKeyDDN, MetricValue>,
+
+        pub total_ddc_balance: Balance,
     }
 
     impl Ddc {
@@ -56,13 +58,14 @@ mod ddc {
                 service_tiers: StorageHashMap::new(),
                 balances: StorageHashMap::new(),
                 subscriptions: StorageHashMap::new(),
-                reporters: StorageHashMap::new(),
+                inspectors: StorageHashMap::new(),
                 current_period_ms: StorageHashMap::new(),
                 ddc_nodes: StorageHashMap::new(),
                 ddn_statuses: StorageHashMap::new(),
                 metrics: StorageHashMap::new(),
                 metrics_ddn: StorageHashMap::new(),
                 pause: false,
+                total_ddc_balance: 0,
             };
             instance
         }
@@ -432,30 +435,78 @@ mod ddc {
             subscription.last_update_ms + prepaid_time_ms as u64
         }
 
-        fn get_consumed_balance(&self, subscription: &AppSubscription) -> Balance {
-            let now_ms = Self::env().block_timestamp();
+        fn get_consumed_balance_at_time(
+            now_ms: u64,
+            subscription: &AppSubscription,
+            subscription_tier: &ServiceTier,
+        ) -> Balance {
             let duration_consumed = now_ms - subscription.last_update_ms;
-            let tier_id = subscription.tier_id;
-            let tier = self.service_tiers.get(&tier_id).unwrap();
 
-            duration_consumed as u128 * tier.tier_fee as u128 / PERIOD_MS as u128
+            duration_consumed as u128 * subscription_tier.tier_fee as u128 / PERIOD_MS as u128
         }
 
-        fn actualize_subscription(&mut self, subscription: &mut AppSubscription) {
-            let now_ms = Self::env().block_timestamp();
-            let consumed = self.get_consumed_balance(subscription);
+        fn actualize_subscription_at_time(
+            now_ms: u64,
+            subscription: &mut AppSubscription,
+            subscription_tier: &ServiceTier,
+        ) -> Balance {
+            let consumed =
+                Self::get_consumed_balance_at_time(now_ms, subscription, subscription_tier);
+            let actually_consumed;
 
             if consumed > subscription.balance {
+                actually_consumed = subscription.balance;
                 subscription.balance = 0;
             } else {
                 subscription.balance -= consumed;
+                actually_consumed = consumed;
             }
             subscription.last_update_ms = now_ms;
+
+            actually_consumed
         }
 
-        fn set_tier(&mut self, subscription: &mut AppSubscription, new_tier_id: u64) {
-            self.actualize_subscription(subscription);
+        #[must_use]
+        fn actualize_subscription(
+            subscription: &mut AppSubscription,
+            subscription_tier: &ServiceTier,
+        ) -> Balance {
+            let now_ms = Self::env().block_timestamp();
+
+            Self::actualize_subscription_at_time(now_ms, subscription, subscription_tier)
+        }
+
+        #[ink(message)]
+        pub fn actualize_subscriptions(&mut self) -> Result<()> {
+            let caller = self.env().caller();
+            self.only_owner(caller)?;
+
+            for (_, subscription) in self.subscriptions.iter_mut() {
+                let subscription_tier = match self.service_tiers.get(&subscription.tier_id) {
+                    None => return Err(Error::TidOutOfBound),
+                    Some(v) => v,
+                };
+
+                self.total_ddc_balance += Self::actualize_subscription(subscription, subscription_tier);
+            }
+
+            Ok(())
+        }
+
+        pub fn get_total_ddc_balance(&self) -> Balance {
+            self.total_ddc_balance
+        }
+
+        fn set_tier(&mut self, subscription: &mut AppSubscription, new_tier_id: u64) -> Result<()> {
+            let subscription_tier = match self.service_tiers.get(&subscription.tier_id) {
+                None => return Err(Error::TidOutOfBound),
+                Some(v) => v,
+            };
+            self.total_ddc_balance += Self::actualize_subscription(subscription, subscription_tier);
+
             subscription.tier_id = new_tier_id.clone();
+
+            Ok(())
         }
 
         #[ink(message)]
@@ -546,7 +597,7 @@ mod ddc {
                 subscription.balance = subscription.balance + value;
 
                 if subscription.tier_id != tier_id {
-                    self.set_tier(&mut subscription, tier_id);
+                    self.set_tier(&mut subscription, tier_id)?;
                 }
             }
 
@@ -562,22 +613,22 @@ mod ddc {
         #[ink(message)]
         pub fn refund(&mut self) -> Result<()> {
             let caller = self.env().caller();
-            let subscription_opt = self.subscriptions.get(&caller);
-            if subscription_opt.is_none() {
-                return Err(Error::NoSubscription);
-            }
+            let subscription = match self.subscriptions.get_mut(&caller) {
+                None => return Err(Error::NoSubscription),
+                Some(v) => v,
+            };
 
-            let mut subscription = subscription_opt.unwrap().clone();
-
-            self.actualize_subscription(&mut subscription);
+            let subscription_tier = match self.service_tiers.get(&subscription.tier_id) {
+                None => return Err(Error::TidOutOfBound),
+                Some(v) => v,
+            };
+            self.total_ddc_balance += Self::actualize_subscription(subscription, subscription_tier);
             let to_refund = subscription.balance;
             subscription.balance = 0;
 
             if to_refund == 0 {
                 return Ok(());
             }
-
-            self.subscriptions.insert(caller, subscription.clone());
 
             match self.env().transfer(caller, to_refund) {
                 Err(_e) => panic!("Transfer has failed!"),
@@ -586,56 +637,56 @@ mod ddc {
         }
     }
 
-    // ---- Admin: Reporters ----
+    // ---- Admin: Inspectors ----
 
     #[ink(event)]
-    pub struct ReporterAdded {
+    pub struct InspectorAdded {
         #[ink(topic)]
-        reporter: AccountId,
+        inspector: AccountId,
     }
 
     #[ink(event)]
-    pub struct ReporterRemoved {
+    pub struct InspectorRemoved {
         #[ink(topic)]
-        reporter: AccountId,
+        inspector: AccountId,
     }
 
     #[ink(event)]
-    pub struct ErrorOnlyReporter {}
+    pub struct ErrorOnlyInspector {}
 
     impl Ddc {
-        /// Check if account is an approved reporter.
-        fn only_reporter(&self, caller: &AccountId) -> Result<()> {
-            if self.is_reporter(*caller) {
+        /// Check if account is an approved inspector.
+        fn only_inspector(&self, caller: &AccountId) -> Result<()> {
+            if self.is_inspector(*caller) {
                 Ok(())
             } else {
-                self.env().emit_event(ErrorOnlyReporter {});
-                Err(Error::OnlyReporter)
+                self.env().emit_event(ErrorOnlyInspector {});
+                Err(Error::OnlyInspector)
             }
         }
 
         #[ink(message)]
-        pub fn is_reporter(&self, reporter: AccountId) -> bool {
-            self.reporters.contains_key(&reporter)
+        pub fn is_inspector(&self, inspector: AccountId) -> bool {
+            self.inspectors.contains_key(&inspector)
         }
 
         #[ink(message)]
-        pub fn add_reporter(&mut self, reporter: AccountId) -> Result<()> {
+        pub fn add_inspector(&mut self, inspector: AccountId) -> Result<()> {
             let caller = self.env().caller();
             self.only_owner(caller)?;
 
-            self.reporters.insert(reporter, ());
-            Self::env().emit_event(ReporterAdded { reporter });
+            self.inspectors.insert(inspector, ());
+            Self::env().emit_event(InspectorAdded { inspector });
             Ok(())
         }
 
         #[ink(message)]
-        pub fn remove_reporter(&mut self, reporter: AccountId) -> Result<()> {
+        pub fn remove_inspector(&mut self, inspector: AccountId) -> Result<()> {
             let caller = self.env().caller();
             self.only_owner(caller)?;
 
-            self.reporters.take(&reporter);
-            Self::env().emit_event(ReporterRemoved { reporter });
+            self.inspectors.take(&inspector);
+            Self::env().emit_event(InspectorRemoved { inspector });
             Ok(())
         }
     }
@@ -646,6 +697,7 @@ mod ddc {
     )]
     #[cfg_attr(feature = "std", derive(Debug, scale_info::TypeInfo))]
     pub struct DDCNode {
+        p2p_id: String,
         p2p_addr: String,
         url: String,
     }
@@ -699,6 +751,7 @@ mod ddc {
             self.ddc_nodes.insert(
                 p2p_id.clone(),
                 DDCNode {
+                    p2p_id: p2p_id.clone(),
                     p2p_addr: p2p_addr.clone(),
                     url: url.clone(),
                 },
@@ -776,8 +829,8 @@ mod ddc {
         /// Called by SC to set online status when metrics is reported
         #[ink(message)]
         pub fn report_ddn_status(&mut self, p2p_id: String, is_online: bool) -> Result<()> {
-            let reporter = self.env().caller();
-            self.only_reporter(&reporter)?;
+            let inspector = self.env().caller();
+            self.only_inspector(&inspector)?;
 
             let now = Self::env().block_timestamp();
 
@@ -802,7 +855,7 @@ mod ddc {
     )]
     #[cfg_attr(feature = "std", derive(Debug, scale_info::TypeInfo))]
     pub struct MetricKey {
-        reporter: AccountId,
+        inspector: AccountId,
         app_id: AccountId,
         day_of_period: u64,
     }
@@ -839,7 +892,7 @@ mod ddc {
     #[ink(event)]
     pub struct NewMetric {
         #[ink(topic)]
-        reporter: AccountId,
+        inspector: AccountId,
         #[ink(topic)]
         key: MetricKey,
         metrics: MetricValue,
@@ -848,7 +901,7 @@ mod ddc {
     #[ink(event)]
     pub struct NewMetricDDN {
         #[ink(topic)]
-        reporter: AccountId,
+        inspector: AccountId,
         #[ink(topic)]
         key: MetricKeyDDN,
         metrics: MetricValue,
@@ -857,7 +910,7 @@ mod ddc {
     #[ink(event)]
     pub struct MetricPeriodFinalized {
         #[ink(topic)]
-        reporter: AccountId,
+        inspector: AccountId,
         start_ms: u64,
     }
 
@@ -908,12 +961,12 @@ mod ddc {
                 let mut day_wcu_used: Vec<u64> = Vec::new();
                 let mut day_rcu_used: Vec<u64> = Vec::new();
 
-                for reporter in self.reporters.keys() {
-                    let reporter_day_metric = self.metrics_for_day(reporter.clone(), app_id, day);
-                    if let Some(reporter_day_metric) = reporter_day_metric {
-                        day_storage_bytes.push(reporter_day_metric.storage_bytes);
-                        day_wcu_used.push(reporter_day_metric.wcu_used);
-                        day_rcu_used.push(reporter_day_metric.rcu_used);
+                for inspector in self.inspectors.keys() {
+                    let inspector_day_metric = self.metrics_for_day(inspector.clone(), app_id, day);
+                    if let Some(inspector_day_metric) = inspector_day_metric {
+                        day_storage_bytes.push(inspector_day_metric.storage_bytes);
+                        day_wcu_used.push(inspector_day_metric.wcu_used);
+                        day_rcu_used.push(inspector_day_metric.rcu_used);
                     }
                 }
 
@@ -929,13 +982,13 @@ mod ddc {
 
         fn metrics_for_day(
             &self,
-            reporter: AccountId,
+            inspector: AccountId,
             app_id: AccountId,
             day: u64,
         ) -> Option<&MetricValue> {
             let day_of_period = day % PERIOD_DAYS;
             let day_key = MetricKey {
-                reporter,
+                inspector,
                 app_id,
                 day_of_period,
             };
@@ -1007,15 +1060,15 @@ mod ddc {
             wcu_used: u64,
             rcu_used: u64,
         ) -> Result<()> {
-            let reporter = self.env().caller();
-            self.only_reporter(&reporter)?;
+            let inspector = self.env().caller();
+            self.only_inspector(&inspector)?;
 
             enforce_time_is_start_of_day(day_start_ms)?;
             let day = day_start_ms / MS_PER_DAY;
             let day_of_period = day % PERIOD_DAYS;
 
             let key = MetricKey {
-                reporter,
+                inspector,
                 app_id,
                 day_of_period,
             };
@@ -1029,7 +1082,7 @@ mod ddc {
             self.metrics.insert(key.clone(), metrics.clone());
 
             self.env().emit_event(NewMetric {
-                reporter,
+                inspector,
                 key,
                 metrics,
             });
@@ -1049,8 +1102,8 @@ mod ddc {
             wcu_used: u64,
             rcu_used: u64,
         ) -> Result<()> {
-            let reporter = self.env().caller();
-            self.only_reporter(&reporter)?;
+            let inspector = self.env().caller();
+            self.only_inspector(&inspector)?;
 
             enforce_time_is_start_of_day(day_start_ms)?;
             let day = day_start_ms / MS_PER_DAY;
@@ -1072,7 +1125,7 @@ mod ddc {
             self.report_ddn_status(p2p_id, true).unwrap();
 
             self.env().emit_event(NewMetricDDN {
-                reporter,
+                inspector,
                 key,
                 metrics,
             });
@@ -1082,15 +1135,15 @@ mod ddc {
 
         #[ink(message)]
         pub fn finalize_metric_period(&mut self, start_ms: u64) -> Result<()> {
-            let reporter = self.env().caller();
-            self.only_reporter(&reporter)?;
+            let inspector = self.env().caller();
+            self.only_inspector(&inspector)?;
 
             enforce_time_is_start_of_day(start_ms)?;
             let next_period_ms = start_ms + MS_PER_DAY;
-            self.current_period_ms.insert(reporter, next_period_ms);
+            self.current_period_ms.insert(inspector, next_period_ms);
 
             self.env()
-                .emit_event(MetricPeriodFinalized { reporter, start_ms });
+                .emit_event(MetricPeriodFinalized { inspector, start_ms });
 
             Ok(())
         }
@@ -1102,8 +1155,8 @@ mod ddc {
         }
 
         #[ink(message)]
-        pub fn get_current_period_ms_of(&self, reporter_id: AccountId) -> u64 {
-            let current_period_ms = self.current_period_ms.get(&reporter_id);
+        pub fn get_current_period_ms_of(&self, inspector_id: AccountId) -> u64 {
+            let current_period_ms = self.current_period_ms.get(&inspector_id);
             match current_period_ms {
                 None => {
                     let now: u64 = Self::env().block_timestamp(); // Epoch in milisecond
@@ -1120,7 +1173,7 @@ mod ddc {
     #[cfg_attr(feature = "std", derive(scale_info::TypeInfo))]
     pub enum Error {
         OnlyOwner,
-        OnlyReporter,
+        OnlyInspector,
         SameDepositValue,
         NoPermission,
         InsufficientDeposit,
