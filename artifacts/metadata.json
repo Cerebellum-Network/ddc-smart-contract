@@ -1,7 +1,7 @@
 {
   "metadataVersion": "0.1.0",
   "source": {
-    "hash": "0x911a2d7948a958d30077c0394f566d903bbeb880f916a5a84c04aebdb8864428",
+    "hash": "0xa61668e5f176631365947e8e9c19901a082c36c6d500e79f285fabc41feebecc",
     "language": "ink! 3.0.0-rc3",
     "compiler": "rustc 1.53.0-nightly"
   },
@@ -727,6 +727,22 @@
           "type": 11
         },
         "selector": "0xe0116f7d"
+      },
+      {
+        "args": [],
+        "docs": [],
+        "mutates": true,
+        "name": [
+          "actualize_subscriptions"
+        ],
+        "payable": false,
+        "returnType": {
+          "displayName": [
+            "Result"
+          ],
+          "type": 32
+        },
+        "selector": "0x79c1212b"
       },
       {
         "args": [
@@ -2099,6 +2115,15 @@
             }
           },
           "name": "metrics_ddn"
+        },
+        {
+          "layout": {
+            "cell": {
+              "key": "0x1400000009000000000000000000000000000000000000000000000000000000",
+              "ty": 12
+            }
+          },
+          "name": "total_ddc_balance"
         }
       ]
     }

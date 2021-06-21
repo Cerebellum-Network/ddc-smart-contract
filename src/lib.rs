@@ -43,6 +43,8 @@ mod ddc {
         // -- Metrics Reporting --
         pub metrics: StorageHashMap<MetricKey, MetricValue>,
         pub metrics_ddn: StorageHashMap<MetricKeyDDN, MetricValue>,
+
+        pub total_ddc_balance: Balance,
     }
 
     impl Ddc {
@@ -63,6 +65,7 @@ mod ddc {
                 metrics: StorageHashMap::new(),
                 metrics_ddn: StorageHashMap::new(),
                 pause: false,
+                total_ddc_balance: 0,
             };
             instance
         }
@@ -432,30 +435,78 @@ mod ddc {
             subscription.last_update_ms + prepaid_time_ms as u64
         }
 
-        fn get_consumed_balance(&self, subscription: &AppSubscription) -> Balance {
-            let now_ms = Self::env().block_timestamp();
+        fn get_consumed_balance_at_time(
+            now_ms: u64,
+            subscription: &AppSubscription,
+            subscription_tier: &ServiceTier,
+        ) -> Balance {
             let duration_consumed = now_ms - subscription.last_update_ms;
-            let tier_id = subscription.tier_id;
-            let tier = self.service_tiers.get(&tier_id).unwrap();
 
-            duration_consumed as u128 * tier.tier_fee / 31 / MS_PER_DAY as u128
+            duration_consumed as u128 * subscription_tier.tier_fee / 31 / MS_PER_DAY as u128
         }
 
-        fn actualize_subscription(&mut self, subscription: &mut AppSubscription) {
-            let now_ms = Self::env().block_timestamp();
-            let consumed = self.get_consumed_balance(subscription);
+        fn actualize_subscription_at_time(
+            now_ms: u64,
+            subscription: &mut AppSubscription,
+            subscription_tier: &ServiceTier,
+        ) -> Balance {
+            let consumed =
+                Self::get_consumed_balance_at_time(now_ms, subscription, subscription_tier);
+            let actually_consumed;
 
             if consumed > subscription.balance {
+                actually_consumed = subscription.balance;
                 subscription.balance = 0;
             } else {
                 subscription.balance -= consumed;
+                actually_consumed = consumed;
             }
             subscription.last_update_ms = now_ms;
+
+            actually_consumed
         }
 
-        fn set_tier(&mut self, subscription: &mut AppSubscription, new_tier_id: u64) {
-            self.actualize_subscription(subscription);
+        #[must_use]
+        fn actualize_subscription(
+            subscription: &mut AppSubscription,
+            subscription_tier: &ServiceTier,
+        ) -> Balance {
+            let now_ms = Self::env().block_timestamp();
+
+            Self::actualize_subscription_at_time(now_ms, subscription, subscription_tier)
+        }
+
+        #[ink(message)]
+        pub fn actualize_subscriptions(&mut self) -> Result<()> {
+            let caller = self.env().caller();
+            self.only_owner(caller)?;
+
+            for (_, subscription) in self.subscriptions.iter_mut() {
+                let subscription_tier = match self.service_tiers.get(&subscription.tier_id) {
+                    None => return Err(Error::TidOutOfBound),
+                    Some(v) => v,
+                };
+
+                self.total_ddc_balance += Self::actualize_subscription(subscription, subscription_tier);
+            }
+
+            Ok(())
+        }
+
+        pub fn get_total_ddc_balance(&self) -> Balance {
+            self.total_ddc_balance
+        }
+
+        fn set_tier(&mut self, subscription: &mut AppSubscription, new_tier_id: u64) -> Result<()> {
+            let subscription_tier = match self.service_tiers.get(&subscription.tier_id) {
+                None => return Err(Error::TidOutOfBound),
+                Some(v) => v,
+            };
+            self.total_ddc_balance += Self::actualize_subscription(subscription, subscription_tier);
+
             subscription.tier_id = new_tier_id.clone();
+
+            Ok(())
         }
 
         #[ink(message)]
@@ -546,7 +597,7 @@ mod ddc {
                 subscription.balance = subscription.balance + value;
 
                 if subscription.tier_id != tier_id {
-                    self.set_tier(&mut subscription, tier_id);
+                    self.set_tier(&mut subscription, tier_id)?;
                 }
             }
 
@@ -562,22 +613,22 @@ mod ddc {
         #[ink(message)]
         pub fn refund(&mut self) -> Result<()> {
             let caller = self.env().caller();
-            let subscription_opt = self.subscriptions.get(&caller);
-            if subscription_opt.is_none() {
-                return Err(Error::NoSubscription);
-            }
+            let subscription = match self.subscriptions.get_mut(&caller) {
+                None => return Err(Error::NoSubscription),
+                Some(v) => v,
+            };
 
-            let mut subscription = subscription_opt.unwrap().clone();
-
-            self.actualize_subscription(&mut subscription);
+            let subscription_tier = match self.service_tiers.get(&subscription.tier_id) {
+                None => return Err(Error::TidOutOfBound),
+                Some(v) => v,
+            };
+            self.total_ddc_balance += Self::actualize_subscription(subscription, subscription_tier);
             let to_refund = subscription.balance;
             subscription.balance = 0;
 
             if to_refund == 0 {
                 return Ok(());
             }
-
-            self.subscriptions.insert(caller, subscription.clone());
 
             match self.env().transfer(caller, to_refund) {
                 Err(_e) => panic!("Transfer has failed!"),

@@ -1970,3 +1970,73 @@ fn get_app_limit_works() {
         Ok(AppSubscriptionLimit::new(1000, 1000, 1000,))
     );
 }
+
+#[ink::test]
+fn actualize_subscriptions_works() {
+    let accounts = default_accounts::<DefaultEnvironment>().unwrap();
+    let mut contract = make_contract();
+
+    let alice = accounts.alice;
+    set_exec_context(alice, 2);
+    contract.subscribe(1).unwrap();
+    undo_set_exec_context();
+
+    let bob = accounts.bob;
+    set_exec_context(bob, 4);
+    contract.subscribe(2).unwrap();
+    undo_set_exec_context();
+
+    let charlie = accounts.charlie;
+    set_exec_context(charlie, 8);
+    contract.subscribe(3).unwrap();
+
+    assert_eq!(contract.actualize_subscriptions(), Err(Error::OnlyOwner));
+
+    undo_set_exec_context();
+
+    contract.actualize_subscriptions().unwrap();
+
+    assert_eq!(contract.get_total_ddc_balance(), 0);
+
+    let mut subscription = contract.subscriptions.get(&alice).unwrap().clone();
+    let tier = contract.tier_limit_of(alice);
+
+    let middle_of_period = PERIOD_MS / 2;
+    let end_of_period = PERIOD_MS;
+
+    assert_eq!(
+        Ddc::actualize_subscription_at_time(middle_of_period, &mut subscription, &tier),
+        1
+    );
+
+    assert_eq!(
+        Ddc::actualize_subscription_at_time(end_of_period, &mut subscription, &tier),
+        1
+    );
+
+    let mut subscription = contract.subscriptions.get(&bob).unwrap().clone();
+    let tier = contract.tier_limit_of(bob);
+
+    assert_eq!(
+        Ddc::actualize_subscription_at_time(middle_of_period, &mut subscription, &tier),
+        2
+    );
+
+    assert_eq!(
+        Ddc::actualize_subscription_at_time(end_of_period, &mut subscription, &tier),
+        2
+    );
+
+    let mut subscription = contract.subscriptions.get(&charlie).unwrap().clone();
+    let tier = contract.tier_limit_of(charlie);
+
+    assert_eq!(
+        Ddc::actualize_subscription_at_time(middle_of_period, &mut subscription, &tier),
+        4
+    );
+
+    assert_eq!(
+        Ddc::actualize_subscription_at_time(end_of_period, &mut subscription, &tier),
+        4
+    );
+}
