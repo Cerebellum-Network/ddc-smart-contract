@@ -430,7 +430,10 @@ mod ddc {
         }
 
         #[ink(message)]
-        pub fn get_subscription_details_of(&self, acct: AccountId) -> Result<AppSubscriptionDetails> {
+        pub fn get_subscription_details_of(
+            &self,
+            acct: AccountId,
+        ) -> Result<AppSubscriptionDetails> {
             let subscription = match self.subscriptions.get(&acct) {
                 None => return Err(Error::NoSubscription),
                 Some(v) => v,
@@ -438,7 +441,7 @@ mod ddc {
 
             Ok(AppSubscriptionDetails {
                 subscription: subscription.clone(),
-                end_date_ms: self.get_end_date_ms(subscription)
+                end_date_ms: self.get_end_date_ms(subscription),
             })
         }
 
@@ -509,7 +512,8 @@ mod ddc {
                     Some(v) => v,
                 };
 
-                self.total_ddc_balance += Self::actualize_subscription(subscription, subscription_tier);
+                self.total_ddc_balance +=
+                    Self::actualize_subscription(subscription, subscription_tier);
             }
 
             Ok(())
@@ -1164,8 +1168,10 @@ mod ddc {
             let next_period_ms = start_ms + MS_PER_DAY;
             self.current_period_ms.insert(inspector, next_period_ms);
 
-            self.env()
-                .emit_event(MetricPeriodFinalized { inspector, start_ms });
+            self.env().emit_event(MetricPeriodFinalized {
+                inspector,
+                start_ms,
+            });
 
             Ok(())
         }
