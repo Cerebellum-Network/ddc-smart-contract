@@ -2040,3 +2040,27 @@ fn actualize_subscriptions_works() {
         4
     );
 }
+
+#[ink::test]
+fn get_subscription_details_of() {
+    let accounts = default_accounts::<DefaultEnvironment>().unwrap();
+    let mut contract = make_contract();
+
+    let alice = accounts.alice;
+
+    assert_eq!(contract.get_subscription_details_of(alice), Err(Error::NoSubscription));
+
+    set_exec_context(alice, 2);
+    contract.subscribe(1).unwrap();
+
+    assert_eq!(contract.get_subscription_details_of(alice).unwrap(), AppSubscriptionDetails {
+        subscription: AppSubscription {
+            start_date_ms: 0,
+            tier_id: 1,
+
+            balance: 2,
+            last_update_ms: 0,
+        },
+        end_date_ms: 2678400000
+    });
+}
