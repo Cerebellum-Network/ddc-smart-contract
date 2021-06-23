@@ -368,6 +368,15 @@ mod ddc {
         Default, Clone, PartialEq, Eq, PartialOrd, Ord, Encode, Decode, SpreadLayout, PackedLayout,
     )]
     #[cfg_attr(feature = "std", derive(Debug, scale_info::TypeInfo))]
+    pub struct AppSubscriptionDetails {
+        subscription: AppSubscription,
+        end_date_ms: u64,
+    }
+
+    #[derive(
+        Default, Clone, PartialEq, Eq, PartialOrd, Ord, Encode, Decode, SpreadLayout, PackedLayout,
+    )]
+    #[cfg_attr(feature = "std", derive(Debug, scale_info::TypeInfo))]
     pub struct AppSubscriptionLimit {
         storage_bytes: u64,
         wcu_per_minute: u64,
@@ -418,6 +427,22 @@ mod ddc {
             let tl = self.get_tier_limit(tier_id);
 
             tl.clone()
+        }
+
+        #[ink(message)]
+        pub fn get_subscription_details_of(
+            &self,
+            acct: AccountId,
+        ) -> Result<AppSubscriptionDetails> {
+            let subscription = match self.subscriptions.get(&acct) {
+                None => return Err(Error::NoSubscription),
+                Some(v) => v,
+            };
+
+            Ok(AppSubscriptionDetails {
+                subscription: subscription.clone(),
+                end_date_ms: self.get_end_date_ms(subscription),
+            })
         }
 
         /// Return tier id given an account
@@ -487,7 +512,8 @@ mod ddc {
                     Some(v) => v,
                 };
 
-                self.total_ddc_balance += Self::actualize_subscription(subscription, subscription_tier);
+                self.total_ddc_balance +=
+                    Self::actualize_subscription(subscription, subscription_tier);
             }
 
             Ok(())
@@ -1142,8 +1168,10 @@ mod ddc {
             let next_period_ms = start_ms + MS_PER_DAY;
             self.current_period_ms.insert(inspector, next_period_ms);
 
-            self.env()
-                .emit_event(MetricPeriodFinalized { inspector, start_ms });
+            self.env().emit_event(MetricPeriodFinalized {
+                inspector,
+                start_ms,
+            });
 
             Ok(())
         }
