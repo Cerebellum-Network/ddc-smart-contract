@@ -401,7 +401,7 @@ mod ddc {
         /// Returns the account balance for the specified `account`.
         /// Returns `0` if the account is non-existent.
         #[ink(message)]
-        pub fn balance_of(&mut self, owner: AccountId) -> Balance {
+        pub fn balance_of(&self, owner: AccountId) -> Balance {
             let subscription_opt = self.subscriptions.get(&owner);
 
             if subscription_opt.is_none() {
