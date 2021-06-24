@@ -479,7 +479,8 @@ mod ddc {
                     Some(v) => v,
                 };
 
-                self.total_ddc_balance += Self::actualize_subscription(subscription, subscription_tier);
+                self.total_ddc_balance +=
+                    Self::actualize_subscription(subscription, subscription_tier);
             }
 
             Ok(())
@@ -1028,16 +1029,15 @@ mod ddc {
                 app_id,
                 day_of_period,
             };
-            let day_metrics = self.metrics.get(&day_key);
 
-            // Ignore out-of-date metrics from a previous period.
-            if let Some(day_metrics) = day_metrics {
+            self.metrics.get(&day_key).and_then(|day_metrics| {
+                // Ignore out-of-date metrics from a previous period
                 if day_metrics.start_ms != day * MS_PER_DAY {
-                    return None;
+                    None
+                } else {
+                    Some(day_metrics)
                 }
-            }
-
-            day_metrics
+            })
         }
 
         #[ink(message)]
@@ -1095,7 +1095,17 @@ mod ddc {
                 day_of_period,
             };
 
-            self.metrics_ddn.get(&day_key).cloned()
+            self.metrics_ddn
+                .get(&day_key)
+                .and_then(|metric| {
+                    // Ignore out-of-date metrics from a previous period
+                    if metric.start_ms != day * MS_PER_DAY {
+                        None
+                    } else {
+                        Some(metric)
+                    }
+                })
+                .cloned()
         }
 
         #[ink(message)]
@@ -1190,8 +1200,10 @@ mod ddc {
             let next_period_ms = start_ms + MS_PER_DAY;
             self.current_period_ms.insert(inspector, next_period_ms);
 
-            self.env()
-                .emit_event(MetricPeriodFinalized { inspector, start_ms });
+            self.env().emit_event(MetricPeriodFinalized {
+                inspector,
+                start_ms,
+            });
 
             Ok(())
         }

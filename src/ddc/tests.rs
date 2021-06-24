@@ -1295,6 +1295,83 @@ fn metrics_since_subscription_works() {
 }
 
 #[ink::test]
+fn metrics_for_period_works() {
+    let mut contract = make_contract();
+    let accounts = default_accounts::<DefaultEnvironment>().unwrap();
+    let inspector = accounts.alice;
+    let app_id = accounts.charlie;
+
+    let some_day = 9999;
+    let day1_of_period = some_day - some_day % PERIOD_DAYS;
+
+    // Increase this value each time
+    let mut wcu_used = 0;
+
+    // Authorize our admin account to be an inspector
+    contract.add_inspector(inspector).unwrap();
+
+    for days_passed in 0..(PERIOD_DAYS + 5) {
+        let day = day1_of_period + days_passed;
+        let day_of_period = day % PERIOD_DAYS;
+        let day_ms = day * MS_PER_DAY;
+        let metric_key = MetricKey {
+            inspector,
+            app_id,
+            day_of_period,
+        };
+
+        // Increase counter before "continue"
+        wcu_used += 1;
+
+        if days_passed < PERIOD_DAYS {
+            // 1st period
+            // skip day 4
+            if day_of_period == 3 {
+                continue;
+            }
+            // No metric for a new day of cycle
+            assert_eq!(contract.metrics.get(&metric_key), None);
+        } else {
+            // 2snd period
+            // skip day 2
+            if day_of_period == 1 {
+                continue;
+            }
+            // There is some metric for old days (except skipped day 4)
+            if day_of_period != 3 {
+                assert!(contract.metrics.get(&metric_key).is_some());
+            }
+        }
+
+        // Report
+        contract
+            .report_metrics(app_id, day_ms, 0, wcu_used, 0)
+            .unwrap();
+
+        // Metric should be added
+        assert_eq!(
+            contract.metrics.get(&metric_key),
+            Some(&MetricValue {
+                start_ms: day_ms,
+                storage_bytes: 0,
+                wcu_used,
+                rcu_used: 0,
+            })
+        );
+    }
+
+    // Get total metric
+    let total_metric = contract.metrics_for_period(
+        app_id,
+        day1_of_period * MS_PER_DAY,
+        (day1_of_period + PERIOD_DAYS + 7) * MS_PER_DAY,
+    );
+
+    // Metric should be correct
+    assert_eq!(total_metric.wcu_used, 32 + 0 + 34 + 35 + 36);
+}
+
+#[ink::test]
 fn finalize_metric_period_works() {
     let mut contract = make_contract();
     let accounts = default_accounts::<DefaultEnvironment>().unwrap();
@@ -2960,6 +3037,140 @@ fn report_metrics_ddn_median_works() {
                 wcu_used: 0,
                 rcu_used: 0,
             },
+        ]
+    );
+}
+
+#[ink::test]
+fn metrics_for_ddn_works() {
+    let mut contract = make_contract();
+    let accounts = default_accounts::<DefaultEnvironment>().unwrap();
+    let inspector = accounts.alice;
+    let p2p_id = String::from("test_p2p_id");
+    let p2p_addr = String::from("test_p2p_addr");
+    let url = String::from("test_url");
+
+    // Authorize our admin account to be an inspector
+    contract.add_inspector(inspector).unwrap();
+
+    // Add DDC node to the list
+    contract
+        .add_ddc_node(p2p_id.clone(), p2p_addr.clone(), url.clone())
+        .unwrap();
+
+    // Zero metrics yet
+    assert_eq!(
+        contract.metrics_for_ddn(p2p_id.clone()),
+        [MetricValue {
+            start_ms: 0,
+            storage_bytes: 0,
+            wcu_used: 0,
+            rcu_used: 0
+        }]
+    );
+
+    // Report DDN metrics
+    contract
+        .report_metrics_ddn(p2p_id.clone(), 0, 1, 2, 3)
+        .unwrap();
+
+    // Metrics should be reported
+    assert_eq!(
+        contract.metrics_for_ddn(p2p_id.clone()),
+        vec![MetricValue {
+            start_ms: 0,
+            storage_bytes: 1,
+            wcu_used: 2,
+            rcu_used: 3,
+        }]
+    );
+}
+
+#[ink::test]
+fn metrics_for_ddn_at_time_works() {
+    let mut contract = make_contract();
+    let accounts = default_accounts::<DefaultEnvironment>().unwrap();
+    let inspector = accounts.alice;
+    let p2p_id = String::from("test_p2p_id");
+    let p2p_addr = String::from("test_p2p_addr");
+    let url = String::from("test_url");
+
+    // Authorize our admin account to be an inspector
+    contract.add_inspector(inspector).unwrap();
+
+    // Add DDC node to the list
+    contract
+        .add_ddc_node(p2p_id.clone(), p2p_addr.clone(), url.clone())
+        .unwrap();
+
+    let some_day = 1;
+    let day1_of_period = some_day - some_day % PERIOD_DAYS;
+
+    // Increase this value each time
+    let mut wcu_used = 0;
+
+    for days_passed in 0..(PERIOD_DAYS + 5) {
+        let day = day1_of_period + days_passed;
+        let day_of_period = day % PERIOD_DAYS;
+        let day_ms = day * MS_PER_DAY;
+        let metric_key_ddn = MetricKeyDDN {
+            inspector,
+            p2p_id: p2p_id.clone(),
+            day_of_period,
+        };
+
+        // Increase counter before "continue"
+        wcu_used += 1;
+
+        if days_passed < PERIOD_DAYS {
+            // 1st period
+            // skip day 4
+            if day_of_period == 3 {
+                continue;
+            }
+            // No metric for a new day of cycle
+            assert_eq!(contract.metrics_ddn.get(&metric_key_ddn), None);
+        } else {
+            // 2snd period
+            // skip day 2
+            if day_of_period == 1 {
+                continue;
+            }
+            // There is some metric for old days (except skipped day 4)
+            if day_of_period != 3 {
+                assert!(contract.metrics_ddn.get(&metric_key_ddn).is_some());
+            }
+        }
+
+        // Report
+        contract
+            .report_metrics_ddn(p2p_id.clone(), day_ms, 0, wcu_used, 0)
+            .unwrap();
+
+        // Metric should be added
+        assert_eq!(
+            contract.metrics_ddn.get(&metric_key_ddn),
+            Some(&MetricValue {
+                start_ms: day_ms,
+                storage_bytes: 0,
+                wcu_used,
+                rcu_used: 0,
+            })
+        );
+    }
+
+    // Get metrics
+    let all_metrics = contract.metrics_for_ddn_at_time(
+        p2p_id.clone(),
+        (day1_of_period + PERIOD_DAYS + 10) * MS_PER_DAY,
+    );
+
+    // Metrics should be correct
+    assert_eq!(
+        all_metrics.iter().map(|x| x.wcu_used).collect::<Vec<u64>>(),
+        [
+            12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 0,
+            34, 35, 36, 0, 0, 0, 0, 0, 0
         ]
     );
 }
