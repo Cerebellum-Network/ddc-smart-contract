@@ -38,7 +38,7 @@ mod ddc {
         ddc_nodes: StorageHashMap<String, DDCNode>,
 
         // -- Statuses of DDC Nodes--
-        ddn_statuses: StorageHashMap<String, DDNStatus>,
+        ddn_statuses: StorageHashMap<DDNStatusKey, DDNStatus>,
 
         // -- Metrics Reporting --
         pub metrics: StorageHashMap<MetricKey, MetricValue>,
@@ -53,7 +53,7 @@ mod ddc {
         pub fn new() -> Self {
             let caller = Self::env().caller();
 
-            let instance = Self {
+            Self {
                 owner: Lazy::new(caller),
                 service_tiers: StorageHashMap::new(),
                 balances: StorageHashMap::new(),
@@ -66,8 +66,7 @@ mod ddc {
                 metrics_ddn: StorageHashMap::new(),
                 pause: false,
                 total_ddc_balance: 0,
-            };
-            instance
+            }
         }
     }
 
@@ -78,7 +77,7 @@ mod ddc {
             if *self.owner == caller {
                 Ok(())
             } else {
-                return Err(Error::OnlyOwner);
+                Err(Error::OnlyOwner)
             }
         }
 
@@ -87,6 +86,7 @@ mod ddc {
         pub fn transfer_ownership(&mut self, to: AccountId) -> Result<()> {
             self.only_active()?;
             self.only_owner(self.env().caller())?;
+
             *self.owner = to;
             Ok(())
         }
@@ -140,7 +140,7 @@ mod ddc {
             if self.pause == false {
                 Ok(())
             } else {
-                return Err(Error::ContractPaused);
+                Err(Error::ContractPaused)
             }
         }
 
@@ -151,14 +151,9 @@ mod ddc {
         pub fn flip_contract_status(&mut self) -> Result<()> {
             let caller = self.env().caller();
             self.only_owner(caller)?;
-            let status = self.pause;
-            if status == false {
-                self.pause = true;
-                Ok(())
-            } else {
-                self.pause = false;
-                Ok(())
-            }
+
+            self.pause = !self.pause;
+            Ok(())
         }
     }
 
@@ -273,10 +268,10 @@ mod ddc {
         /// check if tid is within 1, 2 ,3
         /// return ok or error
         fn tid_in_bound(&self, tier_id: u64) -> Result<()> {
-            if self.service_tiers.get(&tier_id).is_none() {
-                return Err(Error::TidOutOfBound);
-            } else {
+            if self.service_tiers.get(&tier_id).is_some() {
                 Ok(())
+            } else {
+                Err(Error::TidOutOfBound)
             }
         }
 
@@ -327,9 +322,9 @@ mod ddc {
             self.tid_in_bound(tier_id)?;
             let v = self.service_tiers.get(&tier_id).unwrap();
             if v.tier_fee as Balance != new_value {
-                return Ok(());
+                Ok(())
             } else {
-                return Err(Error::SameDepositValue);
+                Err(Error::SameDepositValue)
             }
         }
 
@@ -416,17 +411,14 @@ mod ddc {
         /// Return the tier id corresponding to the account
         #[ink(message)]
         pub fn tier_id_of(&self, acct: AccountId) -> u64 {
-            let tier_id = self.get_tier_id(&acct);
-            tier_id
+            self.get_tier_id(&acct)
         }
 
         /// Return the tier limit corresponding the account
         #[ink(message)]
         pub fn tier_limit_of(&self, acct: AccountId) -> ServiceTier {
             let tier_id = self.get_tier_id(&acct);
-            let tl = self.get_tier_limit(tier_id);
-
-            tl.clone()
+            self.get_tier_limit(tier_id)
         }
 
         #[ink(message)]
@@ -530,7 +522,7 @@ mod ddc {
             };
             self.total_ddc_balance += Self::actualize_subscription(subscription, subscription_tier);
 
-            subscription.tier_id = new_tier_id.clone();
+            subscription.tier_id = new_tier_id;
 
             Ok(())
         }
@@ -620,7 +612,7 @@ mod ddc {
             } else {
                 subscription = subscription_opt.unwrap().clone();
 
-                subscription.balance = subscription.balance + value;
+                subscription.balance += value;
 
                 if subscription.tier_id != tier_id {
                     self.set_tier(&mut subscription, tier_id)?;
@@ -633,7 +625,7 @@ mod ddc {
                 value,
             });
 
-            return Ok(());
+            Ok(())
         }
 
         #[ink(message)]
@@ -658,8 +650,8 @@ mod ddc {
 
             match self.env().transfer(caller, to_refund) {
                 Err(_e) => panic!("Transfer has failed!"),
-                Ok(_) => return Ok(()),
-            };
+                Ok(_) => Ok(()),
+            }
         }
     }
 
@@ -761,19 +753,6 @@ mod ddc {
             let caller = self.env().caller();
             self.only_owner(caller)?;
 
-            if !self.ddn_statuses.contains_key(&p2p_id) {
-                let now = Self::env().block_timestamp();
-                self.ddn_statuses.insert(
-                    p2p_id.clone(),
-                    DDNStatus {
-                        is_online: true,
-                        total_downtime: 0,
-                        reference_timestamp: now,
-                        last_timestamp: now,
-                    },
-                );
-            }
-
             self.ddc_nodes.insert(
                 p2p_id.clone(),
                 DDCNode {
@@ -784,8 +763,8 @@ mod ddc {
             );
             Self::env().emit_event(DDCNodeAdded {
                 p2p_id,
-                url,
                 p2p_addr,
+                url,
             });
 
             Ok(())
@@ -803,22 +782,27 @@ mod ddc {
             let caller = self.env().caller();
             self.only_owner(caller)?;
 
-            self.ddn_statuses.take(&p2p_id);
-
-            let node = self.ddc_nodes.take(&p2p_id).unwrap();
+            // Remove DDN if exists
+            let removed_node = self.ddc_nodes.take(&p2p_id).ok_or(Error::DDNNotFound)?;
             Self::env().emit_event(DDCNodeRemoved {
-                p2p_id,
-                p2p_addr: node.p2p_addr,
+                p2p_id: p2p_id.clone(),
+                p2p_addr: removed_node.p2p_addr,
             });
+
+            // Remove DDN status entries from all inspectors
+            for &inspector in self.inspectors.keys() {
+                self.ddn_statuses.take(&DDNStatusKey {
+                    inspector,
+                    p2p_id: p2p_id.clone(),
+                });
+            }
 
             Ok(())
         }
     }
 
     // ---- DDN Statuses ----
-    #[derive(
-        Default, Clone, PartialEq, Eq, PartialOrd, Ord, Encode, Decode, SpreadLayout, PackedLayout,
-    )]
+    #[derive(Default, Copy, Clone, PartialEq, Encode, Decode, SpreadLayout, PackedLayout)]
     #[cfg_attr(feature = "std", derive(Debug, scale_info::TypeInfo))]
     pub struct DDNStatus {
         is_online: bool,
@@ -827,29 +811,17 @@ mod ddc {
         last_timestamp: u64,
     }
 
+    // ---- DDN Status Key ----
+    #[derive(
+        Default, Clone, PartialEq, Eq, PartialOrd, Ord, Encode, Decode, SpreadLayout, PackedLayout,
+    )]
+    #[cfg_attr(feature = "std", derive(Debug, scale_info::TypeInfo))]
+    pub struct DDNStatusKey {
+        inspector: AccountId,
+        p2p_id: String,
+    }
+
     impl Ddc {
-        // Private function to set DDN status (used in tests)
-        fn set_ddn_status(&mut self, p2p_id: String, now: u64, is_online: bool) -> Result<()> {
-            let ddn_status = match self.ddn_statuses.get_mut(&p2p_id) {
-                Some(ddn_status) => ddn_status,
-                None => return Err(Error::DDNNotFound),
-            };
-
-            if now < ddn_status.last_timestamp || now < ddn_status.reference_timestamp {
-                return Err(Error::UnexpectedTimestamp);
-            }
-
-            if !ddn_status.is_online {
-                let last_downtime = now - ddn_status.last_timestamp;
-                ddn_status.total_downtime += last_downtime;
-            }
-
-            ddn_status.last_timestamp = now;
-            ddn_status.is_online = is_online;
-
-            Ok(())
-        }
-
         /// Update DDC node connectivity status (online/offline)
         /// Called by OCW to set DDN offline status if fetching of node metrics failed
         /// Called by SC to set online status when metrics is reported
@@ -858,20 +830,67 @@ mod ddc {
             let inspector = self.env().caller();
             self.only_inspector(&inspector)?;
 
-            let now = Self::env().block_timestamp();
+            if !self.ddc_nodes.contains_key(&p2p_id) {
+                return Err(Error::DDNNotFound);
+            }
 
-            self.set_ddn_status(p2p_id, now, is_online)
+            let now = Self::env().block_timestamp();
+            let key = DDNStatusKey { inspector, p2p_id };
+
+            // Add new DDN status if not exists
+            if !self.ddn_statuses.contains_key(&key) {
+                let new_ddn_status = DDNStatus {
+                    is_online,
+                    total_downtime: 0,
+                    reference_timestamp: now,
+                    last_timestamp: now,
+                };
+                self.ddn_statuses.insert(key.clone(), new_ddn_status);
+            }
+
+            let ddn_status = self.ddn_statuses.get_mut(&key).unwrap();
+
+            if now < ddn_status.last_timestamp || now < ddn_status.reference_timestamp {
+                return Err(Error::UnexpectedTimestamp);
+            }
+
+            // Update total downlime
+            if !ddn_status.is_online {
+                let last_downtime = now - ddn_status.last_timestamp;
+                ddn_status.total_downtime += last_downtime;
+            }
+
+            ddn_status.is_online = is_online;
+            ddn_status.last_timestamp = now;
+
+            Ok(())
         }
 
         /// Get DDC node status
         #[ink(message)]
         pub fn get_ddn_status(&self, p2p_id: String) -> Result<DDNStatus> {
-            let ddn_status = match self.ddn_statuses.get(&p2p_id) {
-                Some(ddn_status) => ddn_status.clone(),
-                None => return Err(Error::DDNNotFound),
-            };
+            if !self.ddc_nodes.contains_key(&p2p_id) {
+                return Err(Error::DDNNotFound);
+            }
 
-            Ok(ddn_status)
+            let mut ddn_statuses: Vec<&DDNStatus> = Vec::new();
+
+            // Collect DDN statuses from all inspectors
+            for &inspector in self.inspectors.keys() {
+                let key = DDNStatusKey {
+                    inspector,
+                    p2p_id: p2p_id.clone(),
+                };
+
+                if let Some(ddn_status) = self.ddn_statuses.get(&key) {
+                    ddn_statuses.push(ddn_status);
+                }
+            }
+
+            // Get DDN status by using median value of total downtime
+            get_median_by_key(ddn_statuses, |item| item.total_downtime)
+                .cloned()
+                .ok_or(Error::DDNNoStatus)
         }
     }
 
@@ -892,6 +911,7 @@ mod ddc {
     )]
     #[cfg_attr(feature = "std", derive(Debug, scale_info::TypeInfo))]
     pub struct MetricKeyDDN {
+        inspector: AccountId,
         p2p_id: String,
         day_of_period: u64,
     }
@@ -908,7 +928,7 @@ mod ddc {
     }
 
     impl MetricValue {
-        pub fn add_assign(&mut self, other: &Self) {
+        pub fn add_assign(&mut self, other: Self) {
             self.storage_bytes += other.storage_bytes;
             self.wcu_used += other.wcu_used;
             self.rcu_used += other.rcu_used;
@@ -916,7 +936,7 @@ mod ddc {
     }
 
     #[ink(event)]
-    pub struct NewMetric {
+    pub struct MetricReported {
         #[ink(topic)]
         inspector: AccountId,
         #[ink(topic)]
@@ -925,7 +945,7 @@ mod ddc {
     }
 
     #[ink(event)]
-    pub struct NewMetricDDN {
+    pub struct MetricDDNReported {
         #[ink(topic)]
         inspector: AccountId,
         #[ink(topic)]
@@ -941,14 +961,28 @@ mod ddc {
     }
 
     /// Get median value from a vector
-    fn get_median<T: Clone + Ord>(source: Vec<T>) -> Option<T> {
+    fn get_median<T: Clone + Ord>(mut source: Vec<T>) -> Option<T> {
         let length = source.len();
-        let mut sorted_source = source;
         // sort_unstable is faster, it doesn't preserve the order of equal elements
-        sorted_source.sort_unstable();
+        source.sort_unstable();
         let index_correction = length != 0 && length % 2 == 0;
         let median_index = length / 2 - index_correction as usize;
-        sorted_source.get(median_index).cloned()
+        source.get(median_index).cloned()
+    }
+
+    /// Get median value from a vector of structs by key
+    fn get_median_by_key<T, F, K>(mut source: Vec<T>, f: F) -> Option<T>
+    where
+        T: Clone,
+        F: FnMut(&T) -> K,
+        K: Ord,
+    {
+        let length = source.len();
+        // sort_unstable is faster, it doesn't preserve the order of equal elements
+        source.sort_unstable_by_key(f);
+        let index_correction = length != 0 && length % 2 == 0;
+        let median_index = length / 2 - index_correction as usize;
+        source.get(median_index).cloned()
     }
 
     impl Ddc {
@@ -961,6 +995,7 @@ mod ddc {
 
             let now_ms = Self::env().block_timestamp() as u64;
             let metrics = self.metrics_for_period(app_id, subscription.start_date_ms, now_ms);
+
             Ok(metrics)
         }
 
@@ -988,7 +1023,7 @@ mod ddc {
                 let mut day_rcu_used: Vec<u64> = Vec::new();
 
                 for inspector in self.inspectors.keys() {
-                    let inspector_day_metric = self.metrics_for_day(inspector.clone(), app_id, day);
+                    let inspector_day_metric = self.metrics_for_day(*inspector, app_id, day);
                     if let Some(inspector_day_metric) = inspector_day_metric {
                         day_storage_bytes.push(inspector_day_metric.storage_bytes);
                         day_wcu_used.push(inspector_day_metric.wcu_used);
@@ -996,13 +1031,14 @@ mod ddc {
                     }
                 }
 
-                period_metrics.add_assign(&MetricValue {
+                period_metrics.add_assign(MetricValue {
                     storage_bytes: get_median(day_storage_bytes).unwrap_or(0),
                     wcu_used: get_median(day_wcu_used).unwrap_or(0),
                     rcu_used: get_median(day_rcu_used).unwrap_or(0),
-                    start_ms: 0, // Ignored.
+                    start_ms: 0, // Ignored by add_assign, but required by type
                 });
             }
+
             period_metrics
         }
 
@@ -1018,16 +1054,15 @@ mod ddc {
                 app_id,
                 day_of_period,
             };
-            let day_metrics = self.metrics.get(&day_key);
 
-            // Ignore out-of-date metrics from a previous period.
-            if let Some(day_metrics) = day_metrics {
+            self.metrics.get(&day_key).and_then(|day_metrics| {
+                // Ignore out-of-date metrics from a previous period
                 if day_metrics.start_ms != day * MS_PER_DAY {
-                    return None;
+                    None
+                } else {
+                    Some(day_metrics)
                 }
-            }
-
-            day_metrics
+            })
         }
 
         #[ink(message)]
@@ -1047,34 +1082,55 @@ mod ddc {
             };
 
             for day in first_day..last_day {
-                let metrics = self.metrics_for_ddn_day(p2p_id.clone(), day);
-                period_metrics.push(metrics);
+                let mut day_storage_bytes: Vec<u64> = Vec::new();
+                let mut day_wcu_used: Vec<u64> = Vec::new();
+                let mut day_rcu_used: Vec<u64> = Vec::new();
+
+                for inspector in self.inspectors.keys() {
+                    let day_metric = self.metrics_for_ddn_day(*inspector, p2p_id.clone(), day);
+
+                    if let Some(day_metric) = day_metric {
+                        day_storage_bytes.push(day_metric.storage_bytes);
+                        day_wcu_used.push(day_metric.wcu_used);
+                        day_rcu_used.push(day_metric.rcu_used);
+                    }
+                }
+
+                period_metrics.push(MetricValue {
+                    storage_bytes: get_median(day_storage_bytes).unwrap_or(0),
+                    wcu_used: get_median(day_wcu_used).unwrap_or(0),
+                    rcu_used: get_median(day_rcu_used).unwrap_or(0),
+                    start_ms: day * MS_PER_DAY,
+                });
             }
 
             period_metrics
         }
 
-        fn metrics_for_ddn_day(&self, p2p_id: String, day: u64) -> MetricValue {
+        fn metrics_for_ddn_day(
+            &self,
+            inspector: AccountId,
+            p2p_id: String,
+            day: u64,
+        ) -> Option<MetricValue> {
             let day_of_period = day % PERIOD_DAYS;
             let day_key = MetricKeyDDN {
+                inspector,
                 p2p_id,
                 day_of_period,
             };
-            let start_ms = day * MS_PER_DAY;
 
-            let day_metrics = self.metrics_ddn.get(&day_key);
-            match day_metrics {
-                // Return metrics that exists and is not outdated.
-                Some(metrics) if metrics.start_ms == start_ms => metrics.clone(),
-
-                // Otherwise, return 0 for missing or outdated metrics from a previous period.
-                _ => MetricValue {
-                    start_ms,
-                    storage_bytes: 0,
-                    wcu_used: 0,
-                    rcu_used: 0,
-                },
-            }
+            self.metrics_ddn
+                .get(&day_key)
+                .and_then(|metric| {
+                    // Ignore out-of-date metrics from a previous period
+                    if metric.start_ms != day * MS_PER_DAY {
+                        None
+                    } else {
+                        Some(metric)
+                    }
+                })
+                .cloned()
         }
 
         #[ink(message)]
@@ -1107,7 +1163,7 @@ mod ddc {
 
             self.metrics.insert(key.clone(), metrics.clone());
 
-            self.env().emit_event(NewMetric {
+            self.env().emit_event(MetricReported {
                 inspector,
                 key,
                 metrics,
@@ -1136,6 +1192,7 @@ mod ddc {
             let day_of_period = day % PERIOD_DAYS;
 
             let key = MetricKeyDDN {
+                inspector,
                 p2p_id: p2p_id.clone(),
                 day_of_period,
             };
@@ -1150,7 +1207,7 @@ mod ddc {
 
             self.report_ddn_status(p2p_id, true).unwrap();
 
-            self.env().emit_event(NewMetricDDN {
+            self.env().emit_event(MetricDDNReported {
                 inspector,
                 key,
                 metrics,
@@ -1217,6 +1274,7 @@ mod ddc {
         NoSubscription,
         NoFreeTier,
         DDNNotFound,
+        DDNNoStatus,
     }
 
     pub type Result<T> = core::result::Result<T, Error>;

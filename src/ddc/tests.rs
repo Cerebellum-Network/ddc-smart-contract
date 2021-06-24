@@ -1,7 +1,8 @@
 use crate::ddc::Error::*;
 use ink_env::{
     call, test,
-    test::{default_accounts, recorded_events},
+    test::DefaultAccounts,
+    test::{advance_block, default_accounts, initialize_or_reset_as_default, recorded_events},
     AccountId, DefaultEnvironment,
 };
 use ink_lang as ink;
@@ -203,9 +204,8 @@ fn withdraw_works() {
     assert_eq!(contract.balance_of_contract(), 800);
 }
 
-/// Sets exec context
 fn set_exec_context(caller: AccountId, endowement: Balance) {
-    let callee = ink_env::account_id::<ink_env::DefaultEnvironment>().unwrap_or([0x0; 32].into());
+    let callee = ink_env::account_id::<DefaultEnvironment>().unwrap_or([0x0; 32].into());
     test::push_execution_context::<Environment>(
         caller,
         callee,
@@ -220,21 +220,41 @@ fn undo_set_exec_context() {
 }
 
 fn balance_of(account: AccountId) -> Balance {
-    test::get_account_balance::<ink_env::DefaultEnvironment>(account).unwrap()
+    test::get_account_balance::<DefaultEnvironment>(account).unwrap()
 }
 
 fn set_balance(account: AccountId, balance: Balance) {
-    ink_env::test::set_account_balance::<ink_env::DefaultEnvironment>(account, balance).unwrap();
+    ink_env::test::set_account_balance::<DefaultEnvironment>(account, balance).unwrap();
 }
 
 fn contract_id() -> AccountId {
-    ink_env::test::get_current_contract_account_id::<ink_env::DefaultEnvironment>().unwrap()
+    ink_env::test::get_current_contract_account_id::<DefaultEnvironment>().unwrap()
 }
 
 #[ink::test]
 fn get_median_works() {
     let vec = vec![7, 1, 7, 9999, 9, 7, 0];
     assert_eq!(get_median(vec), Some(7));
+}
+
+#[ink::test]
+fn get_median_by_key_works() {
+    #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+    struct Item {
+        id: u8,
+        value: i32,
+    }
+    let vec = vec![
+        Item { id: 1, value: 5 },
+        Item { id: 2, value: 100 },
+        Item { id: 3, value: -1 },
+        Item { id: 4, value: 5 },
+        Item { id: 5, value: 5 },
+    ];
+    assert_eq!(
+        get_median_by_key(vec, |item| item.value),
+        Some(Item { id: 4, value: 5 })
+    );
 }
 
 #[ink::test]
@@ -288,7 +308,7 @@ fn report_metrics_works() {
         day_of_period: (some_day + PERIOD_DAYS) % PERIOD_DAYS,
     };
 
-    // Unauthorized report, we are not a inspector.
+    // Unauthorized report, we are not an inspector.
     let err = contract.report_metrics(
         app_id,
         0,
@@ -310,7 +330,7 @@ fn report_metrics_works() {
         }
     );
 
-    // Authorize our admin account to be a inspector too.
+    // Authorize our admin account to be an inspector too.
     contract.add_inspector(inspector_id).unwrap();
 
     // Wrong day format.
@@ -443,15 +463,16 @@ fn get_current_period_days_works() {
 }
 
 #[ink::test]
-fn median_works() {
+fn report_metrics_median_works() {
     let mut contract = make_contract();
-
-    let alice = AccountId::from([0x01; 32]);
-    let bob = AccountId::from([0x02; 32]);
-    let charlie = AccountId::from([0x03; 32]);
-    let django = AccountId::from([0x04; 32]);
-    let eve = AccountId::from([0x05; 32]);
-    let frank = AccountId::from([0x06; 32]);
+    let DefaultAccounts {
+        alice,
+        bob,
+        charlie,
+        django,
+        eve,
+        frank,
+    } = default_accounts::<DefaultEnvironment>().unwrap();
 
     contract.add_inspector(alice).unwrap();
     contract.add_inspector(bob).unwrap();
@@ -477,7 +498,7 @@ fn median_works() {
         day_of_period: day1 % PERIOD_DAYS,
     };
 
-    // No metric yet.
+    // No metrics yet
     assert_eq!(contract.metrics.get(&day1_alice_django_key), None);
     assert_eq!(
         contract.metrics_for_period(django, day1_ms, day5_ms),
@@ -488,6 +509,8 @@ fn median_works() {
             rcu_used: 0,
         }
     );
+
+    // Expected median values
 
     // bob day1: [0, 6, 8, 8, 100] -> 8
     // bob day2: [2, 4, 4, 5, 6] -> 4
@@ -1272,20 +1295,97 @@ fn metrics_since_subscription_works() {
 }
 
 #[ink::test]
+fn metrics_for_period_works() {
+    let mut contract = make_contract();
+    let accounts = default_accounts::<DefaultEnvironment>().unwrap();
+    let inspector = accounts.alice;
+    let app_id = accounts.charlie;
+
+    let some_day = 9999;
+    let day1_of_period = some_day - some_day % PERIOD_DAYS;
+
+    // Increase this value each time
+    let mut wcu_used = 0;
+
+    // Authorize our admin account to be an inspector
+    contract.add_inspector(inspector).unwrap();
+
+    for days_passed in 0..(PERIOD_DAYS + 5) {
+        let day = day1_of_period + days_passed;
+        let day_of_period = day % PERIOD_DAYS;
+        let day_ms = day * MS_PER_DAY;
+        let metric_key = MetricKey {
+            inspector,
+            app_id,
+            day_of_period,
+        };
+
+        // Increase counter before "continue"
+        wcu_used += 1;
+
+        if days_passed < PERIOD_DAYS {
+            // 1st period
+            // skip day 4
+            if day_of_period == 3 {
+                continue;
+            }
+            // No metric for a new day of cycle
+            assert_eq!(contract.metrics.get(&metric_key), None);
+        } else {
+            // 2snd period
+            // skip day 2
+            if day_of_period == 1 {
+                continue;
+            }
+            // There is some metric for old days (except skipped day 4)
+            if day_of_period != 3 {
+                assert!(contract.metrics.get(&metric_key).is_some());
+            }
+        }
+
+        // Report
+        contract
+            .report_metrics(app_id, day_ms, 0, wcu_used, 0)
+            .unwrap();
+
+        // Metric should be added
+        assert_eq!(
+            contract.metrics.get(&metric_key),
+            Some(&MetricValue {
+                start_ms: day_ms,
+                storage_bytes: 0,
+                wcu_used,
+                rcu_used: 0,
+            })
+        );
+    }
+
+    // Get total metric
+    let total_metric = contract.metrics_for_period(
+        app_id,
+        day1_of_period * MS_PER_DAY,
+        (day1_of_period + PERIOD_DAYS + 7) * MS_PER_DAY,
+    );
+
+    // Metric should be correct
+    assert_eq!(total_metric.wcu_used, 32 + 0 + 34 + 35 + 36);
+}
+
+#[ink::test]
 fn finalize_metric_period_works() {
     let mut contract = make_contract();
     let accounts = default_accounts::<DefaultEnvironment>().unwrap();
-    let yesterday_ms = 9999 * MS_PER_DAY; // Midnight time on some day.
+    let yesterday_ms = 9999 * MS_PER_DAY; // Midnight time on some day
     let today_ms = yesterday_ms + MS_PER_DAY;
 
-    // Unauthorized report, we are not a inspector.
+    // Unauthorized report, we are not an inspector
     let err = contract.finalize_metric_period(yesterday_ms);
     assert_eq!(err, Err(Error::OnlyInspector));
 
-    // Authorize our admin account to be a inspector too.
+    // Authorize our admin account to be an inspector too
     contract.add_inspector(accounts.alice).unwrap();
 
-    // Wrong day format.
+    // Wrong day format
     let err = contract.finalize_metric_period(yesterday_ms + 1);
     assert_eq!(err, Err(Error::UnexpectedTimestamp));
 
@@ -1303,7 +1403,7 @@ fn get_current_period_ms_works() {
     let day1 = day0 + MS_PER_DAY;
     let day2 = day1 + MS_PER_DAY;
 
-    // Authorize our accounts to be a inspectors.
+    // Authorize our accounts to be inspectors.
     contract.add_inspector(accounts.alice).unwrap();
     contract.add_inspector(accounts.bob).unwrap();
 
@@ -1414,17 +1514,6 @@ fn add_ddc_node_works() {
         },]
     );
 
-    // Should add the default DDN status
-    assert_eq!(
-        contract.get_ddn_status(p2p_id.clone()).unwrap(),
-        DDNStatus {
-            is_online: true,
-            total_downtime: 0,
-            reference_timestamp: 0,
-            last_timestamp: 0,
-        }
-    );
-
     // Should emit event
     let raw_events = recorded_events().collect::<Vec<_>>();
     assert_eq!(4, raw_events.len()); // 3 x tier added + node added
@@ -1502,6 +1591,15 @@ fn remove_ddc_node_only_owner_works() {
 }
 
 #[ink::test]
+fn remove_ddc_node_not_found_works() {
+    let mut contract = make_contract();
+    let p2p_id = String::from("test_p2p_id");
+
+    // Should return an error if not found
+    assert_eq!(contract.remove_ddc_node(p2p_id), Err(Error::DDNNotFound));
+}
+
+#[ink::test]
 fn remove_ddc_node_works() {
     let mut contract = make_contract();
     let p2p_id = String::from("test_p2p_id");
@@ -1537,131 +1635,6 @@ fn remove_ddc_node_works() {
 // ---- DDN Statuses ----
 
 #[ink::test]
-fn set_ddn_status_not_found_works() {
-    let mut contract = make_contract();
-    let p2p_id = String::from("test_p2p_id");
-
-    // DDC node should be in the list
-    assert_eq!(
-        contract.set_ddn_status(p2p_id, 4, true),
-        Err(Error::DDNNotFound)
-    );
-}
-
-#[ink::test]
-fn set_ddn_status_works() {
-    let mut contract = make_contract();
-    let p2p_id = "test_p2p_id".to_string();
-    let p2p_addr = "test_p2p_addr".to_string();
-    let url = String::from("test_url");
-
-    // Add DDC node to the list
-    contract
-        .add_ddc_node(p2p_id.clone(), p2p_addr.clone(), url)
-        .unwrap();
-
-    // Calculations should work
-    contract.set_ddn_status(p2p_id.clone(), 4, true).unwrap();
-    assert_eq!(
-        contract.get_ddn_status(p2p_id.clone()).unwrap(),
-        DDNStatus {
-            is_online: true,
-            total_downtime: 0,
-            reference_timestamp: 0,
-            last_timestamp: 4,
-        }
-    );
-
-    contract.set_ddn_status(p2p_id.clone(), 6, true).unwrap();
-    assert_eq!(
-        contract.get_ddn_status(p2p_id.clone()).unwrap(),
-        DDNStatus {
-            is_online: true,
-            total_downtime: 0,
-            reference_timestamp: 0,
-            last_timestamp: 6,
-        }
-    );
-
-    contract.set_ddn_status(p2p_id.clone(), 8, false).unwrap();
-    assert_eq!(
-        contract.get_ddn_status(p2p_id.clone()),
-        Ok(DDNStatus {
-            is_online: false,
-            total_downtime: 0,
-            reference_timestamp: 0,
-            last_timestamp: 8,
-        })
-    );
-
-    contract.set_ddn_status(p2p_id.clone(), 10, false).unwrap();
-    assert_eq!(
-        contract.get_ddn_status(p2p_id.clone()),
-        Ok(DDNStatus {
-            is_online: false,
-            total_downtime: 2,
-            reference_timestamp: 0,
-            last_timestamp: 10,
-        })
-    );
-
-    contract.set_ddn_status(p2p_id.clone(), 12, true).unwrap();
-    assert_eq!(
-        contract.get_ddn_status(p2p_id.clone()),
-        Ok(DDNStatus {
-            is_online: true,
-            total_downtime: 4,
-            reference_timestamp: 0,
-            last_timestamp: 12,
-        })
-    );
-
-    contract.set_ddn_status(p2p_id.clone(), 18, false).unwrap();
-    assert_eq!(
-        contract.get_ddn_status(p2p_id.clone()),
-        Ok(DDNStatus {
-            is_online: false,
-            total_downtime: 4,
-            reference_timestamp: 0,
-            last_timestamp: 18,
-        })
-    );
-
-    contract.set_ddn_status(p2p_id.clone(), 25, true).unwrap();
-    assert_eq!(
-        contract.get_ddn_status(p2p_id.clone()),
-        Ok(DDNStatus {
-            is_online: true,
-            total_downtime: 11,
-            reference_timestamp: 0,
-            last_timestamp: 25,
-        })
-    );
-}
-
-#[ink::test]
-fn set_ddn_status_unexpected_timestamp_works() {
-    let mut contract = make_contract();
-    let p2p_id = "test_p2p_id".to_string();
-    let p2p_addr = "test_p2p_addr".to_string();
-    let url = String::from("test_url");
-
-    // Add DDC node to the list
-    contract
-        .add_ddc_node(p2p_id.clone(), p2p_addr.clone(), url)
-        .unwrap();
-
-    // Set status for a timestamp
-    assert_eq!(contract.set_ddn_status(p2p_id.clone(), 10, true), Ok(()));
-
-    // Specified timestamp must be greater than the last one
-    assert_eq!(
-        contract.set_ddn_status(p2p_id, 8, true),
-        Err(Error::UnexpectedTimestamp)
-    );
-}
-
-#[ink::test]
 fn get_ddn_status_not_found_works() {
     let contract = make_contract();
     let p2p_id = String::from("test_p2p_id");
@@ -1671,9 +1644,10 @@ fn get_ddn_status_not_found_works() {
 }
 
 #[ink::test]
-fn get_ddn_status_works() {
+fn get_ddn_status_no_status_works() {
     let mut contract = make_contract();
-    let p2p_id = "test_p2p_id".to_string();
+    let accounts = default_accounts::<DefaultEnvironment>().unwrap();
+    let p2p_id = String::from("test_p2p_id");
     let p2p_addr = "test_p2p_addr".to_string();
     let url = String::from("test_url");
 
@@ -1682,8 +1656,37 @@ fn get_ddn_status_works() {
         .add_ddc_node(p2p_id.clone(), p2p_addr.clone(), url)
         .unwrap();
 
+    // Should return an error if no inspectors
+    assert_eq!(
+        contract.get_ddn_status(p2p_id.clone()),
+        Err(Error::DDNNoStatus)
+    );
+
+    // Make admin an inspector
+    contract.add_inspector(accounts.alice).unwrap();
+
+    // Should return an error if status not found
+    assert_eq!(contract.get_ddn_status(p2p_id), Err(Error::DDNNoStatus));
+}
+
+#[ink::test]
+fn get_ddn_status_works() {
+    let mut contract = make_contract();
+    let accounts = default_accounts::<DefaultEnvironment>().unwrap();
+    let p2p_id = "test_p2p_id".to_string();
+    let p2p_addr = "test_p2p_addr".to_string();
+    let url = String::from("test_url");
+
+    // Make admin an inspector
+    contract.add_inspector(accounts.alice).unwrap();
+
+    // Add DDC node to the list
+    contract
+        .add_ddc_node(p2p_id.clone(), p2p_addr.clone(), url)
+        .unwrap();
+
     // Set new status
-    contract.set_ddn_status(p2p_id.clone(), 2, false).unwrap();
+    contract.report_ddn_status(p2p_id.clone(), false).unwrap();
 
     // Get updated status
     assert_eq!(
@@ -1692,7 +1695,7 @@ fn get_ddn_status_works() {
             is_online: false,
             total_downtime: 0,
             reference_timestamp: 0,
-            last_timestamp: 2,
+            last_timestamp: 0,
         })
     );
 }
@@ -1702,7 +1705,7 @@ fn report_ddn_status_only_inspector_works() {
     let mut contract = make_contract();
     let p2p_id = String::from("test_p2p_id");
 
-    // Caller should be a inspector
+    // Caller should be an inspector
     assert_eq!(
         contract.report_ddn_status(p2p_id.clone(), true),
         Err(Error::OnlyInspector)
@@ -1715,13 +1718,45 @@ fn report_ddn_status_not_found_works() {
     let accounts = default_accounts::<DefaultEnvironment>().unwrap();
     let p2p_id = String::from("test_p2p_id");
 
-    // Make admin a inspector
+    // Make admin an inspector
     contract.add_inspector(accounts.alice).unwrap();
 
     // Should report only for listed DDC node
     assert_eq!(
         contract.report_ddn_status(p2p_id.clone(), true),
         Err(Error::DDNNotFound)
+    );
+}
+
+#[ink::test]
+fn report_ddn_status_unexpected_timestamp_works() {
+    let mut contract = make_contract();
+    let accounts = default_accounts::<DefaultEnvironment>().unwrap();
+    let p2p_id = "test_p2p_id".to_string();
+    let p2p_addr = "test_p2p_addr".to_string();
+    let url = String::from("test_url");
+
+    // Make admin an inspector
+    contract.add_inspector(accounts.alice).unwrap();
+
+    // Add DDC node to the list
+    contract
+        .add_ddc_node(p2p_id.clone(), p2p_addr.clone(), url)
+        .unwrap();
+
+    // Increase block time by 5
+    advance_block::<DefaultEnvironment>().unwrap();
+
+    // Report DDN status
+    assert_eq!(contract.report_ddn_status(p2p_id.clone(), true), Ok(()));
+
+    // Reset off-chain testing environment
+    initialize_or_reset_as_default::<DefaultEnvironment>().unwrap();
+
+    // Specified timestamp must be greater than the last one
+    assert_eq!(
+        contract.report_ddn_status(p2p_id, true),
+        Err(Error::UnexpectedTimestamp)
     );
 }
 
@@ -1733,49 +1768,396 @@ fn report_ddn_status_works() {
     let p2p_addr = "test_p2p_addr".to_string();
     let url = String::from("test_url");
 
-    // Make admin a inspector
+    // Make admin an inspector
     contract.add_inspector(accounts.alice).unwrap();
 
-    // Add DDC node to the list
+    // Add DDC node
     contract
         .add_ddc_node(p2p_id.clone(), p2p_addr.clone(), url)
         .unwrap();
 
-    // Should return Ok
-    assert_eq!(contract.report_ddn_status(p2p_id.clone(), true), Ok(()));
-}
+    // Update block time from 0 to 5
+    advance_block::<DefaultEnvironment>().unwrap();
 
-#[ink::test]
-fn default_ddn_status_works() {
-    let mut contract = make_contract();
-    let p2p_id = "test_p2p_id".to_string();
-    let p2p_addr = "test_p2p_addr".to_string();
-    let url = String::from("test_url");
-    let new_url = String::from("test_url_new");
+    // No status initially
+    assert_eq!(
+        contract.get_ddn_status(p2p_id.clone()),
+        Err(Error::DDNNoStatus)
+    );
 
-    // Add DDC node to the list
-    contract
-        .add_ddc_node(p2p_id.clone(), p2p_addr.clone(), url.clone())
-        .unwrap();
+    // Adds a new status
+    contract.report_ddn_status(p2p_id.clone(), true).unwrap();
+    assert_eq!(
+        contract.get_ddn_status(p2p_id.clone()).unwrap(),
+        DDNStatus {
+            is_online: true,
+            total_downtime: 0,
+            reference_timestamp: 5,
+            last_timestamp: 5,
+        }
+    );
 
-    // Set new status
-    contract.set_ddn_status(p2p_id.clone(), 2, false).unwrap();
-    contract.set_ddn_status(p2p_id.clone(), 6, false).unwrap();
+    // Status should be updated
+    advance_block::<DefaultEnvironment>().unwrap();
+    contract.report_ddn_status(p2p_id.clone(), true).unwrap();
+    assert_eq!(
+        contract.get_ddn_status(p2p_id.clone()).unwrap(),
+        DDNStatus {
+            is_online: true,
+            total_downtime: 0,
+            reference_timestamp: 5,
+            last_timestamp: 10,
+        }
+    );
 
-    // Repeat adding DDC node (update url)
-    contract
-        .add_ddc_node(p2p_id.clone(), p2p_addr.clone(), new_url.clone())
-        .unwrap();
-
-    // Get updated status
+    // Calculations should work
+    advance_block::<DefaultEnvironment>().unwrap();
+    contract.report_ddn_status(p2p_id.clone(), false).unwrap();
     assert_eq!(
         contract.get_ddn_status(p2p_id.clone()),
         Ok(DDNStatus {
             is_online: false,
-            total_downtime: 4,
-            reference_timestamp: 0,
-            last_timestamp: 6,
+            total_downtime: 0,
+            reference_timestamp: 5,
+            last_timestamp: 15,
         })
+    );
+
+    advance_block::<DefaultEnvironment>().unwrap();
+    contract.report_ddn_status(p2p_id.clone(), false).unwrap();
+    assert_eq!(
+        contract.get_ddn_status(p2p_id.clone()),
+        Ok(DDNStatus {
+            is_online: false,
+            total_downtime: 5,
+            reference_timestamp: 5,
+            last_timestamp: 20,
+        })
+    );
+
+    advance_block::<DefaultEnvironment>().unwrap();
+    contract.report_ddn_status(p2p_id.clone(), true).unwrap();
+    assert_eq!(
+        contract.get_ddn_status(p2p_id.clone()),
+        Ok(DDNStatus {
+            is_online: true,
+            total_downtime: 10,
+            reference_timestamp: 5,
+            last_timestamp: 25,
+        })
+    );
+
+    advance_block::<DefaultEnvironment>().unwrap();
+    contract.report_ddn_status(p2p_id.clone(), false).unwrap();
+    assert_eq!(
+        contract.get_ddn_status(p2p_id.clone()),
+        Ok(DDNStatus {
+            is_online: false,
+            total_downtime: 10,
+            reference_timestamp: 5,
+            last_timestamp: 30,
+        })
+    );
+
+    advance_block::<DefaultEnvironment>().unwrap();
+    contract.report_ddn_status(p2p_id.clone(), true).unwrap();
+    assert_eq!(
+        contract.get_ddn_status(p2p_id.clone()),
+        Ok(DDNStatus {
+            is_online: true,
+            total_downtime: 15,
+            reference_timestamp: 5,
+            last_timestamp: 35,
+        })
+    );
+}
+
+#[ink::test]
+fn report_ddn_status_median_works() {
+    let mut contract = make_contract();
+    let p2p_id = "test_p2p_id".to_string();
+    let p2p_addr = "test_p2p_addr".to_string();
+    let url = String::from("test_url");
+
+    let DefaultAccounts {
+        alice,
+        bob,
+        charlie,
+        django,
+        eve,
+        frank,
+    } = default_accounts::<DefaultEnvironment>().unwrap();
+
+    contract.add_inspector(alice).unwrap();
+    contract.add_inspector(bob).unwrap();
+    contract.add_inspector(charlie).unwrap();
+    contract.add_inspector(django).unwrap();
+    contract.add_inspector(eve).unwrap();
+    contract.add_inspector(frank).unwrap();
+
+    // Add DDC node
+    contract
+        .add_ddc_node(p2p_id.clone(), p2p_addr, url)
+        .unwrap();
+
+    // No status yet
+    let alice_key = DDNStatusKey {
+        inspector: alice,
+        p2p_id: p2p_id.clone(),
+    };
+    assert_eq!(contract.ddn_statuses.get(&alice_key), None);
+    assert_eq!(
+        contract.get_ddn_status(p2p_id.clone()),
+        Err(Error::DDNNoStatus)
+    );
+
+    // DDN statuses over time:
+    // 1.on
+    // 2.on
+    // 3.off -
+    // 4.off -
+    // 5.on
+    // 6.off -
+    // 7.on
+
+    // Alice is always right
+    // Bob left too early
+    // Charlie failed 2 times
+    // Django is late
+    // Eve always lies
+    // Frank is franky but failed 1 time
+
+    // Block 1 - DDN is online (no Django, Eve is lying)
+    advance_block::<DefaultEnvironment>().unwrap();
+
+    set_exec_context(alice, 2);
+    contract.report_ddn_status(p2p_id.clone(), true).unwrap();
+    undo_set_exec_context();
+
+    set_exec_context(bob, 2);
+    contract.report_ddn_status(p2p_id.clone(), true).unwrap();
+    undo_set_exec_context();
+
+    set_exec_context(charlie, 2);
+    contract.report_ddn_status(p2p_id.clone(), true).unwrap();
+    undo_set_exec_context();
+
+    set_exec_context(eve, 2);
+    contract.report_ddn_status(p2p_id.clone(), false).unwrap();
+    undo_set_exec_context();
+
+    set_exec_context(frank, 2);
+    contract.report_ddn_status(p2p_id.clone(), true).unwrap();
+    undo_set_exec_context();
+
+    // Block 2 - DDN is online (+ Django, Charlie failed, Eve is lying)
+    advance_block::<DefaultEnvironment>().unwrap();
+
+    set_exec_context(alice, 2);
+    contract.report_ddn_status(p2p_id.clone(), true).unwrap();
+    undo_set_exec_context();
+
+    set_exec_context(bob, 2);
+    contract.report_ddn_status(p2p_id.clone(), true).unwrap();
+    undo_set_exec_context();
+
+    set_exec_context(charlie, 2);
+    contract.report_ddn_status(p2p_id.clone(), false).unwrap();
+    undo_set_exec_context();
+
+    set_exec_context(django, 2);
+    contract.report_ddn_status(p2p_id.clone(), true).unwrap();
+    undo_set_exec_context();
+
+    set_exec_context(eve, 2);
+    contract.report_ddn_status(p2p_id.clone(), false).unwrap();
+    undo_set_exec_context();
+
+    set_exec_context(frank, 2);
+    contract.report_ddn_status(p2p_id.clone(), true).unwrap();
+    undo_set_exec_context();
+
+    // Block3 - DDN is offline (Eve is lying)
+    advance_block::<DefaultEnvironment>().unwrap();
+
+    set_exec_context(alice, 2);
+    contract.report_ddn_status(p2p_id.clone(), false).unwrap();
+    undo_set_exec_context();
+
+    set_exec_context(bob, 2);
+    contract.report_ddn_status(p2p_id.clone(), false).unwrap();
+    undo_set_exec_context();
+
+    set_exec_context(charlie, 2);
+    contract.report_ddn_status(p2p_id.clone(), false).unwrap();
+    undo_set_exec_context();
+
+    set_exec_context(django, 2);
+    contract.report_ddn_status(p2p_id.clone(), false).unwrap();
+    undo_set_exec_context();
+
+    set_exec_context(eve, 2);
+    contract.report_ddn_status(p2p_id.clone(), true).unwrap();
+    undo_set_exec_context();
+
+    set_exec_context(frank, 2);
+    contract.report_ddn_status(p2p_id.clone(), false).unwrap();
+    undo_set_exec_context();
+
+    // Block4 - DDN is offline (Eve is lying)
+    advance_block::<DefaultEnvironment>().unwrap();
+
+    set_exec_context(alice, 2);
+    contract.report_ddn_status(p2p_id.clone(), false).unwrap();
+    undo_set_exec_context();
+
+    set_exec_context(bob, 2);
+    contract.report_ddn_status(p2p_id.clone(), false).unwrap();
+    undo_set_exec_context();
+
+    set_exec_context(charlie, 2);
+    contract.report_ddn_status(p2p_id.clone(), false).unwrap();
+    undo_set_exec_context();
+
+    set_exec_context(django, 2);
+    contract.report_ddn_status(p2p_id.clone(), false).unwrap();
+    undo_set_exec_context();
+
+    set_exec_context(eve, 2);
+    contract.report_ddn_status(p2p_id.clone(), true).unwrap();
+    undo_set_exec_context();
+
+    set_exec_context(frank, 2);
+    contract.report_ddn_status(p2p_id.clone(), false).unwrap();
+    undo_set_exec_context();
+
+    // Block5 - DDN is online (Frank failed, Eve is lying)
+    advance_block::<DefaultEnvironment>().unwrap();
+
+    set_exec_context(alice, 2);
+    contract.report_ddn_status(p2p_id.clone(), true).unwrap();
+    undo_set_exec_context();
+
+    set_exec_context(bob, 2);
+    contract.report_ddn_status(p2p_id.clone(), true).unwrap();
+    undo_set_exec_context();
+
+    set_exec_context(charlie, 2);
+    contract.report_ddn_status(p2p_id.clone(), true).unwrap();
+    undo_set_exec_context();
+
+    set_exec_context(django, 2);
+    contract.report_ddn_status(p2p_id.clone(), true).unwrap();
+    undo_set_exec_context();
+
+    set_exec_context(eve, 2);
+    contract.report_ddn_status(p2p_id.clone(), false).unwrap();
+    undo_set_exec_context();
+
+    set_exec_context(frank, 2);
+    contract.report_ddn_status(p2p_id.clone(), false).unwrap();
+    undo_set_exec_context();
+
+    // Block6 - DDN is offline (Eve is lying)
+    advance_block::<DefaultEnvironment>().unwrap();
+
+    set_exec_context(alice, 2);
+    contract.report_ddn_status(p2p_id.clone(), false).unwrap();
+    undo_set_exec_context();
+
+    set_exec_context(bob, 2);
+    contract.report_ddn_status(p2p_id.clone(), false).unwrap();
+    undo_set_exec_context();
+
+    set_exec_context(charlie, 2);
+    contract.report_ddn_status(p2p_id.clone(), false).unwrap();
+    undo_set_exec_context();
+
+    set_exec_context(django, 2);
+    contract.report_ddn_status(p2p_id.clone(), false).unwrap();
+    undo_set_exec_context();
+
+    set_exec_context(eve, 2);
+    contract.report_ddn_status(p2p_id.clone(), true).unwrap();
+    undo_set_exec_context();
+
+    set_exec_context(frank, 2);
+    contract.report_ddn_status(p2p_id.clone(), false).unwrap();
+    undo_set_exec_context();
+
+    // Block7 - DDN is online (Bob left, Charlie failed, Eve is lying)
+    advance_block::<DefaultEnvironment>().unwrap();
+
+    set_exec_context(alice, 2);
+    contract.report_ddn_status(p2p_id.clone(), true).unwrap();
+    undo_set_exec_context();
+
+    set_exec_context(charlie, 2);
+    contract.report_ddn_status(p2p_id.clone(), false).unwrap();
+    undo_set_exec_context();
+
+    set_exec_context(django, 2);
+    contract.report_ddn_status(p2p_id.clone(), true).unwrap();
+    undo_set_exec_context();
+
+    set_exec_context(eve, 2);
+    contract.report_ddn_status(p2p_id.clone(), false).unwrap();
+    undo_set_exec_context();
+
+    set_exec_context(frank, 2);
+    contract.report_ddn_status(p2p_id.clone(), true).unwrap();
+    undo_set_exec_context();
+
+    /*
+    ddn_statuses = [
+        DDNStatus {
+            is_online: true,
+            total_downtime: 15,
+            reference_timestamp: 5,
+            last_timestamp: 35,
+        },
+        DDNStatus {
+            is_online: false,
+            total_downtime: 10,
+            reference_timestamp: 5,
+            last_timestamp: 30,
+        },
+        DDNStatus {
+            is_online: false,
+            total_downtime: 20,
+            reference_timestamp: 5,
+            last_timestamp: 35,
+        },
+        DDNStatus {
+            is_online: false,
+            total_downtime: 15,
+            reference_timestamp: 5,
+            last_timestamp: 35,
+        },
+        DDNStatus {
+            is_online: true,
+            total_downtime: 20,
+            reference_timestamp: 5,
+            last_timestamp: 35,
+        },
+        DDNStatus {
+            is_online: true,
+            total_downtime: 15,
+            reference_timestamp: 10,
+            last_timestamp: 35,
+        },
+    ]
+    */
+
+    // Total downtime should be the median value
+    assert_eq!(
+        contract.get_ddn_status(p2p_id.clone()).unwrap(),
+        DDNStatus {
+            is_online: true,
+            total_downtime: 15,
+            reference_timestamp: 10,
+            last_timestamp: 35,
+        }
     );
 }
 
@@ -1797,16 +2179,19 @@ fn report_metrics_updates_ddn_status_works() {
 
     let url = String::from("test_url");
 
+    // Make admin an inspector
+    contract.add_inspector(accounts.alice).unwrap();
+
     // Add DDC node to the list
     contract
         .add_ddc_node(p2p_id.clone(), p2p_addr, url)
         .unwrap();
 
     // Set new DDC node status
-    contract.set_ddn_status(p2p_id.clone(), 0, false).unwrap();
+    contract.report_ddn_status(p2p_id.clone(), false).unwrap();
 
-    // Make admin a inspector
-    contract.add_inspector(accounts.alice).unwrap();
+    // Advance block time
+    advance_block::<DefaultEnvironment>().unwrap();
 
     // Report DDN metrics
     contract
@@ -1818,11 +2203,42 @@ fn report_metrics_updates_ddn_status_works() {
         contract.get_ddn_status(p2p_id),
         Ok(DDNStatus {
             is_online: true,
-            total_downtime: 0,
+            total_downtime: 5,
             reference_timestamp: 0,
-            last_timestamp: 0,
+            last_timestamp: 5,
         })
     );
+}
+
+#[ink::test]
+fn remove_ddc_node_removes_statuses_works() {
+    let mut contract = make_contract();
+    let accounts = default_accounts::<DefaultEnvironment>().unwrap();
+    let p2p_id = String::from("test_p2p_id");
+    let p2p_addr = String::from("test_p2p_addr");
+    let url = String::from("test_url");
+
+    // Make admin an inspector
+    contract.add_inspector(accounts.alice).unwrap();
+
+    // Add DDC node
+    contract
+        .add_ddc_node(p2p_id.clone(), p2p_addr.clone(), url.clone())
+        .unwrap();
+
+    // Set new status
+    contract.report_ddn_status(p2p_id.clone(), false).unwrap();
+
+    // Remove DDC node
+    contract.remove_ddc_node(p2p_id.clone()).unwrap();
+
+    // Add the same DDC node again to check for statuses
+    contract
+        .add_ddc_node(p2p_id.clone(), p2p_addr.clone(), url.clone())
+        .unwrap();
+
+    // Should remove DDN statuses
+    assert_eq!(contract.get_ddn_status(p2p_id), Err(Error::DDNNoStatus));
 }
 
 #[ink::test]
@@ -1875,6 +2291,888 @@ fn report_metrics_ddn_works() {
     expected[17].rcu_used = rcu_used;
 
     assert_eq!(result, expected);
+}
+
+#[ink::test]
+fn report_metrics_ddn_median_works() {
+    let mut contract = make_contract();
+    let DefaultAccounts {
+        alice,
+        bob,
+        charlie,
+        django,
+        eve,
+        frank,
+    } = default_accounts::<DefaultEnvironment>().unwrap();
+
+    contract.add_inspector(alice).unwrap();
+    contract.add_inspector(bob).unwrap();
+    contract.add_inspector(charlie).unwrap();
+    contract.add_inspector(django).unwrap();
+    contract.add_inspector(eve).unwrap();
+    contract.add_inspector(frank).unwrap();
+
+    let day1 = 1;
+    let day1_ms = day1 * MS_PER_DAY;
+    let day2 = 2;
+    let day2_ms = day2 * MS_PER_DAY;
+    let day3 = 3;
+    let day3_ms = day3 * MS_PER_DAY;
+    let day4 = 4;
+    let day4_ms = day4 * MS_PER_DAY;
+    let day5 = 5;
+    let day5_ms = day5 * MS_PER_DAY;
+
+    let alice_p2p_id = String::from("alice");
+    let bob_p2p_id = String::from("bob");
+    let charlie_p2p_id = String::from("charlie");
+    let django_p2p_id = String::from("django");
+    let eve_p2p_id = String::from("eve");
+    let frank_p2p_id = String::from("frank");
+
+    let url = String::from("test_url");
+    let last_day_ms = PERIOD_DAYS * MS_PER_DAY;
+
+    // Add DDC nodes
+    contract
+        .add_ddc_node(alice_p2p_id.clone(), alice_p2p_id.clone(), url.clone())
+        .unwrap();
+    contract
+        .add_ddc_node(bob_p2p_id.clone(), bob_p2p_id.clone(), url.clone())
+        .unwrap();
+    contract
+        .add_ddc_node(charlie_p2p_id.clone(), charlie_p2p_id.clone(), url.clone())
+        .unwrap();
+    contract
+        .add_ddc_node(django_p2p_id.clone(), django_p2p_id.clone(), url.clone())
+        .unwrap();
+    contract
+        .add_ddc_node(eve_p2p_id.clone(), eve_p2p_id.clone(), url.clone())
+        .unwrap();
+    contract
+        .add_ddc_node(frank_p2p_id.clone(), frank_p2p_id.clone(), url.clone())
+        .unwrap();
+
+    // Expected median values
+
+    // bob day1: [0, 6, 8, 8, 100] -> 8
+    // bob day2: [2, 4, 4, 5, 6] -> 4
+    // bob day3: [5, 8, 10, 11, 11] -> 10
+    // bob day4: [8, 16, 20, 50, 80] -> 20
+    // bob day5: [0, 0, 2, 2, 2] -> 2
+
+    // charlie day1: [0, 1, 4, 5, 5] -> 4
+    // charlie day2: [2, 4, 4, 5, 5] -> 4
+    // charlie day3: [2, 2, 2, 11, 11] -> 2
+    // charlie day4: [0, 4, 5, 5, 5] -> 5
+    // charlie day5: [0, 0, 10, 11, 11]-> 10
+
+    // django day1: [1, 1, 1, 1, 5] -> 1
+    // django day2: [0, 5, 5, 5, 5] -> 5
+    // django day3: [1, 8, 8, 8, 1000] -> 8
+    // django day4: [2, 2, 10, 10] -> 2 ?
+    // django day5: [2, 2, 2, 10] -> 2
+
+    // eve day1: [5, 5, 5, 5] -> 5
+    // eve day2: [1, 5, 5, 5] -> 5
+    // eve day3: [1, 6, 6, 10] -> 6
+    // eve day4: [2, 4, 6, 10] -> 4
+    // eve day5: [1, 1, 1, 100] -> 1
+
+    // frank day1: [7, 7, 7] -> 7
+    // frank day2: [0, 10, 10] -> 10
+    // frank day3: [2, 2, 10] -> 2
+    // frank day4: [0, 10, 20] -> 10
+    // frank day5: [1, 2, 3] -> 2
+
+    // alice day1: [2, 5] -> 2
+    // alice day2: [0, 10] -> 0
+    // alice day3: [7, 7] -> 7
+    // alice day4: [2] - 2
+    // alice day5: [] - 0
+
+    // Day 1
+    set_exec_context(bob, 2);
+    contract
+        .report_metrics_ddn(bob_p2p_id.clone(), day1_ms, 8, 1, 1)
+        .unwrap();
+    contract
+        .report_metrics_ddn(charlie_p2p_id.clone(), day1_ms, 0, 2, 2)
+        .unwrap();
+    contract
+        .report_metrics_ddn(django_p2p_id.clone(), day1_ms, 1, 3, 3)
+        .unwrap();
+    contract
+        .report_metrics_ddn(eve_p2p_id.clone(), day1_ms, 5, 4, 4)
+        .unwrap();
+    contract
+        .report_metrics_ddn(frank_p2p_id.clone(), day1_ms, 7, 5, 5)
+        .unwrap();
+    contract
+        .report_metrics_ddn(alice_p2p_id.clone(), day1_ms, 2, 6, 6)
+        .unwrap();
+    undo_set_exec_context();
+
+    set_exec_context(charlie, 2);
+    contract
+        .report_metrics_ddn(bob_p2p_id.clone(), day1_ms, 6, 1, 1)
+        .unwrap();
+    contract
+        .report_metrics_ddn(charlie_p2p_id.clone(), day1_ms, 1, 2, 2)
+        .unwrap();
+    contract
+        .report_metrics_ddn(django_p2p_id.clone(), day1_ms, 1, 3, 3)
+        .unwrap();
+    contract
+        .report_metrics_ddn(eve_p2p_id.clone(), day1_ms, 5, 4, 4)
+        .unwrap();
+    undo_set_exec_context();
+
+    set_exec_context(django, 2);
+    contract
+        .report_metrics_ddn(bob_p2p_id.clone(), day1_ms, 8, 1, 1)
+        .unwrap();
+    contract
+        .report_metrics_ddn(charlie_p2p_id.clone(), day1_ms, 4, 2, 2)
+        .unwrap();
+    contract
+        .report_metrics_ddn(django_p2p_id.clone(), day1_ms, 5, 3, 3)
+        .unwrap();
+    contract
+        .report_metrics_ddn(eve_p2p_id.clone(), day1_ms, 5, 4, 4)
+        .unwrap();
+    contract
+        .report_metrics_ddn(frank_p2p_id.clone(), day1_ms, 7, 5, 5)
+        .unwrap();
+    contract
+        .report_metrics_ddn(alice_p2p_id.clone(), day1_ms, 5, 6, 6)
+        .unwrap();
+    undo_set_exec_context();
+
+    set_exec_context(eve, 2);
+    contract
+        .report_metrics_ddn(bob_p2p_id.clone(), day1_ms, 0, 1, 1)
+        .unwrap();
+    contract
+        .report_metrics_ddn(charlie_p2p_id.clone(), day1_ms, 5, 2, 2)
+        .unwrap();
+    contract
+        .report_metrics_ddn(django_p2p_id.clone(), day1_ms, 1, 3, 3)
+        .unwrap();
+    contract
+        .report_metrics_ddn(eve_p2p_id.clone(), day1_ms, 5, 4, 4)
+        .unwrap();
+    contract
+        .report_metrics_ddn(frank_p2p_id.clone(), day1_ms, 7, 5, 5)
+        .unwrap();
+
+    undo_set_exec_context();
+
+    set_exec_context(frank, 2);
+    contract
+        .report_metrics_ddn(bob_p2p_id.clone(), day1_ms, 100, 1, 1)
+        .unwrap();
+    contract
+        .report_metrics_ddn(charlie_p2p_id.clone(), day1_ms, 5, 2, 2)
+        .unwrap();
+    contract
+        .report_metrics_ddn(django_p2p_id.clone(), day1_ms, 1, 3, 3)
+        .unwrap();
+    undo_set_exec_context();
+
+    // Day 2
+    set_exec_context(bob, 2);
+    contract
+        .report_metrics_ddn(bob_p2p_id.clone(), day2_ms, 2, 1, 1)
+        .unwrap();
+    contract
+        .report_metrics_ddn(charlie_p2p_id.clone(), day2_ms, 5, 2, 2)
+        .unwrap();
+    contract
+        .report_metrics_ddn(django_p2p_id.clone(), day2_ms, 5, 3, 3)
+        .unwrap();
+    contract
+        .report_metrics_ddn(eve_p2p_id.clone(), day2_ms, 5, 4, 4)
+        .unwrap();
+    contract
+        .report_metrics_ddn(frank_p2p_id.clone(), day2_ms, 0, 5, 5)
+        .unwrap();
+    contract
+        .report_metrics_ddn(alice_p2p_id.clone(), day2_ms, 0, 6, 6)
+        .unwrap();
+    undo_set_exec_context();
+
+    set_exec_context(charlie, 2);
+    contract
+        .report_metrics_ddn(bob_p2p_id.clone(), day2_ms, 4, 1, 1)
+        .unwrap();
+    contract
+        .report_metrics_ddn(charlie_p2p_id.clone(), day2_ms, 5, 2, 2)
+        .unwrap();
+    contract
+        .report_metrics_ddn(django_p2p_id.clone(), day2_ms, 0, 3, 3)
+        .unwrap();
+    contract
+        .report_metrics_ddn(eve_p2p_id.clone(), day2_ms, 1, 4, 4)
+        .unwrap();
+    contract
+        .report_metrics_ddn(frank_p2p_id.clone(), day2_ms, 10, 5, 5)
+        .unwrap();
+    undo_set_exec_context();
+
+    set_exec_context(django, 2);
+    contract
+        .report_metrics_ddn(bob_p2p_id.clone(), day2_ms, 5, 1, 1)
+        .unwrap();
+    contract
+        .report_metrics_ddn(charlie_p2p_id.clone(), day2_ms, 4, 2, 2)
+        .unwrap();
+    contract
+        .report_metrics_ddn(django_p2p_id.clone(), day2_ms, 5, 3, 3)
+        .unwrap();
+    contract
+        .report_metrics_ddn(eve_p2p_id.clone(), day2_ms, 5, 4, 4)
+        .unwrap();
+    contract
+        .report_metrics_ddn(frank_p2p_id.clone(), day2_ms, 10, 5, 5)
+        .unwrap();
+    contract
+        .report_metrics_ddn(alice_p2p_id.clone(), day2_ms, 10, 6, 6)
+        .unwrap();
+    undo_set_exec_context();
+
+    set_exec_context(eve, 2);
+    contract
+        .report_metrics_ddn(bob_p2p_id.clone(), day2_ms, 6, 1, 1)
+        .unwrap();
+    contract
+        .report_metrics_ddn(charlie_p2p_id.clone(), day2_ms, 4, 2, 2)
+        .unwrap();
+    contract
+        .report_metrics_ddn(django_p2p_id.clone(), day2_ms, 5, 3, 3)
+        .unwrap();
+    contract
+        .report_metrics_ddn(eve_p2p_id.clone(), day2_ms, 5, 4, 4)
+        .unwrap();
+    undo_set_exec_context();
+
+    set_exec_context(frank, 2);
+    contract
+        .report_metrics_ddn(bob_p2p_id.clone(), day2_ms, 4, 1, 1)
+        .unwrap();
+    contract
+        .report_metrics_ddn(charlie_p2p_id.clone(), day2_ms, 2, 2, 2)
+        .unwrap();
+    contract
+        .report_metrics_ddn(django_p2p_id.clone(), day2_ms, 5, 3, 3)
+        .unwrap();
+    undo_set_exec_context();
+
+    // Day3
+    set_exec_context(bob, 2);
+    contract
+        .report_metrics_ddn(bob_p2p_id.clone(), day3_ms, 11, 1, 1)
+        .unwrap();
+    contract
+        .report_metrics_ddn(charlie_p2p_id.clone(), day3_ms, 11, 2, 2)
+        .unwrap();
+    contract
+        .report_metrics_ddn(django_p2p_id.clone(), day3_ms, 1000, 3, 3)
+        .unwrap();
+    contract
+        .report_metrics_ddn(eve_p2p_id.clone(), day3_ms, 1, 4, 4)
+        .unwrap();
+    contract
+        .report_metrics_ddn(frank_p2p_id.clone(), day3_ms, 10, 5, 5)
+        .unwrap();
+    contract
+        .report_metrics_ddn(alice_p2p_id.clone(), day3_ms, 7, 6, 6)
+        .unwrap();
+    undo_set_exec_context();
+
+    set_exec_context(charlie, 2);
+    contract
+        .report_metrics_ddn(bob_p2p_id.clone(), day3_ms, 11, 1, 1)
+        .unwrap();
+    contract
+        .report_metrics_ddn(charlie_p2p_id.clone(), day3_ms, 2, 2, 2)
+        .unwrap();
+    contract
+        .report_metrics_ddn(django_p2p_id.clone(), day3_ms, 8, 3, 3)
+        .unwrap();
+    contract
+        .report_metrics_ddn(eve_p2p_id.clone(), day3_ms, 6, 4, 4)
+        .unwrap();
+    undo_set_exec_context();
+
+    set_exec_context(django, 2);
+    contract
+        .report_metrics_ddn(bob_p2p_id.clone(), day3_ms, 8, 1, 1)
+        .unwrap();
+    contract
+        .report_metrics_ddn(charlie_p2p_id.clone(), day3_ms, 11, 2, 2)
+        .unwrap();
+    contract
+        .report_metrics_ddn(django_p2p_id.clone(), day3_ms, 8, 3, 3)
+        .unwrap();
+    contract
+        .report_metrics_ddn(eve_p2p_id.clone(), day3_ms, 6, 4, 4)
+        .unwrap();
+    contract
+        .report_metrics_ddn(frank_p2p_id.clone(), day3_ms, 2, 5, 5)
+        .unwrap();
+    contract
+        .report_metrics_ddn(alice_p2p_id.clone(), day3_ms, 7, 6, 6)
+        .unwrap();
+    undo_set_exec_context();
+
+    set_exec_context(eve, 2);
+    contract
+        .report_metrics_ddn(bob_p2p_id.clone(), day3_ms, 10, 1, 1)
+        .unwrap();
+    contract
+        .report_metrics_ddn(charlie_p2p_id.clone(), day3_ms, 2, 2, 2)
+        .unwrap();
+    contract
+        .report_metrics_ddn(django_p2p_id.clone(), day3_ms, 8, 3, 3)
+        .unwrap();
+    contract
+        .report_metrics_ddn(frank_p2p_id.clone(), day3_ms, 2, 5, 5)
+        .unwrap();
+    undo_set_exec_context();
+
+    set_exec_context(frank, 2);
+    contract
+        .report_metrics_ddn(bob_p2p_id.clone(), day3_ms, 5, 1, 1)
+        .unwrap();
+    contract
+        .report_metrics_ddn(charlie_p2p_id.clone(), day3_ms, 2, 2, 2)
+        .unwrap();
+    contract
+        .report_metrics_ddn(django_p2p_id.clone(), day3_ms, 1, 3, 3)
+        .unwrap();
+    contract
+        .report_metrics_ddn(eve_p2p_id.clone(), day3_ms, 10, 4, 4)
+        .unwrap();
+    undo_set_exec_context();
+
+    // Day 4
+    set_exec_context(bob, 2);
+    contract
+        .report_metrics_ddn(bob_p2p_id.clone(), day4_ms, 80, 1, 1)
+        .unwrap();
+    contract
+        .report_metrics_ddn(charlie_p2p_id.clone(), day4_ms, 5, 2, 2)
+        .unwrap();
+    contract
+        .report_metrics_ddn(django_p2p_id.clone(), day4_ms, 10, 3, 3)
+        .unwrap();
+    contract
+        .report_metrics_ddn(frank_p2p_id.clone(), day4_ms, 20, 5, 5)
+        .unwrap();
+    contract
+        .report_metrics_ddn(alice_p2p_id.clone(), day4_ms, 2, 6, 6)
+        .unwrap();
+    undo_set_exec_context();
+
+    set_exec_context(charlie, 2);
+    contract
+        .report_metrics_ddn(bob_p2p_id.clone(), day4_ms, 20, 1, 1)
+        .unwrap();
+    contract
+        .report_metrics_ddn(charlie_p2p_id.clone(), day4_ms, 0, 2, 2)
+        .unwrap();
+    contract
+        .report_metrics_ddn(django_p2p_id.clone(), day4_ms, 2, 3, 3)
+        .unwrap();
+    contract
+        .report_metrics_ddn(eve_p2p_id.clone(), day4_ms, 2, 4, 4)
+        .unwrap();
+    contract
+        .report_metrics_ddn(frank_p2p_id.clone(), day4_ms, 10, 5, 5)
+        .unwrap();
+    undo_set_exec_context();
+
+    set_exec_context(django, 2);
+    contract
+        .report_metrics_ddn(bob_p2p_id.clone(), day4_ms, 50, 1, 1)
+        .unwrap();
+    contract
+        .report_metrics_ddn(charlie_p2p_id.clone(), day4_ms, 5, 2, 2)
+        .unwrap();
+    contract
+        .report_metrics_ddn(django_p2p_id.clone(), day4_ms, 10, 3, 3)
+        .unwrap();
+    contract
+        .report_metrics_ddn(eve_p2p_id.clone(), day4_ms, 4, 4, 4)
+        .unwrap();
+    contract
+        .report_metrics_ddn(frank_p2p_id.clone(), day4_ms, 0, 5, 5)
+        .unwrap();
+    undo_set_exec_context();
+
+    set_exec_context(eve, 2);
+    contract
+        .report_metrics_ddn(bob_p2p_id.clone(), day4_ms, 8, 1, 1)
+        .unwrap();
+    contract
+        .report_metrics_ddn(charlie_p2p_id.clone(), day4_ms, 5, 2, 2)
+        .unwrap();
+    contract
+        .report_metrics_ddn(django_p2p_id.clone(), day4_ms, 2, 3, 3)
+        .unwrap();
+    contract
+        .report_metrics_ddn(eve_p2p_id.clone(), day4_ms, 6, 4, 4)
+        .unwrap();
+    undo_set_exec_context();
+
+    set_exec_context(frank, 2);
+    contract
+        .report_metrics_ddn(bob_p2p_id.clone(), day4_ms, 16, 1, 1)
+        .unwrap();
+    contract
+        .report_metrics_ddn(charlie_p2p_id.clone(), day4_ms, 4, 2, 2)
+        .unwrap();
+    contract
+        .report_metrics_ddn(eve_p2p_id.clone(), day4_ms, 10, 4, 4)
+        .unwrap();
+    undo_set_exec_context();
+
+    // Day 5
+    set_exec_context(bob, 2);
+    contract
+        .report_metrics_ddn(bob_p2p_id.clone(), day5_ms, 2, 1, 1)
+        .unwrap();
+    contract
+        .report_metrics_ddn(charlie_p2p_id.clone(), day5_ms, 11, 2, 2)
+        .unwrap();
+    contract
+        .report_metrics_ddn(django_p2p_id.clone(), day5_ms, 10, 3, 3)
+        .unwrap();
+    contract
+        .report_metrics_ddn(eve_p2p_id.clone(), day5_ms, 1, 4, 4)
+        .unwrap();
+    contract
+        .report_metrics_ddn(frank_p2p_id.clone(), day5_ms, 1, 5, 5)
+        .unwrap();
+    undo_set_exec_context();
+
+    set_exec_context(charlie, 2);
+    contract
+        .report_metrics_ddn(bob_p2p_id.clone(), day5_ms, 0, 1, 1)
+        .unwrap();
+    contract
+        .report_metrics_ddn(charlie_p2p_id.clone(), day5_ms, 10, 2, 2)
+        .unwrap();
+    contract
+        .report_metrics_ddn(django_p2p_id.clone(), day5_ms, 2, 3, 3)
+        .unwrap();
+    contract
+        .report_metrics_ddn(frank_p2p_id.clone(), day5_ms, 2, 5, 5)
+        .unwrap();
+    undo_set_exec_context();
+
+    set_exec_context(django, 2);
+    contract
+        .report_metrics_ddn(bob_p2p_id.clone(), day5_ms, 0, 1, 1)
+        .unwrap();
+    contract
+        .report_metrics_ddn(charlie_p2p_id.clone(), day5_ms, 11, 2, 2)
+        .unwrap();
+    contract
+        .report_metrics_ddn(django_p2p_id.clone(), day5_ms, 2, 3, 3)
+        .unwrap();
+    contract
+        .report_metrics_ddn(eve_p2p_id.clone(), day5_ms, 100, 4, 5)
+        .unwrap();
+    contract
+        .report_metrics_ddn(frank_p2p_id.clone(), day5_ms, 3, 5, 5)
+        .unwrap();
+    undo_set_exec_context();
+
+    set_exec_context(eve, 2);
+    contract
+        .report_metrics_ddn(bob_p2p_id.clone(), day5_ms, 2, 1, 1)
+        .unwrap();
+    contract
+        .report_metrics_ddn(charlie_p2p_id.clone(), day5_ms, 0, 2, 2)
+        .unwrap();
+    contract
+        .report_metrics_ddn(django_p2p_id.clone(), day5_ms, 2, 3, 3)
+        .unwrap();
+    contract
+        .report_metrics_ddn(eve_p2p_id.clone(), day5_ms, 1, 4, 4)
+        .unwrap();
+    undo_set_exec_context();
+
+    set_exec_context(frank, 2);
+    contract
+        .report_metrics_ddn(bob_p2p_id.clone(), day5_ms, 2, 1, 1)
+        .unwrap();
+    contract
+        .report_metrics_ddn(charlie_p2p_id.clone(), day5_ms, 0, 2, 2)
+        .unwrap();
+    contract
+        .report_metrics_ddn(eve_p2p_id.clone(), day5_ms, 1, 4, 4)
+        .unwrap();
+    undo_set_exec_context();
+
+    // Bob
+    assert_eq!(
+        &contract.metrics_for_ddn_at_time(bob_p2p_id.clone(), last_day_ms)[0..5],
+        [
+            MetricValue {
+                start_ms: 86400000,
+                storage_bytes: 8,
+                wcu_used: 1,
+                rcu_used: 1,
+            },
+            MetricValue {
+                start_ms: 172800000,
+                storage_bytes: 4,
+                wcu_used: 1,
+                rcu_used: 1,
+            },
+            MetricValue {
+                start_ms: 259200000,
+                storage_bytes: 10,
+                wcu_used: 1,
+                rcu_used: 1,
+            },
+            MetricValue {
+                start_ms: 345600000,
+                storage_bytes: 20,
+                wcu_used: 1,
+                rcu_used: 1,
+            },
+            MetricValue {
+                start_ms: 432000000,
+                storage_bytes: 2,
+                wcu_used: 1,
+                rcu_used: 1,
+            },
+        ]
+    );
+
+    // Charlie
+    assert_eq!(
+        &contract.metrics_for_ddn_at_time(charlie_p2p_id.clone(), last_day_ms)[0..5],
+        [
+            MetricValue {
+                start_ms: 86400000,
+                storage_bytes: 4,
+                wcu_used: 2,
+                rcu_used: 2,
+            },
+            MetricValue {
+                start_ms: 172800000,
+                storage_bytes: 4,
+                wcu_used: 2,
+                rcu_used: 2,
+            },
+            MetricValue {
+                start_ms: 259200000,
+                storage_bytes: 2,
+                wcu_used: 2,
+                rcu_used: 2,
+            },
+            MetricValue {
+                start_ms: 345600000,
+                storage_bytes: 5,
+                wcu_used: 2,
+                rcu_used: 2,
+            },
+            MetricValue {
+                start_ms: 432000000,
+                storage_bytes: 10,
+                wcu_used: 2,
+                rcu_used: 2,
+            },
+        ]
+    );
+
+    // Django
+    assert_eq!(
+        &contract.metrics_for_ddn_at_time(django_p2p_id.clone(), last_day_ms)[0..5],
+        [
+            MetricValue {
+                start_ms: 86400000,
+                storage_bytes: 1,
+                wcu_used: 3,
+                rcu_used: 3,
+            },
+            MetricValue {
+                start_ms: 172800000,
+                storage_bytes: 5,
+                wcu_used: 3,
+                rcu_used: 3,
+            },
+            MetricValue {
+                start_ms: 259200000,
+                storage_bytes: 8,
+                wcu_used: 3,
+                rcu_used: 3,
+            },
+            MetricValue {
+                start_ms: 345600000,
+                storage_bytes: 2,
+                wcu_used: 3,
+                rcu_used: 3,
+            },
+            MetricValue {
+                start_ms: 432000000,
+                storage_bytes: 2,
+                wcu_used: 3,
+                rcu_used: 3,
+            },
+        ]
+    );
+
+    // Eve
+    assert_eq!(
+        &contract.metrics_for_ddn_at_time(eve_p2p_id.clone(), last_day_ms)[0..5],
+        [
+            MetricValue {
+                start_ms: 86400000,
+                storage_bytes: 5,
+                wcu_used: 4,
+                rcu_used: 4,
+            },
+            MetricValue {
+                start_ms: 172800000,
+                storage_bytes: 5,
+                wcu_used: 4,
+                rcu_used: 4,
+            },
+            MetricValue {
+                start_ms: 259200000,
+                storage_bytes: 6,
+                wcu_used: 4,
+                rcu_used: 4,
+            },
+            MetricValue {
+                start_ms: 345600000,
+                storage_bytes: 4,
+                wcu_used: 4,
+                rcu_used: 4,
+            },
+            MetricValue {
+                start_ms: 432000000,
+                storage_bytes: 1,
+                wcu_used: 4,
+                rcu_used: 4,
+            },
+        ]
+    );
+
+    // Frank
+    assert_eq!(
+        &contract.metrics_for_ddn_at_time(frank_p2p_id.clone(), last_day_ms)[0..5],
+        [
+            MetricValue {
+                start_ms: 86400000,
+                storage_bytes: 7,
+                wcu_used: 5,
+                rcu_used: 5,
+            },
+            MetricValue {
+                start_ms: 172800000,
+                storage_bytes: 10,
+                wcu_used: 5,
+                rcu_used: 5,
+            },
+            MetricValue {
+                start_ms: 259200000,
+                storage_bytes: 2,
+                wcu_used: 5,
+                rcu_used: 5,
+            },
+            MetricValue {
+                start_ms: 345600000,
+                storage_bytes: 10,
+                wcu_used: 5,
+                rcu_used: 5,
+            },
+            MetricValue {
+                start_ms: 432000000,
+                storage_bytes: 2,
+                wcu_used: 5,
+                rcu_used: 5,
+            },
+        ]
+    );
+
+    // Alice
+    assert_eq!(
+        &contract.metrics_for_ddn_at_time(alice_p2p_id.clone(), last_day_ms)[0..5],
+        [
+            MetricValue {
+                start_ms: 86400000,
+                storage_bytes: 2,
+                wcu_used: 6,
+                rcu_used: 6,
+            },
+            MetricValue {
+                start_ms: 172800000,
+                storage_bytes: 0,
+                wcu_used: 6,
+                rcu_used: 6,
+            },
+            MetricValue {
+                start_ms: 259200000,
+                storage_bytes: 7,
+                wcu_used: 6,
+                rcu_used: 6,
+            },
+            MetricValue {
+                start_ms: 345600000,
+                storage_bytes: 2,
+                wcu_used: 6,
+                rcu_used: 6,
+            },
+            // No metrics
+            MetricValue {
+                start_ms: 432000000,
+                storage_bytes: 0,
+                wcu_used: 0,
+                rcu_used: 0,
+            },
+        ]
+    );
+}
+
+#[ink::test]
+fn metrics_for_ddn_works() {
+    let mut contract = make_contract();
+    let accounts = default_accounts::<DefaultEnvironment>().unwrap();
+    let inspector = accounts.alice;
+    let p2p_id = String::from("test_p2p_id");
+    let p2p_addr = String::from("test_p2p_addr");
+    let url = String::from("test_url");
+
+    // Authorize our admin account to be an inspector
+    contract.add_inspector(inspector).unwrap();
+
+    // Add DDC node to the list
+    contract
+        .add_ddc_node(p2p_id.clone(), p2p_addr.clone(), url.clone())
+        .unwrap();
+
+    // Zero metrics yet
+    assert_eq!(
+        contract.metrics_for_ddn(p2p_id.clone()),
+        [MetricValue {
+            start_ms: 0,
+            storage_bytes: 0,
+            wcu_used: 0,
+            rcu_used: 0
+        }]
+    );
+
+    // Report DDN metrics
+    contract
+        .report_metrics_ddn(p2p_id.clone(), 0, 1, 2, 3)
+        .unwrap();
+
+    // Metrics should be reported
+    assert_eq!(
+        contract.metrics_for_ddn(p2p_id.clone()),
+        vec![MetricValue {
+            start_ms: 0,
+            storage_bytes: 1,
+            wcu_used: 2,
+            rcu_used: 3,
+        }]
+    );
+}
+
+#[ink::test]
+fn metrics_for_ddn_at_time_works() {
+    let mut contract = make_contract();
+    let accounts = default_accounts::<DefaultEnvironment>().unwrap();
+    let inspector = accounts.alice;
+    let p2p_id = String::from("test_p2p_id");
+    let p2p_addr = String::from("test_p2p_addr");
+    let url = String::from("test_url");
+
+    // Authorize our admin account to be an inspector
+    contract.add_inspector(inspector).unwrap();
+
+    // Add DDC node to the list
+    contract
+        .add_ddc_node(p2p_id.clone(), p2p_addr.clone(), url.clone())
+        .unwrap();
+
+    let some_day = 1;
+    let day1_of_period = some_day - some_day % PERIOD_DAYS;
+
+    // Increase this value each time
+    let mut wcu_used = 0;
+
+    for days_passed in 0..(PERIOD_DAYS + 5) {
+        let day = day1_of_period + days_passed;
+        let day_of_period = day % PERIOD_DAYS;
+        let day_ms = day * MS_PER_DAY;
+        let metric_key_ddn = MetricKeyDDN {
+            inspector,
+            p2p_id: p2p_id.clone(),
+            day_of_period,
+        };
+
+        // Increase counter before "continue"
+        wcu_used += 1;
+
+        if days_passed < PERIOD_DAYS {
+            // 1st period
+            // skip day 4
+            if day_of_period == 3 {
+                continue;
+            }
+            // No metric for a new day of cycle
+            assert_eq!(contract.metrics_ddn.get(&metric_key_ddn), None);
+        } else {
+            // 2snd period
+            // skip day 2
+            if day_of_period == 1 {
+                continue;
+            }
+            // There is some metric for old days (except skipped day 4)
+            if day_of_period != 3 {
+                assert!(contract.metrics_ddn.get(&metric_key_ddn).is_some());
+            }
+        }
+
+        // Report
+        contract
+            .report_metrics_ddn(p2p_id.clone(), day_ms, 0, wcu_used, 0)
+            .unwrap();
+
+        // Metric should be added
+        assert_eq!(
+            contract.metrics_ddn.get(&metric_key_ddn),
+            Some(&MetricValue {
+                start_ms: day_ms,
+                storage_bytes: 0,
+                wcu_used,
+                rcu_used: 0,
+            })
+        );
+    }
+
+    // Get metrics
+    let all_metrics = contract.metrics_for_ddn_at_time(
+        p2p_id.clone(),
+        (day1_of_period + PERIOD_DAYS + 10) * MS_PER_DAY,
+    );
+
+    // Metrics should be correct
+    assert_eq!(
+        all_metrics.iter().map(|x| x.wcu_used).collect::<Vec<u64>>(),
+        [
+            12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 0,
+            34, 35, 36, 0, 0, 0, 0, 0, 0
+        ]
+    );
 }
 
 #[ink::test]
