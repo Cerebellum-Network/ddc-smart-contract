@@ -9,6 +9,17 @@ This doc will explain:
 ## Release Notes
 #### vNext
 * ...
+#### v2.0.0
+* Added metric validation
+* Attached period to reporter
+* Added metrics per DDN
+* Added DDN status tracking
+* Changed tier configuration
+* Changed metrics format [breaking]
+* Added refund functionality
+* Added subscription details function
+* Minor improvements
+* Refactored repo structure
 #### v1.1.0
 * Clean up the contract
 * Added DDC Nodes API: add/list/delete

@@ -1,13 +1,13 @@
 {
   "metadataVersion": "0.1.0",
   "source": {
-    "hash": "0xa61668e5f176631365947e8e9c19901a082c36c6d500e79f285fabc41feebecc",
+    "hash": "0xfc9bc8aadb799bfaefc231838bb832ed21d8f7304ccfdc473cdcc3c87d7bdba7",
     "language": "ink! 3.0.0-rc3",
-    "compiler": "rustc 1.53.0-nightly"
+    "compiler": "rustc 1.55.0-nightly"
   },
   "contract": {
     "name": "ddc",
-    "version": "1.0.0",
+    "version": "2.0.0",
     "authors": [
       "[Cere Network] <[team@cere.io]>"
     ]
@@ -98,7 +98,7 @@
               "displayName": [
                 "Option"
               ],
-              "type": 42
+              "type": 46
             }
           },
           {
@@ -123,7 +123,7 @@
           {
             "docs": [],
             "indexed": true,
-            "name": "reporter",
+            "name": "inspector",
             "type": {
               "displayName": [
                 "AccountId"
@@ -133,14 +133,14 @@
           }
         ],
         "docs": [],
-        "name": "ReporterAdded"
+        "name": "InspectorAdded"
       },
       {
         "args": [
           {
             "docs": [],
             "indexed": true,
-            "name": "reporter",
+            "name": "inspector",
             "type": {
               "displayName": [
                 "AccountId"
@@ -150,12 +150,12 @@
           }
         ],
         "docs": [],
-        "name": "ReporterRemoved"
+        "name": "InspectorRemoved"
       },
       {
         "args": [],
         "docs": [],
-        "name": "ErrorOnlyReporter"
+        "name": "ErrorOnlyInspector"
       },
       {
         "args": [
@@ -229,7 +229,7 @@
           {
             "docs": [],
             "indexed": true,
-            "name": "reporter",
+            "name": "inspector",
             "type": {
               "displayName": [
                 "AccountId"
@@ -245,7 +245,7 @@
               "displayName": [
                 "MetricKey"
               ],
-              "type": 27
+              "type": 29
             }
           },
           {
@@ -256,19 +256,19 @@
               "displayName": [
                 "MetricValue"
               ],
-              "type": 29
+              "type": 31
             }
           }
         ],
         "docs": [],
-        "name": "NewMetric"
+        "name": "MetricReported"
       },
       {
         "args": [
           {
             "docs": [],
             "indexed": true,
-            "name": "reporter",
+            "name": "inspector",
             "type": {
               "displayName": [
                 "AccountId"
@@ -284,7 +284,7 @@
               "displayName": [
                 "MetricKeyDDN"
               ],
-              "type": 31
+              "type": 33
             }
           },
           {
@@ -295,19 +295,19 @@
               "displayName": [
                 "MetricValue"
               ],
-              "type": 29
+              "type": 31
             }
           }
         ],
         "docs": [],
-        "name": "NewMetricDDN"
+        "name": "MetricDDNReported"
       },
       {
         "args": [
           {
             "docs": [],
             "indexed": true,
-            "name": "reporter",
+            "name": "inspector",
             "type": {
               "displayName": [
                 "AccountId"
@@ -356,7 +356,7 @@
           "displayName": [
             "Result"
           ],
-          "type": 32
+          "type": 34
         },
         "selector": "0x107e33ea"
       },
@@ -412,7 +412,7 @@
           "displayName": [
             "Result"
           ],
-          "type": 32
+          "type": 34
         },
         "selector": "0x410fcc9d"
       },
@@ -448,7 +448,7 @@
           "displayName": [
             "Result"
           ],
-          "type": 32
+          "type": 34
         },
         "selector": "0xf41d073f"
       },
@@ -501,7 +501,7 @@
           "displayName": [
             "Result"
           ],
-          "type": 34
+          "type": 36
         },
         "selector": "0xe1ca6609"
       },
@@ -545,7 +545,7 @@
           "displayName": [
             "Vec"
           ],
-          "type": 35
+          "type": 37
         },
         "selector": "0x89d28b25"
       },
@@ -583,7 +583,7 @@
           "displayName": [
             "Result"
           ],
-          "type": 32
+          "type": 34
         },
         "selector": "0x308e4a4c"
       },
@@ -639,7 +639,7 @@
           "displayName": [
             "Result"
           ],
-          "type": 32
+          "type": 34
         },
         "selector": "0xe42d276d"
       },
@@ -659,7 +659,7 @@
           " Returns the account balance for the specified `account`.",
           " Returns `0` if the account is non-existent."
         ],
-        "mutates": true,
+        "mutates": false,
         "name": [
           "balance_of"
         ],
@@ -729,6 +729,32 @@
         "selector": "0xe0116f7d"
       },
       {
+        "args": [
+          {
+            "name": "acct",
+            "type": {
+              "displayName": [
+                "AccountId"
+              ],
+              "type": 1
+            }
+          }
+        ],
+        "docs": [],
+        "mutates": false,
+        "name": [
+          "get_subscription_details_of"
+        ],
+        "payable": false,
+        "returnType": {
+          "displayName": [
+            "Result"
+          ],
+          "type": 38
+        },
+        "selector": "0x06c74398"
+      },
+      {
         "args": [],
         "docs": [],
         "mutates": true,
@@ -740,7 +766,7 @@
           "displayName": [
             "Result"
           ],
-          "type": 32
+          "type": 34
         },
         "selector": "0x79c1212b"
       },
@@ -766,7 +792,7 @@
           "displayName": [
             "Result"
           ],
-          "type": 36
+          "type": 40
         },
         "selector": "0xcb5b5fc9"
       },
@@ -796,7 +822,7 @@
           "displayName": [
             "Result"
           ],
-          "type": 32
+          "type": 34
         },
         "selector": "0xfb968a8f"
       },
@@ -812,14 +838,14 @@
           "displayName": [
             "Result"
           ],
-          "type": 32
+          "type": 34
         },
         "selector": "0xa5a47441"
       },
       {
         "args": [
           {
-            "name": "reporter",
+            "name": "inspector",
             "type": {
               "displayName": [
                 "AccountId"
@@ -831,7 +857,7 @@
         "docs": [],
         "mutates": false,
         "name": [
-          "is_reporter"
+          "is_inspector"
         ],
         "payable": false,
         "returnType": {
@@ -840,12 +866,12 @@
           ],
           "type": 4
         },
-        "selector": "0x6e33fab4"
+        "selector": "0x2dd04d5f"
       },
       {
         "args": [
           {
-            "name": "reporter",
+            "name": "inspector",
             "type": {
               "displayName": [
                 "AccountId"
@@ -857,21 +883,21 @@
         "docs": [],
         "mutates": true,
         "name": [
-          "add_reporter"
+          "add_inspector"
         ],
         "payable": false,
         "returnType": {
           "displayName": [
             "Result"
           ],
-          "type": 32
+          "type": 34
         },
-        "selector": "0x5bc40db0"
+        "selector": "0x59001154"
       },
       {
         "args": [
           {
-            "name": "reporter",
+            "name": "inspector",
             "type": {
               "displayName": [
                 "AccountId"
@@ -883,16 +909,16 @@
         "docs": [],
         "mutates": true,
         "name": [
-          "remove_reporter"
+          "remove_inspector"
         ],
         "payable": false,
         "returnType": {
           "displayName": [
             "Result"
           ],
-          "type": 32
+          "type": 34
         },
-        "selector": "0x38623849"
+        "selector": "0x1213c16c"
       },
       {
         "args": [],
@@ -908,7 +934,7 @@
           "displayName": [
             "Vec"
           ],
-          "type": 38
+          "type": 42
         },
         "selector": "0xe6c98b60"
       },
@@ -954,7 +980,7 @@
           "displayName": [
             "Result"
           ],
-          "type": 32
+          "type": 34
         },
         "selector": "0x11a9e1b9"
       },
@@ -1010,7 +1036,7 @@
           "displayName": [
             "Result"
           ],
-          "type": 32
+          "type": 34
         },
         "selector": "0xe1aa053e"
       },
@@ -1049,7 +1075,7 @@
           "displayName": [
             "Result"
           ],
-          "type": 32
+          "type": 34
         },
         "selector": "0x83fd8226"
       },
@@ -1077,7 +1103,7 @@
           "displayName": [
             "Result"
           ],
-          "type": 39
+          "type": 43
         },
         "selector": "0x42d0c283"
       },
@@ -1103,7 +1129,7 @@
           "displayName": [
             "Result"
           ],
-          "type": 40
+          "type": 44
         },
         "selector": "0xa7e90f2c"
       },
@@ -1147,7 +1173,7 @@
           "displayName": [
             "MetricValue"
           ],
-          "type": 29
+          "type": 31
         },
         "selector": "0x0f49f085"
       },
@@ -1173,7 +1199,7 @@
           "displayName": [
             "Vec"
           ],
-          "type": 41
+          "type": 45
         },
         "selector": "0xe8e28257"
       },
@@ -1235,7 +1261,7 @@
           "displayName": [
             "Result"
           ],
-          "type": 32
+          "type": 34
         },
         "selector": "0x35320bbe"
       },
@@ -1301,7 +1327,7 @@
           "displayName": [
             "Result"
           ],
-          "type": 32
+          "type": 34
         },
         "selector": "0xde028ad8"
       },
@@ -1327,7 +1353,7 @@
           "displayName": [
             "Result"
           ],
-          "type": 32
+          "type": 34
         },
         "selector": "0xb269d557"
       },
@@ -1350,7 +1376,7 @@
       {
         "args": [
           {
-            "name": "reporter_id",
+            "name": "inspector_id",
             "type": {
               "displayName": [
                 "AccountId"
@@ -1714,7 +1740,7 @@
               ]
             }
           },
-          "name": "reporters"
+          "name": "inspectors"
         },
         {
           "layout": {
@@ -1913,7 +1939,7 @@
                                       "layout": {
                                         "cell": {
                                           "key": "0x0f00000007000000000000000000000000000000000000000000000000000000",
-                                          "ty": 20
+                                          "ty": 24
                                         }
                                       },
                                       "len": 4294967295,
@@ -1938,7 +1964,7 @@
                       "layout": {
                         "cell": {
                           "key": "0x1000000007000000000000000000000000000000000000000000000000000000",
-                          "ty": 24
+                          "ty": 26
                         }
                       },
                       "offset": "0x0f00000007000000000000000000000000000000000000000000000000000000",
@@ -1993,7 +2019,7 @@
                                       "layout": {
                                         "cell": {
                                           "key": "0x1100000008000000000000000000000000000000000000000000000000000000",
-                                          "ty": 26
+                                          "ty": 28
                                         }
                                       },
                                       "len": 4294967295,
@@ -2018,7 +2044,7 @@
                       "layout": {
                         "cell": {
                           "key": "0x1200000008000000000000000000000000000000000000000000000000000000",
-                          "ty": 28
+                          "ty": 30
                         }
                       },
                       "offset": "0x1100000008000000000000000000000000000000000000000000000000000000",
@@ -2073,7 +2099,7 @@
                                       "layout": {
                                         "cell": {
                                           "key": "0x1300000009000000000000000000000000000000000000000000000000000000",
-                                          "ty": 30
+                                          "ty": 32
                                         }
                                       },
                                       "len": 4294967295,
@@ -2098,7 +2124,7 @@
                       "layout": {
                         "cell": {
                           "key": "0x1400000009000000000000000000000000000000000000000000000000000000",
-                          "ty": 28
+                          "ty": 30
                         }
                       },
                       "offset": "0x1300000009000000000000000000000000000000000000000000000000000000",
@@ -2585,6 +2611,11 @@
         "composite": {
           "fields": [
             {
+              "name": "p2p_id",
+              "type": 21,
+              "typeName": "String"
+            },
+            {
               "name": "p2p_addr",
               "type": 21,
               "typeName": "String"
@@ -2605,11 +2636,69 @@
     },
     {
       "def": {
+        "variant": {
+          "variants": [
+            {
+              "fields": [
+                {
+                  "type": 9,
+                  "typeName": "VacantEntry"
+                }
+              ],
+              "name": "Vacant"
+            },
+            {
+              "fields": [
+                {
+                  "type": 25,
+                  "typeName": "T"
+                }
+              ],
+              "name": "Occupied"
+            }
+          ]
+        }
+      },
+      "params": [
+        25
+      ],
+      "path": [
+        "ink_storage",
+        "collections",
+        "stash",
+        "Entry"
+      ]
+    },
+    {
+      "def": {
+        "composite": {
+          "fields": [
+            {
+              "name": "inspector",
+              "type": 1,
+              "typeName": "AccountId"
+            },
+            {
+              "name": "p2p_id",
+              "type": 21,
+              "typeName": "String"
+            }
+          ]
+        }
+      },
+      "path": [
+        "ddc",
+        "ddc",
+        "DDNStatusKey"
+      ]
+    },
+    {
+      "def": {
         "composite": {
           "fields": [
             {
               "name": "value",
-              "type": 25,
+              "type": 27,
               "typeName": "V"
             },
             {
@@ -2621,7 +2710,7 @@
         }
       },
       "params": [
-        25
+        27
       ],
       "path": [
         "ink_storage",
@@ -2679,7 +2768,7 @@
             {
               "fields": [
                 {
-                  "type": 27,
+                  "type": 29,
                   "typeName": "T"
                 }
               ],
@@ -2689,7 +2778,7 @@
         }
       },
       "params": [
-        27
+        29
       ],
       "path": [
         "ink_storage",
@@ -2703,7 +2792,7 @@
         "composite": {
           "fields": [
             {
-              "name": "reporter",
+              "name": "inspector",
               "type": 1,
               "typeName": "AccountId"
             },
@@ -2732,7 +2821,7 @@
           "fields": [
             {
               "name": "value",
-              "type": 29,
+              "type": 31,
               "typeName": "V"
             },
             {
@@ -2744,7 +2833,7 @@
         }
       },
       "params": [
-        29
+        31
       ],
       "path": [
         "ink_storage",
@@ -2802,7 +2891,7 @@
             {
               "fields": [
                 {
-                  "type": 31,
+                  "type": 33,
                   "typeName": "T"
                 }
               ],
@@ -2812,7 +2901,7 @@
         }
       },
       "params": [
-        31
+        33
       ],
       "path": [
         "ink_storage",
@@ -2825,6 +2914,11 @@
       "def": {
         "composite": {
           "fields": [
+            {
+              "name": "inspector",
+              "type": 1,
+              "typeName": "AccountId"
+            },
             {
               "name": "p2p_id",
               "type": 21,
@@ -2860,7 +2954,7 @@
             {
               "fields": [
                 {
-                  "type": 33,
+                  "type": 35,
                   "typeName": "E"
                 }
               ],
@@ -2871,7 +2965,7 @@
       },
       "params": [
         18,
-        33
+        35
       ],
       "path": [
         "Result"
@@ -2887,7 +2981,7 @@
             },
             {
               "discriminant": 1,
-              "name": "OnlyReporter"
+              "name": "OnlyInspector"
             },
             {
               "discriminant": 2,
@@ -2948,6 +3042,10 @@
             {
               "discriminant": 16,
               "name": "DDNNotFound"
+            },
+            {
+              "discriminant": 17,
+              "name": "DDNNoStatus"
             }
           ]
         }
@@ -2974,7 +3072,7 @@
             {
               "fields": [
                 {
-                  "type": 33,
+                  "type": 35,
                   "typeName": "E"
                 }
               ],
@@ -2985,7 +3083,7 @@
       },
       "params": [
         8,
-        33
+        35
       ],
       "path": [
         "Result"
@@ -3005,7 +3103,7 @@
             {
               "fields": [
                 {
-                  "type": 37,
+                  "type": 39,
                   "typeName": "T"
                 }
               ],
@@ -3014,7 +3112,7 @@
             {
               "fields": [
                 {
-                  "type": 33,
+                  "type": 35,
                   "typeName": "E"
                 }
               ],
@@ -3024,8 +3122,64 @@
         }
       },
       "params": [
-        37,
-        33
+        39,
+        35
+      ],
+      "path": [
+        "Result"
+      ]
+    },
+    {
+      "def": {
+        "composite": {
+          "fields": [
+            {
+              "name": "subscription",
+              "type": 16,
+              "typeName": "AppSubscription"
+            },
+            {
+              "name": "end_date_ms",
+              "type": 8,
+              "typeName": "u64"
+            }
+          ]
+        }
+      },
+      "path": [
+        "ddc",
+        "ddc",
+        "AppSubscriptionDetails"
+      ]
+    },
+    {
+      "def": {
+        "variant": {
+          "variants": [
+            {
+              "fields": [
+                {
+                  "type": 41,
+                  "typeName": "T"
+                }
+              ],
+              "name": "Ok"
+            },
+            {
+              "fields": [
+                {
+                  "type": 35,
+                  "typeName": "E"
+                }
+              ],
+              "name": "Err"
+            }
+          ]
+        }
+      },
+      "params": [
+        41,
+        35
       ],
       "path": [
         "Result"
@@ -3073,7 +3227,7 @@
             {
               "fields": [
                 {
-                  "type": 25,
+                  "type": 27,
                   "typeName": "T"
                 }
               ],
@@ -3082,7 +3236,7 @@
             {
               "fields": [
                 {
-                  "type": 33,
+                  "type": 35,
                   "typeName": "E"
                 }
               ],
@@ -3092,8 +3246,8 @@
         }
       },
       "params": [
-        25,
-        33
+        27,
+        35
       ],
       "path": [
         "Result"
@@ -3106,7 +3260,7 @@
             {
               "fields": [
                 {
-                  "type": 29,
+                  "type": 31,
                   "typeName": "T"
                 }
               ],
@@ -3115,7 +3269,7 @@
             {
               "fields": [
                 {
-                  "type": 33,
+                  "type": 35,
                   "typeName": "E"
                 }
               ],
@@ -3125,8 +3279,8 @@
         }
       },
       "params": [
-        29,
-        33
+        31,
+        35
       ],
       "path": [
         "Result"
@@ -3135,7 +3289,7 @@
     {
       "def": {
         "sequence": {
-          "type": 29
+          "type": 31
         }
       }
     },
