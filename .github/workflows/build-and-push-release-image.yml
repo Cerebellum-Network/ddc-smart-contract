@@ -36,10 +36,14 @@ jobs:
         repo: ['Cerebellum-Network/pos-network-node','Cerebellum-Network/ddc-e2e-tests']
     runs-on: ubuntu-latest
     steps:
+      - name: Get the current short branch name
+        shell: bash
+        run: echo "::set-output name=BRANCH_NAME::${GITHUB_REF##*/}"
+        id: get-short-branch-name
       - name: Trigger pos-network-node and ddc-e2e-tests repositiries
         uses: peter-evans/repository-dispatch@v1
         with:
           token: ${{ secrets.TRIGGER_GITHUB_TOKEN }}
           repository: ${{ matrix.repo }}
           event-type: DDC_SMART_CONTRACT_VERSION_TRIGGER
-          client-payload: '{"DDC_SMART_CONTRACT_VERSION": "${GITHUB_REF##*/}"}'
+          client-payload: '{"DDC_SMART_CONTRACT_VERSION": "${{ steps.get-short-branch-name.outputs.BRANCH_NAME }}"}'

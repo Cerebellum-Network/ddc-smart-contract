@@ -54,4 +54,4 @@ jobs:
           token: ${{ secrets.TRIGGER_GITHUB_TOKEN }}
           repository: ${{ matrix.repo }}
           event-type: DDC_SMART_CONTRACT_VERSION_TRIGGER
-          client-payload: '{"DDC_SMART_CONTRACT_VERSION": "$GITHUB_SHA"}'
+          client-payload: '{"DDC_SMART_CONTRACT_VERSION": "${{ github.sha }}"}'
