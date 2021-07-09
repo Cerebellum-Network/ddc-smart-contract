@@ -52,6 +52,10 @@ This doc will explain:
 ## Deploy Smart Contract and test it
 In order to deploy and test Smart Contract use [Quick Start Guide](https://github.com/Cerebellum-Network/private-standalone-network-node/blob/dev/docs/tutorial.md#quick-start-guide).
 
+## Test smart contract artifacts wit pos-node and e2e tests
+- check pos-node repository workflow results with new version of artifacts [here](https://github.com/Cerebellum-Network/pos-network-node/actions/workflows/run-tests-on-new-version-of-ddc-sc.yml)
+- check ddc-e2e-tests repository workflow results with new version of artifacts [here](https://github.com/Cerebellum-Network/ddc-e2e-tests/actions/workflows/run-tests-on-new-version-of-ddc-sc.yml)
+
 ## Specification
 See [Specification](./SPECIFICATION.md)
 
