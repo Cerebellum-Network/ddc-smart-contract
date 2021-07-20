@@ -27,7 +27,6 @@ mod ddc {
 
         // -- App Subscriptions --
         /// Mapping from owner to number of owned coins.
-        balances: StorageHashMap<AccountId, Balance>,
         subscriptions: StorageHashMap<AccountId, AppSubscription>,
 
         // -- Admin: Inspectors --
@@ -56,7 +55,6 @@ mod ddc {
             Self {
                 owner: Lazy::new(caller),
                 service_tiers: StorageHashMap::new(),
-                balances: StorageHashMap::new(),
                 subscriptions: StorageHashMap::new(),
                 inspectors: StorageHashMap::new(),
                 current_period_ms: StorageHashMap::new(),
