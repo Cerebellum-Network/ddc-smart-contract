@@ -1,13 +1,13 @@
 {
   "metadataVersion": "0.1.0",
   "source": {
-    "hash": "0x61e810a80bc6587e3aa2e5b8488c9fd015c5a2202b40fd89beb77b0338b65f5d",
+    "hash": "0xfc9bc8aadb799bfaefc231838bb832ed21d8f7304ccfdc473cdcc3c87d7bdba7",
     "language": "ink! 3.0.0-rc3",
-    "compiler": "rustc 1.53.0-nightly"
+    "compiler": "rustc 1.55.0-nightly"
   },
   "contract": {
     "name": "ddc",
-    "version": "1.0.0",
+    "version": "2.0.0",
     "authors": [
       "[Cere Network] <[team@cere.io]>"
     ]
@@ -15,92 +15,9 @@
   "spec": {
     "constructors": [
       {
-        "args": [
-          {
-            "name": "tier3fee",
-            "type": {
-              "displayName": [
-                "Balance"
-              ],
-              "type": 8
-            }
-          },
-          {
-            "name": "tier3_throughput_limit",
-            "type": {
-              "displayName": [
-                "u128"
-              ],
-              "type": 8
-            }
-          },
-          {
-            "name": "tier3_storage_limit",
-            "type": {
-              "displayName": [
-                "u128"
-              ],
-              "type": 8
-            }
-          },
-          {
-            "name": "tier2fee",
-            "type": {
-              "displayName": [
-                "Balance"
-              ],
-              "type": 8
-            }
-          },
-          {
-            "name": "tier2_throughput_limit",
-            "type": {
-              "displayName": [
-                "u128"
-              ],
-              "type": 8
-            }
-          },
-          {
-            "name": "tier2_storage_limit",
-            "type": {
-              "displayName": [
-                "u128"
-              ],
-              "type": 8
-            }
-          },
-          {
-            "name": "tier1fee",
-            "type": {
-              "displayName": [
-                "Balance"
-              ],
-              "type": 8
-            }
-          },
-          {
-            "name": "tier1_throughput_limit",
-            "type": {
-              "displayName": [
-                "u128"
-              ],
-              "type": 8
-            }
-          },
-          {
-            "name": "tier1_storage_limit",
-            "type": {
-              "displayName": [
-                "u128"
-              ],
-              "type": 8
-            }
-          }
-        ],
+        "args": [],
         "docs": [
-          "Constructor that initializes the contract",
-          "Give tier3fee, tier3limit, tier2fee, tier2limit, tier1fee, and tier1 limit to initialize"
+          "Constructor that initializes the contract"
         ],
         "name": [
           "new"
@@ -114,13 +31,74 @@
         "args": [
           {
             "docs": [],
+            "indexed": false,
+            "name": "tier_id",
+            "type": {
+              "displayName": [
+                "u64"
+              ],
+              "type": 8
+            }
+          },
+          {
+            "docs": [],
+            "indexed": false,
+            "name": "tier_fee",
+            "type": {
+              "displayName": [
+                "Balance"
+              ],
+              "type": 12
+            }
+          },
+          {
+            "docs": [],
+            "indexed": false,
+            "name": "storage_bytes",
+            "type": {
+              "displayName": [
+                "u64"
+              ],
+              "type": 8
+            }
+          },
+          {
+            "docs": [],
+            "indexed": false,
+            "name": "wcu_per_minute",
+            "type": {
+              "displayName": [
+                "u64"
+              ],
+              "type": 8
+            }
+          },
+          {
+            "docs": [],
+            "indexed": false,
+            "name": "rcu_per_minute",
+            "type": {
+              "displayName": [
+                "u64"
+              ],
+              "type": 8
+            }
+          }
+        ],
+        "docs": [],
+        "name": "TierAdded"
+      },
+      {
+        "args": [
+          {
+            "docs": [],
             "indexed": true,
             "name": "from",
             "type": {
               "displayName": [
                 "Option"
               ],
-              "type": 31
+              "type": 46
             }
           },
           {
@@ -131,7 +109,7 @@
               "displayName": [
                 "Balance"
               ],
-              "type": 8
+              "type": 12
             }
           }
         ],
@@ -145,7 +123,7 @@
           {
             "docs": [],
             "indexed": true,
-            "name": "reporter",
+            "name": "inspector",
             "type": {
               "displayName": [
                 "AccountId"
@@ -155,14 +133,14 @@
           }
         ],
         "docs": [],
-        "name": "ReporterAdded"
+        "name": "InspectorAdded"
       },
       {
         "args": [
           {
             "docs": [],
             "indexed": true,
-            "name": "reporter",
+            "name": "inspector",
             "type": {
               "displayName": [
                 "AccountId"
@@ -172,12 +150,12 @@
           }
         ],
         "docs": [],
-        "name": "ReporterRemoved"
+        "name": "InspectorRemoved"
       },
       {
         "args": [],
         "docs": [],
-        "name": "ErrorOnlyReporter"
+        "name": "ErrorOnlyInspector"
       },
       {
         "args": [
@@ -189,7 +167,18 @@
               "displayName": [
                 "String"
               ],
-              "type": 20
+              "type": 21
+            }
+          },
+          {
+            "docs": [],
+            "indexed": false,
+            "name": "p2p_addr",
+            "type": {
+              "displayName": [
+                "String"
+              ],
+              "type": 21
             }
           },
           {
@@ -200,7 +189,7 @@
               "displayName": [
                 "String"
               ],
-              "type": 20
+              "type": 21
             }
           }
         ],
@@ -217,7 +206,18 @@
               "displayName": [
                 "String"
               ],
-              "type": 20
+              "type": 21
+            }
+          },
+          {
+            "docs": [],
+            "indexed": false,
+            "name": "p2p_addr",
+            "type": {
+              "displayName": [
+                "String"
+              ],
+              "type": 21
             }
           }
         ],
@@ -229,7 +229,7 @@
           {
             "docs": [],
             "indexed": true,
-            "name": "reporter",
+            "name": "inspector",
             "type": {
               "displayName": [
                 "AccountId"
@@ -245,7 +245,7 @@
               "displayName": [
                 "MetricKey"
               ],
-              "type": 24
+              "type": 29
             }
           },
           {
@@ -256,19 +256,58 @@
               "displayName": [
                 "MetricValue"
               ],
-              "type": 26
+              "type": 31
             }
           }
         ],
         "docs": [],
-        "name": "NewMetric"
+        "name": "MetricReported"
       },
       {
         "args": [
           {
             "docs": [],
             "indexed": true,
-            "name": "reporter",
+            "name": "inspector",
+            "type": {
+              "displayName": [
+                "AccountId"
+              ],
+              "type": 1
+            }
+          },
+          {
+            "docs": [],
+            "indexed": true,
+            "name": "key",
+            "type": {
+              "displayName": [
+                "MetricKeyDDN"
+              ],
+              "type": 33
+            }
+          },
+          {
+            "docs": [],
+            "indexed": false,
+            "name": "metrics",
+            "type": {
+              "displayName": [
+                "MetricValue"
+              ],
+              "type": 31
+            }
+          }
+        ],
+        "docs": [],
+        "name": "MetricDDNReported"
+      },
+      {
+        "args": [
+          {
+            "docs": [],
+            "indexed": true,
+            "name": "inspector",
             "type": {
               "displayName": [
                 "AccountId"
@@ -284,7 +323,7 @@
               "displayName": [
                 "u64"
               ],
-              "type": 16
+              "type": 8
             }
           }
         ],
@@ -317,7 +356,7 @@
           "displayName": [
             "Result"
           ],
-          "type": 27
+          "type": 34
         },
         "selector": "0x107e33ea"
       },
@@ -335,7 +374,7 @@
           "displayName": [
             "Balance"
           ],
-          "type": 8
+          "type": 12
         },
         "selector": "0x1c18c110"
       },
@@ -349,26 +388,33 @@
               ],
               "type": 1
             }
+          },
+          {
+            "name": "amount",
+            "type": {
+              "displayName": [
+                "Balance"
+              ],
+              "type": 12
+            }
           }
         ],
         "docs": [
-          " Given a destination account, transfer all the contract balance to it",
-          " only contract owner can call this function",
-          " destination account can be the same as the contract owner",
-          " return OK or an error"
+          " As owner, withdraw tokens to the given account. The destination account can be the same",
+          " as the contract owner. Some balance must be left in the contract as subsistence deposit."
         ],
         "mutates": true,
         "name": [
-          "transfer_all_balance"
+          "withdraw"
         ],
         "payable": false,
         "returnType": {
           "displayName": [
             "Result"
           ],
-          "type": 27
+          "type": 34
         },
-        "selector": "0xa216cc96"
+        "selector": "0x410fcc9d"
       },
       {
         "args": [],
@@ -402,24 +448,76 @@
           "displayName": [
             "Result"
           ],
-          "type": 27
+          "type": 34
         },
         "selector": "0xf41d073f"
       },
       {
         "args": [
           {
-            "name": "tid",
+            "name": "tier_fee",
             "type": {
               "displayName": [
-                "u128"
+                "Balance"
+              ],
+              "type": 12
+            }
+          },
+          {
+            "name": "storage_bytes",
+            "type": {
+              "displayName": [
+                "u64"
+              ],
+              "type": 8
+            }
+          },
+          {
+            "name": "wcu_per_minute",
+            "type": {
+              "displayName": [
+                "u64"
+              ],
+              "type": 8
+            }
+          },
+          {
+            "name": "rcu_per_minute",
+            "type": {
+              "displayName": [
+                "u64"
+              ],
+              "type": 8
+            }
+          }
+        ],
+        "docs": [],
+        "mutates": true,
+        "name": [
+          "add_tier"
+        ],
+        "payable": false,
+        "returnType": {
+          "displayName": [
+            "Result"
+          ],
+          "type": 36
+        },
+        "selector": "0xe1ca6609"
+      },
+      {
+        "args": [
+          {
+            "name": "tier_id",
+            "type": {
+              "displayName": [
+                "u64"
               ],
               "type": 8
             }
           }
         ],
         "docs": [
-          " Given a tier id: 1, 2, 3",
           " return the fee required"
         ],
         "mutates": false,
@@ -431,7 +529,7 @@
           "displayName": [
             "Balance"
           ],
-          "type": 8
+          "type": 12
         },
         "selector": "0xd9e1c06a"
       },
@@ -447,7 +545,7 @@
           "displayName": [
             "Vec"
           ],
-          "type": 11
+          "type": 37
         },
         "selector": "0x89d28b25"
       },
@@ -457,7 +555,7 @@
             "name": "tier_id",
             "type": {
               "displayName": [
-                "u128"
+                "u64"
               ],
               "type": 8
             }
@@ -468,7 +566,7 @@
               "displayName": [
                 "Balance"
               ],
-              "type": 8
+              "type": 12
             }
           }
         ],
@@ -485,7 +583,7 @@
           "displayName": [
             "Result"
           ],
-          "type": 27
+          "type": 34
         },
         "selector": "0x308e4a4c"
       },
@@ -495,25 +593,34 @@
             "name": "tier_id",
             "type": {
               "displayName": [
-                "u128"
+                "u64"
               ],
               "type": 8
             }
           },
           {
-            "name": "new_throughput_limit",
+            "name": "new_storage_bytes_limit",
             "type": {
               "displayName": [
-                "u128"
+                "u64"
               ],
               "type": 8
             }
           },
           {
-            "name": "new_storage_limit",
+            "name": "new_wcu_limit",
             "type": {
               "displayName": [
-                "u128"
+                "u64"
+              ],
+              "type": 8
+            }
+          },
+          {
+            "name": "new_rcu_limit",
+            "type": {
+              "displayName": [
+                "u64"
               ],
               "type": 8
             }
@@ -532,7 +639,7 @@
           "displayName": [
             "Result"
           ],
-          "type": 27
+          "type": 34
         },
         "selector": "0xe42d276d"
       },
@@ -552,7 +659,7 @@
           " Returns the account balance for the specified `account`.",
           " Returns `0` if the account is non-existent."
         ],
-        "mutates": true,
+        "mutates": false,
         "name": [
           "balance_of"
         ],
@@ -561,7 +668,7 @@
           "displayName": [
             "Balance"
           ],
-          "type": 8
+          "type": 12
         },
         "selector": "0x0f755a56"
       },
@@ -587,7 +694,7 @@
         "payable": false,
         "returnType": {
           "displayName": [
-            "u128"
+            "u64"
           ],
           "type": 8
         },
@@ -615,7 +722,7 @@
         "payable": false,
         "returnType": {
           "displayName": [
-            "Vec"
+            "ServiceTier"
           ],
           "type": 11
         },
@@ -624,10 +731,78 @@
       {
         "args": [
           {
+            "name": "acct",
+            "type": {
+              "displayName": [
+                "AccountId"
+              ],
+              "type": 1
+            }
+          }
+        ],
+        "docs": [],
+        "mutates": false,
+        "name": [
+          "get_subscription_details_of"
+        ],
+        "payable": false,
+        "returnType": {
+          "displayName": [
+            "Result"
+          ],
+          "type": 38
+        },
+        "selector": "0x06c74398"
+      },
+      {
+        "args": [],
+        "docs": [],
+        "mutates": true,
+        "name": [
+          "actualize_subscriptions"
+        ],
+        "payable": false,
+        "returnType": {
+          "displayName": [
+            "Result"
+          ],
+          "type": 34
+        },
+        "selector": "0x79c1212b"
+      },
+      {
+        "args": [
+          {
+            "name": "app",
+            "type": {
+              "displayName": [
+                "AccountId"
+              ],
+              "type": 1
+            }
+          }
+        ],
+        "docs": [],
+        "mutates": false,
+        "name": [
+          "get_app_limit"
+        ],
+        "payable": false,
+        "returnType": {
+          "displayName": [
+            "Result"
+          ],
+          "type": 40
+        },
+        "selector": "0xcb5b5fc9"
+      },
+      {
+        "args": [
+          {
             "name": "tier_id",
             "type": {
               "displayName": [
-                "u128"
+                "u64"
               ],
               "type": 8
             }
@@ -647,14 +822,30 @@
           "displayName": [
             "Result"
           ],
-          "type": 27
+          "type": 34
         },
         "selector": "0xfb968a8f"
       },
       {
+        "args": [],
+        "docs": [],
+        "mutates": true,
+        "name": [
+          "refund"
+        ],
+        "payable": false,
+        "returnType": {
+          "displayName": [
+            "Result"
+          ],
+          "type": 34
+        },
+        "selector": "0xa5a47441"
+      },
+      {
         "args": [
           {
-            "name": "reporter",
+            "name": "inspector",
             "type": {
               "displayName": [
                 "AccountId"
@@ -666,7 +857,7 @@
         "docs": [],
         "mutates": false,
         "name": [
-          "is_reporter"
+          "is_inspector"
         ],
         "payable": false,
         "returnType": {
@@ -675,12 +866,12 @@
           ],
           "type": 4
         },
-        "selector": "0x6e33fab4"
+        "selector": "0x2dd04d5f"
       },
       {
         "args": [
           {
-            "name": "reporter",
+            "name": "inspector",
             "type": {
               "displayName": [
                 "AccountId"
@@ -692,21 +883,21 @@
         "docs": [],
         "mutates": true,
         "name": [
-          "add_reporter"
+          "add_inspector"
         ],
         "payable": false,
         "returnType": {
           "displayName": [
             "Result"
           ],
-          "type": 27
+          "type": 34
         },
-        "selector": "0x5bc40db0"
+        "selector": "0x59001154"
       },
       {
         "args": [
           {
-            "name": "reporter",
+            "name": "inspector",
             "type": {
               "displayName": [
                 "AccountId"
@@ -718,16 +909,16 @@
         "docs": [],
         "mutates": true,
         "name": [
-          "remove_reporter"
+          "remove_inspector"
         ],
         "payable": false,
         "returnType": {
           "displayName": [
             "Result"
           ],
-          "type": 27
+          "type": 34
         },
-        "selector": "0x38623849"
+        "selector": "0x1213c16c"
       },
       {
         "args": [],
@@ -743,7 +934,7 @@
           "displayName": [
             "Vec"
           ],
-          "type": 29
+          "type": 42
         },
         "selector": "0xe6c98b60"
       },
@@ -755,7 +946,16 @@
               "displayName": [
                 "String"
               ],
-              "type": 20
+              "type": 21
+            }
+          },
+          {
+            "name": "p2p_addr",
+            "type": {
+              "displayName": [
+                "String"
+              ],
+              "type": 21
             }
           },
           {
@@ -764,7 +964,7 @@
               "displayName": [
                 "String"
               ],
-              "type": 20
+              "type": 21
             }
           }
         ],
@@ -780,7 +980,7 @@
           "displayName": [
             "Result"
           ],
-          "type": 27
+          "type": 34
         },
         "selector": "0x11a9e1b9"
       },
@@ -792,7 +992,7 @@
               "displayName": [
                 "String"
               ],
-              "type": 20
+              "type": 21
             }
           }
         ],
@@ -820,7 +1020,7 @@
               "displayName": [
                 "String"
               ],
-              "type": 20
+              "type": 21
             }
           }
         ],
@@ -836,9 +1036,76 @@
           "displayName": [
             "Result"
           ],
-          "type": 27
+          "type": 34
         },
         "selector": "0xe1aa053e"
+      },
+      {
+        "args": [
+          {
+            "name": "p2p_id",
+            "type": {
+              "displayName": [
+                "String"
+              ],
+              "type": 21
+            }
+          },
+          {
+            "name": "is_online",
+            "type": {
+              "displayName": [
+                "bool"
+              ],
+              "type": 4
+            }
+          }
+        ],
+        "docs": [
+          " Update DDC node connectivity status (online/offline)",
+          " Called by OCW to set DDN offline status if fetching of node metrics failed",
+          " Called by SC to set online status when metrics is reported"
+        ],
+        "mutates": true,
+        "name": [
+          "report_ddn_status"
+        ],
+        "payable": false,
+        "returnType": {
+          "displayName": [
+            "Result"
+          ],
+          "type": 34
+        },
+        "selector": "0x83fd8226"
+      },
+      {
+        "args": [
+          {
+            "name": "p2p_id",
+            "type": {
+              "displayName": [
+                "String"
+              ],
+              "type": 21
+            }
+          }
+        ],
+        "docs": [
+          " Get DDC node status"
+        ],
+        "mutates": false,
+        "name": [
+          "get_ddn_status"
+        ],
+        "payable": false,
+        "returnType": {
+          "displayName": [
+            "Result"
+          ],
+          "type": 43
+        },
+        "selector": "0x42d0c283"
       },
       {
         "args": [
@@ -862,7 +1129,7 @@
           "displayName": [
             "Result"
           ],
-          "type": 30
+          "type": 44
         },
         "selector": "0xa7e90f2c"
       },
@@ -878,12 +1145,12 @@
             }
           },
           {
-            "name": "start_date_ms",
+            "name": "subscription_start_ms",
             "type": {
               "displayName": [
                 "u64"
               ],
-              "type": 16
+              "type": 8
             }
           },
           {
@@ -892,7 +1159,7 @@
               "displayName": [
                 "u64"
               ],
-              "type": 16
+              "type": 8
             }
           }
         ],
@@ -906,9 +1173,35 @@
           "displayName": [
             "MetricValue"
           ],
-          "type": 26
+          "type": 31
         },
         "selector": "0x0f49f085"
+      },
+      {
+        "args": [
+          {
+            "name": "p2p_id",
+            "type": {
+              "displayName": [
+                "String"
+              ],
+              "type": 21
+            }
+          }
+        ],
+        "docs": [],
+        "mutates": false,
+        "name": [
+          "metrics_for_ddn"
+        ],
+        "payable": false,
+        "returnType": {
+          "displayName": [
+            "Vec"
+          ],
+          "type": 45
+        },
+        "selector": "0xe8e28257"
       },
       {
         "args": [
@@ -927,23 +1220,32 @@
               "displayName": [
                 "u64"
               ],
-              "type": 16
+              "type": 8
             }
           },
           {
-            "name": "stored_bytes",
+            "name": "storage_bytes",
             "type": {
               "displayName": [
-                "u128"
+                "u64"
               ],
               "type": 8
             }
           },
           {
-            "name": "requests",
+            "name": "wcu_used",
             "type": {
               "displayName": [
-                "u128"
+                "u64"
+              ],
+              "type": 8
+            }
+          },
+          {
+            "name": "rcu_used",
+            "type": {
+              "displayName": [
+                "u64"
               ],
               "type": 8
             }
@@ -959,9 +1261,75 @@
           "displayName": [
             "Result"
           ],
-          "type": 27
+          "type": 34
         },
         "selector": "0x35320bbe"
+      },
+      {
+        "args": [
+          {
+            "name": "p2p_id",
+            "type": {
+              "displayName": [
+                "String"
+              ],
+              "type": 21
+            }
+          },
+          {
+            "name": "day_start_ms",
+            "type": {
+              "displayName": [
+                "u64"
+              ],
+              "type": 8
+            }
+          },
+          {
+            "name": "storage_bytes",
+            "type": {
+              "displayName": [
+                "u64"
+              ],
+              "type": 8
+            }
+          },
+          {
+            "name": "wcu_used",
+            "type": {
+              "displayName": [
+                "u64"
+              ],
+              "type": 8
+            }
+          },
+          {
+            "name": "rcu_used",
+            "type": {
+              "displayName": [
+                "u64"
+              ],
+              "type": 8
+            }
+          }
+        ],
+        "docs": [
+          " Reports DDC node metrics",
+          " Called by OCW if node metrics is successfully fetched",
+          " Updates DDC node connectivity status to online"
+        ],
+        "mutates": true,
+        "name": [
+          "report_metrics_ddn"
+        ],
+        "payable": false,
+        "returnType": {
+          "displayName": [
+            "Result"
+          ],
+          "type": 34
+        },
+        "selector": "0xde028ad8"
       },
       {
         "args": [
@@ -971,7 +1339,7 @@
               "displayName": [
                 "u64"
               ],
-              "type": 16
+              "type": 8
             }
           }
         ],
@@ -985,7 +1353,7 @@
           "displayName": [
             "Result"
           ],
-          "type": 27
+          "type": 34
         },
         "selector": "0xb269d557"
       },
@@ -1001,14 +1369,14 @@
           "displayName": [
             "u64"
           ],
-          "type": 16
+          "type": 8
         },
         "selector": "0xace4ecb3"
       },
       {
         "args": [
           {
-            "name": "app_id",
+            "name": "inspector_id",
             "type": {
               "displayName": [
                 "AccountId"
@@ -1020,16 +1388,16 @@
         "docs": [],
         "mutates": false,
         "name": [
-          "is_within_limit"
+          "get_current_period_ms_of"
         ],
         "payable": false,
         "returnType": {
           "displayName": [
-            "bool"
+            "u64"
           ],
-          "type": 4
+          "type": 8
         },
-        "selector": "0x9345c275"
+        "selector": "0x85391e52"
       }
     ]
   },
@@ -1132,7 +1500,7 @@
               ]
             }
           },
-          "name": "service"
+          "name": "service_tiers"
         },
         {
           "layout": {
@@ -1171,7 +1539,7 @@
                                       "layout": {
                                         "cell": {
                                           "key": "0x0500000002000000000000000000000000000000000000000000000000000000",
-                                          "ty": 12
+                                          "ty": 13
                                         }
                                       },
                                       "len": 4294967295,
@@ -1196,7 +1564,7 @@
                       "layout": {
                         "cell": {
                           "key": "0x0600000002000000000000000000000000000000000000000000000000000000",
-                          "ty": 13
+                          "ty": 14
                         }
                       },
                       "offset": "0x0500000002000000000000000000000000000000000000000000000000000000",
@@ -1251,7 +1619,7 @@
                                       "layout": {
                                         "cell": {
                                           "key": "0x0700000003000000000000000000000000000000000000000000000000000000",
-                                          "ty": 12
+                                          "ty": 13
                                         }
                                       },
                                       "len": 4294967295,
@@ -1276,7 +1644,7 @@
                       "layout": {
                         "cell": {
                           "key": "0x0800000003000000000000000000000000000000000000000000000000000000",
-                          "ty": 14
+                          "ty": 15
                         }
                       },
                       "offset": "0x0700000003000000000000000000000000000000000000000000000000000000",
@@ -1331,7 +1699,7 @@
                                       "layout": {
                                         "cell": {
                                           "key": "0x0900000004000000000000000000000000000000000000000000000000000000",
-                                          "ty": 12
+                                          "ty": 13
                                         }
                                       },
                                       "len": 4294967295,
@@ -1372,7 +1740,7 @@
               ]
             }
           },
-          "name": "reporters"
+          "name": "inspectors"
         },
         {
           "layout": {
@@ -1411,7 +1779,7 @@
                                       "layout": {
                                         "cell": {
                                           "key": "0x0b00000005000000000000000000000000000000000000000000000000000000",
-                                          "ty": 19
+                                          "ty": 13
                                         }
                                       },
                                       "len": 4294967295,
@@ -1436,7 +1804,7 @@
                       "layout": {
                         "cell": {
                           "key": "0x0c00000005000000000000000000000000000000000000000000000000000000",
-                          "ty": 21
+                          "ty": 19
                         }
                       },
                       "offset": "0x0b00000005000000000000000000000000000000000000000000000000000000",
@@ -1452,7 +1820,7 @@
               ]
             }
           },
-          "name": "ddc_nodes"
+          "name": "current_period_ms"
         },
         {
           "layout": {
@@ -1491,7 +1859,7 @@
                                       "layout": {
                                         "cell": {
                                           "key": "0x0d00000006000000000000000000000000000000000000000000000000000000",
-                                          "ty": 23
+                                          "ty": 20
                                         }
                                       },
                                       "len": 4294967295,
@@ -1516,10 +1884,170 @@
                       "layout": {
                         "cell": {
                           "key": "0x0e00000006000000000000000000000000000000000000000000000000000000",
-                          "ty": 25
+                          "ty": 22
                         }
                       },
                       "offset": "0x0d00000006000000000000000000000000000000000000000000000000000000",
+                      "strategy": {
+                        "hasher": "Blake2x256",
+                        "postfix": "",
+                        "prefix": "0x696e6b20686173686d6170"
+                      }
+                    }
+                  },
+                  "name": "values"
+                }
+              ]
+            }
+          },
+          "name": "ddc_nodes"
+        },
+        {
+          "layout": {
+            "struct": {
+              "fields": [
+                {
+                  "layout": {
+                    "struct": {
+                      "fields": [
+                        {
+                          "layout": {
+                            "cell": {
+                              "key": "0x0e00000006000000000000000000000000000000000000000000000000000000",
+                              "ty": 5
+                            }
+                          },
+                          "name": "header"
+                        },
+                        {
+                          "layout": {
+                            "struct": {
+                              "fields": [
+                                {
+                                  "layout": {
+                                    "cell": {
+                                      "key": "0x0f00000006000000000000000000000000000000000000000000000000000000",
+                                      "ty": 6
+                                    }
+                                  },
+                                  "name": "len"
+                                },
+                                {
+                                  "layout": {
+                                    "array": {
+                                      "cellsPerElem": 1,
+                                      "layout": {
+                                        "cell": {
+                                          "key": "0x0f00000007000000000000000000000000000000000000000000000000000000",
+                                          "ty": 24
+                                        }
+                                      },
+                                      "len": 4294967295,
+                                      "offset": "0x1000000006000000000000000000000000000000000000000000000000000000"
+                                    }
+                                  },
+                                  "name": "elems"
+                                }
+                              ]
+                            }
+                          },
+                          "name": "entries"
+                        }
+                      ]
+                    }
+                  },
+                  "name": "keys"
+                },
+                {
+                  "layout": {
+                    "hash": {
+                      "layout": {
+                        "cell": {
+                          "key": "0x1000000007000000000000000000000000000000000000000000000000000000",
+                          "ty": 26
+                        }
+                      },
+                      "offset": "0x0f00000007000000000000000000000000000000000000000000000000000000",
+                      "strategy": {
+                        "hasher": "Blake2x256",
+                        "postfix": "",
+                        "prefix": "0x696e6b20686173686d6170"
+                      }
+                    }
+                  },
+                  "name": "values"
+                }
+              ]
+            }
+          },
+          "name": "ddn_statuses"
+        },
+        {
+          "layout": {
+            "struct": {
+              "fields": [
+                {
+                  "layout": {
+                    "struct": {
+                      "fields": [
+                        {
+                          "layout": {
+                            "cell": {
+                              "key": "0x1000000007000000000000000000000000000000000000000000000000000000",
+                              "ty": 5
+                            }
+                          },
+                          "name": "header"
+                        },
+                        {
+                          "layout": {
+                            "struct": {
+                              "fields": [
+                                {
+                                  "layout": {
+                                    "cell": {
+                                      "key": "0x1100000007000000000000000000000000000000000000000000000000000000",
+                                      "ty": 6
+                                    }
+                                  },
+                                  "name": "len"
+                                },
+                                {
+                                  "layout": {
+                                    "array": {
+                                      "cellsPerElem": 1,
+                                      "layout": {
+                                        "cell": {
+                                          "key": "0x1100000008000000000000000000000000000000000000000000000000000000",
+                                          "ty": 28
+                                        }
+                                      },
+                                      "len": 4294967295,
+                                      "offset": "0x1200000007000000000000000000000000000000000000000000000000000000"
+                                    }
+                                  },
+                                  "name": "elems"
+                                }
+                              ]
+                            }
+                          },
+                          "name": "entries"
+                        }
+                      ]
+                    }
+                  },
+                  "name": "keys"
+                },
+                {
+                  "layout": {
+                    "hash": {
+                      "layout": {
+                        "cell": {
+                          "key": "0x1200000008000000000000000000000000000000000000000000000000000000",
+                          "ty": 30
+                        }
+                      },
+                      "offset": "0x1100000008000000000000000000000000000000000000000000000000000000",
                       "strategy": {
                         "hasher": "Blake2x256",
                         "postfix": "",
@@ -1536,12 +2064,92 @@
         },
         {
           "layout": {
-            "cell": {
-              "key": "0x0e00000006000000000000000000000000000000000000000000000000000000",
-              "ty": 16
+            "struct": {
+              "fields": [
+                {
+                  "layout": {
+                    "struct": {
+                      "fields": [
+                        {
+                          "layout": {
+                            "cell": {
+                              "key": "0x1200000008000000000000000000000000000000000000000000000000000000",
+                              "ty": 5
+                            }
+                          },
+                          "name": "header"
+                        },
+                        {
+                          "layout": {
+                            "struct": {
+                              "fields": [
+                                {
+                                  "layout": {
+                                    "cell": {
+                                      "key": "0x1300000008000000000000000000000000000000000000000000000000000000",
+                                      "ty": 6
+                                    }
+                                  },
+                                  "name": "len"
+                                },
+                                {
+                                  "layout": {
+                                    "array": {
+                                      "cellsPerElem": 1,
+                                      "layout": {
+                                        "cell": {
+                                          "key": "0x1300000009000000000000000000000000000000000000000000000000000000",
+                                          "ty": 32
+                                        }
+                                      },
+                                      "len": 4294967295,
+                                      "offset": "0x1400000008000000000000000000000000000000000000000000000000000000"
+                                    }
+                                  },
+                                  "name": "elems"
+                                }
+                              ]
+                            }
+                          },
+                          "name": "entries"
+                        }
+                      ]
+                    }
+                  },
+                  "name": "keys"
+                },
+                {
+                  "layout": {
+                    "hash": {
+                      "layout": {
+                        "cell": {
+                          "key": "0x1400000009000000000000000000000000000000000000000000000000000000",
+                          "ty": 30
+                        }
+                      },
+                      "offset": "0x1300000009000000000000000000000000000000000000000000000000000000",
+                      "strategy": {
+                        "hasher": "Blake2x256",
+                        "postfix": "",
+                        "prefix": "0x696e6b20686173686d6170"
+                      }
+                    }
+                  },
+                  "name": "values"
+                }
+              ]
             }
           },
-          "name": "current_period_ms"
+          "name": "metrics_ddn"
+        },
+        {
+          "layout": {
+            "cell": {
+              "key": "0x1400000009000000000000000000000000000000000000000000000000000000",
+              "ty": 12
+            }
+          },
+          "name": "total_ddc_balance"
         }
       ]
     }
@@ -1653,7 +2261,7 @@
     },
     {
       "def": {
-        "primitive": "u128"
+        "primitive": "u64"
       }
     },
     {
@@ -1709,9 +2317,45 @@
     },
     {
       "def": {
-        "sequence": {
-          "type": 8
+        "composite": {
+          "fields": [
+            {
+              "name": "tier_id",
+              "type": 8,
+              "typeName": "u64"
+            },
+            {
+              "name": "tier_fee",
+              "type": 12,
+              "typeName": "Balance"
+            },
+            {
+              "name": "storage_bytes",
+              "type": 8,
+              "typeName": "u64"
+            },
+            {
+              "name": "wcu_per_minute",
+              "type": 8,
+              "typeName": "u64"
+            },
+            {
+              "name": "rcu_per_minute",
+              "type": 8,
+              "typeName": "u64"
+            }
+          ]
         }
+      },
+      "path": [
+        "ddc",
+        "ddc",
+        "ServiceTier"
+      ]
+    },
+    {
+      "def": {
+        "primitive": "u128"
       }
     },
     {
@@ -1755,7 +2399,7 @@
           "fields": [
             {
               "name": "value",
-              "type": 8,
+              "type": 12,
               "typeName": "V"
             },
             {
@@ -1767,7 +2411,7 @@
         }
       },
       "params": [
-        8
+        12
       ],
       "path": [
         "ink_storage",
@@ -1782,7 +2426,7 @@
           "fields": [
             {
               "name": "value",
-              "type": 15,
+              "type": 16,
               "typeName": "V"
             },
             {
@@ -1794,7 +2438,7 @@
         }
       },
       "params": [
-        15
+        16
       ],
       "path": [
         "ink_storage",
@@ -1809,23 +2453,23 @@
           "fields": [
             {
               "name": "start_date_ms",
-              "type": 16,
-              "typeName": "u64"
-            },
-            {
-              "name": "end_date_ms",
-              "type": 16,
+              "type": 8,
               "typeName": "u64"
             },
             {
               "name": "tier_id",
               "type": 8,
-              "typeName": "u128"
+              "typeName": "u64"
             },
             {
               "name": "balance",
-              "type": 8,
+              "type": 12,
               "typeName": "Balance"
+            },
+            {
+              "name": "last_update_ms",
+              "type": 8,
+              "typeName": "u64"
             }
           ]
         }
@@ -1835,11 +2479,6 @@
         "ddc",
         "AppSubscription"
       ]
-    },
-    {
-      "def": {
-        "primitive": "u64"
-      }
     },
     {
       "def": {
@@ -1875,6 +2514,33 @@
     },
     {
       "def": {
+        "composite": {
+          "fields": [
+            {
+              "name": "value",
+              "type": 8,
+              "typeName": "V"
+            },
+            {
+              "name": "key_index",
+              "type": 6,
+              "typeName": "KeyIndex"
+            }
+          ]
+        }
+      },
+      "params": [
+        8
+      ],
+      "path": [
+        "ink_storage",
+        "collections",
+        "hashmap",
+        "ValueEntry"
+      ]
+    },
+    {
+      "def": {
         "variant": {
           "variants": [
             {
@@ -1889,7 +2555,7 @@
             {
               "fields": [
                 {
-                  "type": 20,
+                  "type": 21,
                   "typeName": "T"
                 }
               ],
@@ -1899,7 +2565,7 @@
         }
       },
       "params": [
-        20
+        21
       ],
       "path": [
         "ink_storage",
@@ -1919,7 +2585,7 @@
           "fields": [
             {
               "name": "value",
-              "type": 22,
+              "type": 23,
               "typeName": "V"
             },
             {
@@ -1931,7 +2597,7 @@
         }
       },
       "params": [
-        22
+        23
       ],
       "path": [
         "ink_storage",
@@ -1946,12 +2612,17 @@
           "fields": [
             {
               "name": "p2p_id",
-              "type": 20,
+              "type": 21,
+              "typeName": "String"
+            },
+            {
+              "name": "p2p_addr",
+              "type": 21,
               "typeName": "String"
             },
             {
               "name": "url",
-              "type": 20,
+              "type": 21,
               "typeName": "String"
             }
           ]
@@ -1979,7 +2650,7 @@
             {
               "fields": [
                 {
-                  "type": 24,
+                  "type": 25,
                   "typeName": "T"
                 }
               ],
@@ -1989,7 +2660,7 @@
         }
       },
       "params": [
-        24
+        25
       ],
       "path": [
         "ink_storage",
@@ -2003,13 +2674,136 @@
         "composite": {
           "fields": [
             {
+              "name": "inspector",
+              "type": 1,
+              "typeName": "AccountId"
+            },
+            {
+              "name": "p2p_id",
+              "type": 21,
+              "typeName": "String"
+            }
+          ]
+        }
+      },
+      "path": [
+        "ddc",
+        "ddc",
+        "DDNStatusKey"
+      ]
+    },
+    {
+      "def": {
+        "composite": {
+          "fields": [
+            {
+              "name": "value",
+              "type": 27,
+              "typeName": "V"
+            },
+            {
+              "name": "key_index",
+              "type": 6,
+              "typeName": "KeyIndex"
+            }
+          ]
+        }
+      },
+      "params": [
+        27
+      ],
+      "path": [
+        "ink_storage",
+        "collections",
+        "hashmap",
+        "ValueEntry"
+      ]
+    },
+    {
+      "def": {
+        "composite": {
+          "fields": [
+            {
+              "name": "is_online",
+              "type": 4,
+              "typeName": "bool"
+            },
+            {
+              "name": "total_downtime",
+              "type": 8,
+              "typeName": "u64"
+            },
+            {
+              "name": "reference_timestamp",
+              "type": 8,
+              "typeName": "u64"
+            },
+            {
+              "name": "last_timestamp",
+              "type": 8,
+              "typeName": "u64"
+            }
+          ]
+        }
+      },
+      "path": [
+        "ddc",
+        "ddc",
+        "DDNStatus"
+      ]
+    },
+    {
+      "def": {
+        "variant": {
+          "variants": [
+            {
+              "fields": [
+                {
+                  "type": 9,
+                  "typeName": "VacantEntry"
+                }
+              ],
+              "name": "Vacant"
+            },
+            {
+              "fields": [
+                {
+                  "type": 29,
+                  "typeName": "T"
+                }
+              ],
+              "name": "Occupied"
+            }
+          ]
+        }
+      },
+      "params": [
+        29
+      ],
+      "path": [
+        "ink_storage",
+        "collections",
+        "stash",
+        "Entry"
+      ]
+    },
+    {
+      "def": {
+        "composite": {
+          "fields": [
+            {
+              "name": "inspector",
+              "type": 1,
+              "typeName": "AccountId"
+            },
+            {
               "name": "app_id",
               "type": 1,
               "typeName": "AccountId"
             },
             {
-              "name": "day_of_month",
-              "type": 16,
+              "name": "day_of_period",
+              "type": 8,
               "typeName": "u64"
             }
           ]
@@ -2027,7 +2821,7 @@
           "fields": [
             {
               "name": "value",
-              "type": 26,
+              "type": 31,
               "typeName": "V"
             },
             {
@@ -2039,7 +2833,7 @@
         }
       },
       "params": [
-        26
+        31
       ],
       "path": [
         "ink_storage",
@@ -2053,14 +2847,24 @@
         "composite": {
           "fields": [
             {
-              "name": "stored_bytes",
+              "name": "start_ms",
               "type": 8,
-              "typeName": "u128"
+              "typeName": "u64"
             },
             {
-              "name": "requests",
+              "name": "storage_bytes",
               "type": 8,
-              "typeName": "u128"
+              "typeName": "u64"
+            },
+            {
+              "name": "wcu_used",
+              "type": 8,
+              "typeName": "u64"
+            },
+            {
+              "name": "rcu_used",
+              "type": 8,
+              "typeName": "u64"
             }
           ]
         }
@@ -2069,6 +2873,69 @@
         "ddc",
         "ddc",
         "MetricValue"
+      ]
+    },
+    {
+      "def": {
+        "variant": {
+          "variants": [
+            {
+              "fields": [
+                {
+                  "type": 9,
+                  "typeName": "VacantEntry"
+                }
+              ],
+              "name": "Vacant"
+            },
+            {
+              "fields": [
+                {
+                  "type": 33,
+                  "typeName": "T"
+                }
+              ],
+              "name": "Occupied"
+            }
+          ]
+        }
+      },
+      "params": [
+        33
+      ],
+      "path": [
+        "ink_storage",
+        "collections",
+        "stash",
+        "Entry"
+      ]
+    },
+    {
+      "def": {
+        "composite": {
+          "fields": [
+            {
+              "name": "inspector",
+              "type": 1,
+              "typeName": "AccountId"
+            },
+            {
+              "name": "p2p_id",
+              "type": 21,
+              "typeName": "String"
+            },
+            {
+              "name": "day_of_period",
+              "type": 8,
+              "typeName": "u64"
+            }
+          ]
+        }
+      },
+      "path": [
+        "ddc",
+        "ddc",
+        "MetricKeyDDN"
       ]
     },
     {
@@ -2087,7 +2954,7 @@
             {
               "fields": [
                 {
-                  "type": 28,
+                  "type": 35,
                   "typeName": "E"
                 }
               ],
@@ -2098,7 +2965,7 @@
       },
       "params": [
         18,
-        28
+        35
       ],
       "path": [
         "Result"
@@ -2114,7 +2981,7 @@
             },
             {
               "discriminant": 1,
-              "name": "OnlyReporter"
+              "name": "OnlyInspector"
             },
             {
               "discriminant": 2,
@@ -2138,27 +3005,47 @@
             },
             {
               "discriminant": 7,
-              "name": "OverLimit"
+              "name": "InsufficientBalance"
             },
             {
               "discriminant": 8,
-              "name": "TidOutOfBound"
+              "name": "InvalidAccount"
             },
             {
               "discriminant": 9,
-              "name": "ContractPaused"
+              "name": "OverLimit"
             },
             {
               "discriminant": 10,
-              "name": "ContractActive"
+              "name": "TidOutOfBound"
             },
             {
               "discriminant": 11,
-              "name": "UnexpectedTimestamp"
+              "name": "ContractPaused"
             },
             {
               "discriminant": 12,
+              "name": "ContractActive"
+            },
+            {
+              "discriminant": 13,
+              "name": "UnexpectedTimestamp"
+            },
+            {
+              "discriminant": 14,
               "name": "NoSubscription"
+            },
+            {
+              "discriminant": 15,
+              "name": "NoFreeTier"
+            },
+            {
+              "discriminant": 16,
+              "name": "DDNNotFound"
+            },
+            {
+              "discriminant": 17,
+              "name": "DDNNoStatus"
             }
           ]
         }
@@ -2171,8 +3058,41 @@
     },
     {
       "def": {
+        "variant": {
+          "variants": [
+            {
+              "fields": [
+                {
+                  "type": 8,
+                  "typeName": "T"
+                }
+              ],
+              "name": "Ok"
+            },
+            {
+              "fields": [
+                {
+                  "type": 35,
+                  "typeName": "E"
+                }
+              ],
+              "name": "Err"
+            }
+          ]
+        }
+      },
+      "params": [
+        8,
+        35
+      ],
+      "path": [
+        "Result"
+      ]
+    },
+    {
+      "def": {
         "sequence": {
-          "type": 22
+          "type": 11
         }
       }
     },
@@ -2183,7 +3103,7 @@
             {
               "fields": [
                 {
-                  "type": 26,
+                  "type": 39,
                   "typeName": "T"
                 }
               ],
@@ -2192,7 +3112,7 @@
             {
               "fields": [
                 {
-                  "type": 28,
+                  "type": 35,
                   "typeName": "E"
                 }
               ],
@@ -2202,12 +3122,176 @@
         }
       },
       "params": [
-        26,
-        28
+        39,
+        35
       ],
       "path": [
         "Result"
       ]
+    },
+    {
+      "def": {
+        "composite": {
+          "fields": [
+            {
+              "name": "subscription",
+              "type": 16,
+              "typeName": "AppSubscription"
+            },
+            {
+              "name": "end_date_ms",
+              "type": 8,
+              "typeName": "u64"
+            }
+          ]
+        }
+      },
+      "path": [
+        "ddc",
+        "ddc",
+        "AppSubscriptionDetails"
+      ]
+    },
+    {
+      "def": {
+        "variant": {
+          "variants": [
+            {
+              "fields": [
+                {
+                  "type": 41,
+                  "typeName": "T"
+                }
+              ],
+              "name": "Ok"
+            },
+            {
+              "fields": [
+                {
+                  "type": 35,
+                  "typeName": "E"
+                }
+              ],
+              "name": "Err"
+            }
+          ]
+        }
+      },
+      "params": [
+        41,
+        35
+      ],
+      "path": [
+        "Result"
+      ]
+    },
+    {
+      "def": {
+        "composite": {
+          "fields": [
+            {
+              "name": "storage_bytes",
+              "type": 8,
+              "typeName": "u64"
+            },
+            {
+              "name": "wcu_per_minute",
+              "type": 8,
+              "typeName": "u64"
+            },
+            {
+              "name": "rcu_per_minute",
+              "type": 8,
+              "typeName": "u64"
+            }
+          ]
+        }
+      },
+      "path": [
+        "ddc",
+        "ddc",
+        "AppSubscriptionLimit"
+      ]
+    },
+    {
+      "def": {
+        "sequence": {
+          "type": 23
+        }
+      }
+    },
+    {
+      "def": {
+        "variant": {
+          "variants": [
+            {
+              "fields": [
+                {
+                  "type": 27,
+                  "typeName": "T"
+                }
+              ],
+              "name": "Ok"
+            },
+            {
+              "fields": [
+                {
+                  "type": 35,
+                  "typeName": "E"
+                }
+              ],
+              "name": "Err"
+            }
+          ]
+        }
+      },
+      "params": [
+        27,
+        35
+      ],
+      "path": [
+        "Result"
+      ]
+    },
+    {
+      "def": {
+        "variant": {
+          "variants": [
+            {
+              "fields": [
+                {
+                  "type": 31,
+                  "typeName": "T"
+                }
+              ],
+              "name": "Ok"
+            },
+            {
+              "fields": [
+                {
+                  "type": 35,
+                  "typeName": "E"
+                }
+              ],
+              "name": "Err"
+            }
+          ]
+        }
+      },
+      "params": [
+        31,
+        35
+      ],
+      "path": [
+        "Result"
+      ]
+    },
+    {
+      "def": {
+        "sequence": {
+          "type": 31
+        }
+      }
     },
     {
       "def": {
