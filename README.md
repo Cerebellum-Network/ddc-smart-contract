@@ -9,6 +9,10 @@ This doc will explain:
 ## Release Notes
 #### vNext
 * ...
+#### v2.1.0
+* Added DDN manager role and methods for its management
+* Allow DDN manager to add/remove DDC nodes
+* Refactored tests
 #### v2.0.0
 * Added metric validation
 * Attached period to reporter
