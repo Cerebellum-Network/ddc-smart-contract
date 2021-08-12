@@ -33,6 +33,9 @@ mod ddc {
         inspectors: StorageHashMap<AccountId, ()>,
         current_period_ms: StorageHashMap<AccountId, u64>,
 
+        // -- DDC Node managers --
+        ddn_managers: StorageHashMap<AccountId, ()>,
+
         // -- DDC Nodes --
         ddc_nodes: StorageHashMap<String, DDCNode>,
 
@@ -57,6 +60,7 @@ mod ddc {
                 service_tiers: StorageHashMap::new(),
                 subscriptions: StorageHashMap::new(),
                 inspectors: StorageHashMap::new(),
+                ddn_managers: StorageHashMap::new(),
                 current_period_ms: StorageHashMap::new(),
                 ddc_nodes: StorageHashMap::new(),
                 ddn_statuses: StorageHashMap::new(),
@@ -707,6 +711,60 @@ mod ddc {
         }
     }
 
+    // ---- DDC Node managers ----
+
+    #[ink(event)]
+    pub struct DDNManagerAdded {
+        #[ink(topic)]
+        ddn_manager: AccountId,
+    }
+
+    #[ink(event)]
+    pub struct DDNManagerRemoved {
+        #[ink(topic)]
+        ddn_manager: AccountId,
+    }
+
+    #[ink(event)]
+    pub struct ErrorOnlyDDNManager {}
+
+    impl Ddc {
+        /// Check if account is an approved DDC node manager
+        fn only_ddn_manager(&self, account: AccountId) -> Result<()> {
+            if self.is_ddn_manager(account) || *self.owner == account {
+                Ok(())
+            } else {
+                self.env().emit_event(ErrorOnlyDDNManager {});
+                Err(Error::OnlyDDNManager)
+            }
+        }
+
+        #[ink(message)]
+        pub fn is_ddn_manager(&self, ddn_manager: AccountId) -> bool {
+            self.ddn_managers.contains_key(&ddn_manager)
+        }
+
+        #[ink(message)]
+        pub fn add_ddn_manager(&mut self, ddn_manager: AccountId) -> Result<()> {
+            let caller = self.env().caller();
+            self.only_owner(caller)?;
+
+            self.ddn_managers.insert(ddn_manager, ());
+            Self::env().emit_event(DDNManagerAdded { ddn_manager });
+            Ok(())
+        }
+
+        #[ink(message)]
+        pub fn remove_ddn_manager(&mut self, ddn_manager: AccountId) -> Result<()> {
+            let caller = self.env().caller();
+            self.only_owner(caller)?;
+
+            self.ddn_managers.take(&ddn_manager);
+            Self::env().emit_event(DDNManagerRemoved { ddn_manager });
+            Ok(())
+        }
+    }
+
     // ---- DDC nodes ----
     #[derive(
         Default, Clone, PartialEq, Eq, PartialOrd, Ord, Encode, Decode, SpreadLayout, PackedLayout,
@@ -749,7 +807,7 @@ mod ddc {
             url: String,
         ) -> Result<()> {
             let caller = self.env().caller();
-            self.only_owner(caller)?;
+            self.only_ddn_manager(caller)?;
 
             self.ddc_nodes.insert(
                 p2p_id.clone(),
@@ -778,7 +836,7 @@ mod ddc {
         #[ink(message)]
         pub fn remove_ddc_node(&mut self, p2p_id: String) -> Result<()> {
             let caller = self.env().caller();
-            self.only_owner(caller)?;
+            self.only_ddn_manager(caller)?;
 
             // Remove DDN if exists
             let removed_node = self.ddc_nodes.take(&p2p_id).ok_or(Error::DDNNotFound)?;
@@ -1257,6 +1315,7 @@ mod ddc {
     pub enum Error {
         OnlyOwner,
         OnlyInspector,
+        OnlyDDNManager,
         SameDepositValue,
         NoPermission,
         InsufficientDeposit,

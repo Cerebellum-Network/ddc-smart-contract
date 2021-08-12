@@ -7,7 +7,7 @@ use ink_env::{
 };
 use ink_lang as ink;
 
-/// Imports all the definitions from the outer scope so we can use them here.
+// Imports all the definitions from the outer scope so we can use them here
 use super::*;
 
 type Event = <Ddc as ::ink_lang::BaseEvent>::Type;
@@ -22,31 +22,42 @@ fn make_contract() -> Ddc {
     contract
 }
 
-/// We test if the default constructor does its job.
 #[ink::test]
 fn new_works() {
+    // Default constructor should do its job
     let contract = make_contract();
     assert_eq!(contract.tier_deposit(1), 2);
     assert_eq!(contract.tier_deposit(2), 4);
     assert_eq!(contract.tier_deposit(3), 8);
 }
 
-/// Test if a function can only be called by the contract admin
+// Checks if the caller is an admin of the contract
 #[ink::test]
-fn onlyowner_works() {
+fn only_owner_works() {
     let contract = make_contract();
-    assert_eq!(contract.only_owner(AccountId::from([0x1; 32])), Ok(()));
+    let accounts = default_accounts::<DefaultEnvironment>().unwrap();
+
+    // Should work for the contract admin
+    assert_eq!(contract.only_owner(accounts.alice), Ok(()));
+
+    // Should fail if the caller is not the admin
+    set_exec_context(accounts.charlie, 2);
+    assert_eq!(contract.only_owner(accounts.charlie), Err(Error::OnlyOwner));
 }
 
-/// Test that we can transfer owner to another account
 #[ink::test]
 fn transfer_ownership_works() {
     let mut contract = make_contract();
-    assert_eq!(contract.only_owner(AccountId::from([0x1; 32])), Ok(()));
+    let accounts = default_accounts::<DefaultEnvironment>().unwrap();
+
+    // Should transfer ownership to another account
     contract
-        .transfer_ownership(AccountId::from([0x0; 32]))
+        .transfer_ownership(accounts.charlie)
         .unwrap();
-    assert_eq!(contract.only_owner(AccountId::from([0x0; 32])), Ok(()));
+
+    // Should work for the new owner
+    set_exec_context(accounts.charlie, 2);
+    assert_eq!(contract.only_owner(accounts.charlie), Ok(()));
 }
 
 /// Test the contract can take payment from users
@@ -1467,6 +1478,35 @@ fn add_and_remove_inspectors_works() {
     }
 }
 
+// ---- DDC node managers ----
+#[ink::test]
+fn add_and_remove_ddn_manager_works() {
+    let mut contract = make_contract();
+    let accounts = default_accounts::<DefaultEnvironment>().unwrap();
+    let account = accounts.alice;
+
+    assert!(!contract.is_ddn_manager(account));
+    contract.add_ddn_manager(account).unwrap();
+    assert!(contract.is_ddn_manager(account));
+    contract.remove_ddn_manager(account).unwrap();
+    assert!(!contract.is_ddn_manager(account));
+
+    let raw_events = recorded_events().collect::<Vec<_>>();
+    assert_eq!(5, raw_events.len()); // 3 x tier added + DDN manager added + DDN manager removed
+
+    if let Event::DDNManagerAdded(DDNManagerAdded { ddn_manager }) = decode_event(&raw_events[3]) {
+        assert_eq!(ddn_manager, account);
+    } else {
+        panic!("Wrong event type");
+    }
+
+    if let Event::DDNManagerRemoved(DDNManagerRemoved { ddn_manager }) = decode_event(&raw_events[4]) {
+        assert_eq!(ddn_manager, account);
+    } else {
+        panic!("Wrong event type");
+    }
+}
+
 // ---- DDC Nodes ----
 #[ink::test]
 fn get_all_ddc_nodes_works() {
@@ -1477,18 +1517,37 @@ fn get_all_ddc_nodes_works() {
 }
 
 #[ink::test]
-fn add_ddc_node_only_owner_works() {
+fn add_ddc_node_only_ddn_manager_works() {
     let mut contract = make_contract();
     let accounts = default_accounts::<DefaultEnvironment>().unwrap();
     let p2p_id = String::from("test_p2p_id");
     let p2p_addr = String::from("test_p2p_addr");
     let url = String::from("test_url");
 
-    // Should be an owner
+    // Should be an owner or DDN manager
+    set_exec_context(accounts.charlie, 2);
+    assert_eq!(
+        contract.add_ddc_node(p2p_id.clone(), p2p_addr.clone(), url.clone()),
+        Err(Error::OnlyDDNManager)
+    );
+}
+
+#[ink::test]
+fn add_ddc_node_ddn_manager_works() {
+    let mut contract = make_contract();
+    let accounts = default_accounts::<DefaultEnvironment>().unwrap();
+    let p2p_id = String::from("test_p2p_id");
+    let p2p_addr = String::from("test_p2p_addr");
+    let url = String::from("test_url");
+
+    // Add DDN manager
+    contract.add_ddn_manager(accounts.charlie).unwrap();
+
+    // Should work for DDN manager
     set_exec_context(accounts.charlie, 2);
     assert_eq!(
         contract.add_ddc_node(p2p_id, p2p_addr, url),
-        Err(Error::OnlyOwner)
+        Ok(())
     );
 }
 
@@ -1580,14 +1639,35 @@ fn is_ddc_node_works() {
 }
 
 #[ink::test]
-fn remove_ddc_node_only_owner_works() {
+fn remove_ddc_node_only_ddn_manager_works() {
     let mut contract = make_contract();
     let accounts = default_accounts::<DefaultEnvironment>().unwrap();
     let p2p_id = String::from("test_p2p_id");
 
     // Should be an owner
     set_exec_context(accounts.charlie, 2);
-    assert_eq!(contract.remove_ddc_node(p2p_id), Err(Error::OnlyOwner));
+    assert_eq!(contract.remove_ddc_node(p2p_id), Err(Error::OnlyDDNManager));
+}
+
+#[ink::test]
+fn remove_ddc_node_ddn_manager_works() {
+    let mut contract = make_contract();
+    let accounts = default_accounts::<DefaultEnvironment>().unwrap();
+    let p2p_id = String::from("test_p2p_id");
+    let p2p_addr = String::from("test_p2p_addr");
+    let url = String::from("test_url");
+
+    // Add DDC node to the list
+    contract
+        .add_ddc_node(p2p_id.clone(), p2p_addr, url)
+        .unwrap();
+
+    // Add DDN manager
+    contract.add_ddn_manager(accounts.charlie).unwrap();
+
+    // Should work for DDN manager
+    set_exec_context(accounts.charlie, 2);
+    assert_eq!(contract.remove_ddc_node(p2p_id), Ok(()));
 }
 
 #[ink::test]
