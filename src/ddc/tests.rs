@@ -36,18 +36,18 @@ fn new_works() {
     assert_eq!(contract.tier_deposit(3), 8);
 }
 
-// Checks if the caller is an admin of the contract
+/// Tests if the caller is an admin of the contract
 #[ink::test]
 fn only_owner_works() {
     let contract = make_contract();
     let accounts = get_accounts();
 
     // Should work for the contract admin
-    assert_eq!(contract.only_owner(accounts.alice), Ok(()));
+    assert_eq!(contract.only_owner(), Ok(()));
 
     // Should fail if the caller is not the admin
     set_exec_context(accounts.charlie, 2);
-    assert_eq!(contract.only_owner(accounts.charlie), Err(Error::OnlyOwner));
+    assert_eq!(contract.only_owner(), Err(Error::OnlyOwner));
 }
 
 #[ink::test]
@@ -62,7 +62,7 @@ fn transfer_ownership_works() {
 
     // Should work for the new owner
     set_exec_context(accounts.charlie, 2);
-    assert_eq!(contract.only_owner(accounts.charlie), Ok(()));
+    assert_eq!(contract.only_owner(), Ok(()));
 }
 
 /// Test the contract can take payment from users
@@ -143,7 +143,7 @@ fn get_all_tiers_works() {
 #[ink::test]
 fn change_tier_fee_works() {
     let mut contract = make_contract();
-    assert_eq!(contract.only_owner(AccountId::from([0x1; 32])), Ok(()));
+    assert_eq!(contract.only_owner(), Ok(()));
     assert_eq!(contract.change_tier_fee(3, 3), Ok(()));
     assert_eq!(contract.change_tier_fee(2, 5), Ok(()));
     assert_eq!(contract.change_tier_fee(1, 9), Ok(()));
@@ -156,7 +156,7 @@ fn change_tier_fee_works() {
 #[ink::test]
 fn change_tier_limit_works() {
     let mut contract = make_contract();
-    assert_eq!(contract.only_owner(AccountId::from([0x1; 32])), Ok(()));
+    assert_eq!(contract.only_owner(), Ok(()));
     assert_eq!(contract.change_tier_limit(3, 100, 100, 100), Ok(()));
     assert_eq!(contract.change_tier_limit(2, 200, 200, 200), Ok(()));
     assert_eq!(contract.change_tier_limit(1, 300, 300, 300), Ok(()));
@@ -179,7 +179,7 @@ fn change_tier_limit_works() {
 #[ink::test]
 fn flip_contract_status_works() {
     let mut contract = make_contract();
-    assert_eq!(contract.only_owner(AccountId::from([0x1; 32])), Ok(()));
+    assert_eq!(contract.only_owner(), Ok(()));
     assert_eq!(contract.paused_or_not(), false);
     assert_eq!(contract.flip_contract_status(), Ok(()));
     assert_eq!(contract.paused_or_not(), true);
