@@ -1538,6 +1538,14 @@ fn add_ddc_node_only_ddn_manager_works() {
         contract.add_ddc_node(p2p_id, p2p_addr, url),
         Err(Error::OnlyDDNManager)
     );
+
+    // Should emit ErrorOnlyDDNManager event
+    let raw_events = recorded_events().collect::<Vec<_>>();
+    if let Event::ErrorOnlyDDNManager(ErrorOnlyDDNManager {..}) = decode_event(&raw_events[3]) {
+        assert_eq!(4, raw_events.len()); // 3 x tier added + error event
+    } else {
+        panic!("Wrong event type");
+    }
 }
 
 #[ink::test]
@@ -1655,6 +1663,14 @@ fn remove_ddc_node_only_ddn_manager_works() {
     // Should be an owner
     set_exec_context(accounts.charlie, 2);
     assert_eq!(contract.remove_ddc_node(p2p_id), Err(Error::OnlyDDNManager));
+
+    // Should emit ErrorOnlyDDNManager event
+    let raw_events = recorded_events().collect::<Vec<_>>();
+    if let Event::ErrorOnlyDDNManager(ErrorOnlyDDNManager {..}) = decode_event(&raw_events[3]) {
+        assert_eq!(4, raw_events.len()); // 3 x tier added + error event
+    } else {
+        panic!("Wrong event type");
+    }
 }
 
 #[ink::test]
@@ -1798,6 +1814,14 @@ fn report_ddn_status_only_inspector_works() {
         contract.report_ddn_status(p2p_id.clone(), true),
         Err(Error::OnlyInspector)
     );
+
+    // Should emit ErrorOnlyInspector event
+    let raw_events = recorded_events().collect::<Vec<_>>();
+    if let Event::ErrorOnlyInspector(ErrorOnlyInspector {..}) = decode_event(&raw_events[3]) {
+        assert_eq!(4, raw_events.len()); // 3 x tier added + error event
+    } else {
+        panic!("Wrong event type");
+    }
 }
 
 #[ink::test]
