@@ -22,6 +22,11 @@ fn make_contract() -> Ddc {
     contract
 }
 
+fn get_accounts() -> DefaultAccounts<DefaultEnvironment> {
+    // The default account is "alice"
+    default_accounts::<DefaultEnvironment>().unwrap()
+}
+
 #[ink::test]
 fn new_works() {
     // Default constructor should do its job
@@ -35,7 +40,7 @@ fn new_works() {
 #[ink::test]
 fn only_owner_works() {
     let contract = make_contract();
-    let accounts = default_accounts::<DefaultEnvironment>().unwrap();
+    let accounts = get_accounts();
 
     // Should work for the contract admin
     assert_eq!(contract.only_owner(accounts.alice), Ok(()));
@@ -48,7 +53,7 @@ fn only_owner_works() {
 #[ink::test]
 fn transfer_ownership_works() {
     let mut contract = make_contract();
-    let accounts = default_accounts::<DefaultEnvironment>().unwrap();
+    let accounts = get_accounts();
 
     // Should transfer ownership to another account
     contract
@@ -64,7 +69,8 @@ fn transfer_ownership_works() {
 #[ink::test]
 fn subscribe_works() {
     let mut contract = make_contract();
-    let payer = AccountId::from([0x1; 32]);
+    let accounts = get_accounts();
+    let payer = accounts.alice;
 
     set_exec_context(payer, 2);
 
@@ -90,7 +96,8 @@ fn subscribe_works() {
 #[ink::test]
 fn balance_of_contract_works() {
     let mut contract = make_contract();
-    let payer_one = AccountId::from([0x1; 32]);
+    let accounts = get_accounts();
+    let payer_one = accounts.alice;
     assert_eq!(contract.balance_of(payer_one), 0);
     assert_eq!(contract.subscribe(3), Ok(()));
     assert_eq!(contract.balance_of_contract(), 0);
@@ -100,7 +107,8 @@ fn balance_of_contract_works() {
 #[ink::test]
 fn tier_id_of_works() {
     let mut contract = make_contract();
-    let payer_one = AccountId::from([0x1; 32]);
+    let accounts = get_accounts();
+    let payer_one = accounts.alice;
     assert_eq!(contract.balance_of(payer_one), 0);
     assert_eq!(contract.subscribe(2), Ok(()));
     assert_eq!(contract.tier_id_of(payer_one), 2);
@@ -183,7 +191,7 @@ fn flip_contract_status_works() {
 #[ink::test]
 fn withdraw_works() {
     let mut contract = make_contract();
-    let accounts = default_accounts::<DefaultEnvironment>().unwrap();
+    let accounts = get_accounts();
 
     // Endownment equivalence. Inititalize SC address with balance 1000
     set_balance(contract_id(), 1000);
@@ -271,7 +279,7 @@ fn get_median_by_key_works() {
 #[ink::test]
 fn report_metrics_works() {
     let mut contract = make_contract();
-    let accounts = default_accounts::<DefaultEnvironment>().unwrap();
+    let accounts = get_accounts();
     let inspector_id = accounts.alice;
     let app_id = accounts.charlie;
 
@@ -483,7 +491,7 @@ fn report_metrics_median_works() {
         django,
         eve,
         frank,
-    } = default_accounts::<DefaultEnvironment>().unwrap();
+    } = get_accounts();
 
     contract.add_inspector(alice).unwrap();
     contract.add_inspector(bob).unwrap();
@@ -1266,7 +1274,7 @@ fn report_metrics_median_works() {
 #[ink::test]
 fn metrics_since_subscription_works() {
     let mut contract = make_contract();
-    let accounts = default_accounts::<DefaultEnvironment>().unwrap();
+    let accounts = get_accounts();
     let app_id = accounts.charlie;
 
     // No subscription yet.
@@ -1308,7 +1316,7 @@ fn metrics_since_subscription_works() {
 #[ink::test]
 fn metrics_for_period_works() {
     let mut contract = make_contract();
-    let accounts = default_accounts::<DefaultEnvironment>().unwrap();
+    let accounts = get_accounts();
     let inspector = accounts.alice;
     let app_id = accounts.charlie;
 
@@ -1385,7 +1393,7 @@ fn metrics_for_period_works() {
 #[ink::test]
 fn finalize_metric_period_works() {
     let mut contract = make_contract();
-    let accounts = default_accounts::<DefaultEnvironment>().unwrap();
+    let accounts = get_accounts();
     let yesterday_ms = 9999 * MS_PER_DAY; // Midnight time on some day
     let today_ms = yesterday_ms + MS_PER_DAY;
 
@@ -1409,7 +1417,7 @@ fn finalize_metric_period_works() {
 #[ink::test]
 fn get_current_period_ms_works() {
     let mut contract = make_contract();
-    let accounts = default_accounts::<DefaultEnvironment>().unwrap();
+    let accounts = get_accounts();
     let day0 = 9999 * MS_PER_DAY; // Midnight time on some day.
     let day1 = day0 + MS_PER_DAY;
     let day2 = day1 + MS_PER_DAY;
@@ -1453,8 +1461,8 @@ fn decode_event(event: &ink_env::test::EmittedEvent) -> Event {
 #[ink::test]
 fn add_and_remove_inspectors_works() {
     let mut contract = make_contract();
-
-    let new_inspector = AccountId::from([0x1; 32]);
+    let accounts = get_accounts();
+    let new_inspector = accounts.alice;
 
     assert!(!contract.is_inspector(new_inspector));
     contract.add_inspector(new_inspector).unwrap();
@@ -1482,7 +1490,7 @@ fn add_and_remove_inspectors_works() {
 #[ink::test]
 fn add_and_remove_ddn_manager_works() {
     let mut contract = make_contract();
-    let accounts = default_accounts::<DefaultEnvironment>().unwrap();
+    let accounts = get_accounts();
     let account = accounts.alice;
 
     assert!(!contract.is_ddn_manager(account));
@@ -1519,7 +1527,7 @@ fn get_all_ddc_nodes_works() {
 #[ink::test]
 fn add_ddc_node_only_ddn_manager_works() {
     let mut contract = make_contract();
-    let accounts = default_accounts::<DefaultEnvironment>().unwrap();
+    let accounts = get_accounts();
     let p2p_id = String::from("test_p2p_id");
     let p2p_addr = String::from("test_p2p_addr");
     let url = String::from("test_url");
@@ -1527,7 +1535,7 @@ fn add_ddc_node_only_ddn_manager_works() {
     // Should be an owner or DDN manager
     set_exec_context(accounts.charlie, 2);
     assert_eq!(
-        contract.add_ddc_node(p2p_id.clone(), p2p_addr.clone(), url.clone()),
+        contract.add_ddc_node(p2p_id, p2p_addr, url),
         Err(Error::OnlyDDNManager)
     );
 }
@@ -1535,7 +1543,7 @@ fn add_ddc_node_only_ddn_manager_works() {
 #[ink::test]
 fn add_ddc_node_ddn_manager_works() {
     let mut contract = make_contract();
-    let accounts = default_accounts::<DefaultEnvironment>().unwrap();
+    let accounts = get_accounts();
     let p2p_id = String::from("test_p2p_id");
     let p2p_addr = String::from("test_p2p_addr");
     let url = String::from("test_url");
@@ -1641,7 +1649,7 @@ fn is_ddc_node_works() {
 #[ink::test]
 fn remove_ddc_node_only_ddn_manager_works() {
     let mut contract = make_contract();
-    let accounts = default_accounts::<DefaultEnvironment>().unwrap();
+    let accounts = get_accounts();
     let p2p_id = String::from("test_p2p_id");
 
     // Should be an owner
@@ -1652,7 +1660,7 @@ fn remove_ddc_node_only_ddn_manager_works() {
 #[ink::test]
 fn remove_ddc_node_ddn_manager_works() {
     let mut contract = make_contract();
-    let accounts = default_accounts::<DefaultEnvironment>().unwrap();
+    let accounts = get_accounts();
     let p2p_id = String::from("test_p2p_id");
     let p2p_addr = String::from("test_p2p_addr");
     let url = String::from("test_url");
@@ -1726,7 +1734,7 @@ fn get_ddn_status_not_found_works() {
 #[ink::test]
 fn get_ddn_status_no_status_works() {
     let mut contract = make_contract();
-    let accounts = default_accounts::<DefaultEnvironment>().unwrap();
+    let accounts = get_accounts();
     let p2p_id = String::from("test_p2p_id");
     let p2p_addr = "test_p2p_addr".to_string();
     let url = String::from("test_url");
@@ -1752,7 +1760,7 @@ fn get_ddn_status_no_status_works() {
 #[ink::test]
 fn get_ddn_status_works() {
     let mut contract = make_contract();
-    let accounts = default_accounts::<DefaultEnvironment>().unwrap();
+    let accounts = get_accounts();
     let p2p_id = "test_p2p_id".to_string();
     let p2p_addr = "test_p2p_addr".to_string();
     let url = String::from("test_url");
@@ -1795,7 +1803,7 @@ fn report_ddn_status_only_inspector_works() {
 #[ink::test]
 fn report_ddn_status_not_found_works() {
     let mut contract = make_contract();
-    let accounts = default_accounts::<DefaultEnvironment>().unwrap();
+    let accounts = get_accounts();
     let p2p_id = String::from("test_p2p_id");
 
     // Make admin an inspector
@@ -1811,7 +1819,7 @@ fn report_ddn_status_not_found_works() {
 #[ink::test]
 fn report_ddn_status_unexpected_timestamp_works() {
     let mut contract = make_contract();
-    let accounts = default_accounts::<DefaultEnvironment>().unwrap();
+    let accounts = get_accounts();
     let p2p_id = "test_p2p_id".to_string();
     let p2p_addr = "test_p2p_addr".to_string();
     let url = String::from("test_url");
@@ -1843,7 +1851,7 @@ fn report_ddn_status_unexpected_timestamp_works() {
 #[ink::test]
 fn report_ddn_status_works() {
     let mut contract = make_contract();
-    let accounts = default_accounts::<DefaultEnvironment>().unwrap();
+    let accounts = get_accounts();
     let p2p_id = "test_p2p_id".to_string();
     let p2p_addr = "test_p2p_addr".to_string();
     let url = String::from("test_url");
@@ -1966,7 +1974,7 @@ fn report_ddn_status_median_works() {
         django,
         eve,
         frank,
-    } = default_accounts::<DefaultEnvironment>().unwrap();
+    } = get_accounts();
 
     contract.add_inspector(alice).unwrap();
     contract.add_inspector(bob).unwrap();
@@ -2244,7 +2252,7 @@ fn report_ddn_status_median_works() {
 #[ink::test]
 fn report_metrics_updates_ddn_status_works() {
     let mut contract = make_contract();
-    let accounts = default_accounts::<DefaultEnvironment>().unwrap();
+    let accounts = get_accounts();
 
     let first_day = 1000;
 
@@ -2293,7 +2301,7 @@ fn report_metrics_updates_ddn_status_works() {
 #[ink::test]
 fn remove_ddc_node_removes_statuses_works() {
     let mut contract = make_contract();
-    let accounts = default_accounts::<DefaultEnvironment>().unwrap();
+    let accounts = get_accounts();
     let p2p_id = String::from("test_p2p_id");
     let p2p_addr = String::from("test_p2p_addr");
     let url = String::from("test_url");
@@ -2324,7 +2332,7 @@ fn remove_ddc_node_removes_statuses_works() {
 #[ink::test]
 fn report_metrics_ddn_works() {
     let mut contract = make_contract();
-    let accounts = default_accounts::<DefaultEnvironment>().unwrap();
+    let accounts = get_accounts();
 
     let first_day = 1000;
 
@@ -2383,7 +2391,7 @@ fn report_metrics_ddn_median_works() {
         django,
         eve,
         frank,
-    } = default_accounts::<DefaultEnvironment>().unwrap();
+    } = get_accounts();
 
     contract.add_inspector(alice).unwrap();
     contract.add_inspector(bob).unwrap();
@@ -3124,7 +3132,7 @@ fn report_metrics_ddn_median_works() {
 #[ink::test]
 fn metrics_for_ddn_works() {
     let mut contract = make_contract();
-    let accounts = default_accounts::<DefaultEnvironment>().unwrap();
+    let accounts = get_accounts();
     let inspector = accounts.alice;
     let p2p_id = String::from("test_p2p_id");
     let p2p_addr = String::from("test_p2p_addr");
@@ -3169,7 +3177,7 @@ fn metrics_for_ddn_works() {
 #[ink::test]
 fn metrics_for_ddn_at_time_works() {
     let mut contract = make_contract();
-    let accounts = default_accounts::<DefaultEnvironment>().unwrap();
+    let accounts = get_accounts();
     let inspector = accounts.alice;
     let p2p_id = String::from("test_p2p_id");
     let p2p_addr = String::from("test_p2p_addr");
@@ -3317,7 +3325,7 @@ fn refund_failed_works() {
 #[ink::test]
 fn get_app_limit_works() {
     let mut contract = make_contract();
-    let accounts = default_accounts::<DefaultEnvironment>().unwrap();
+    let accounts = get_accounts();
     let app_id = accounts.alice;
     let now = 0;
     let later = now + 45 * MS_PER_DAY;
@@ -3351,7 +3359,7 @@ fn get_app_limit_works() {
 
 #[ink::test]
 fn actualize_subscriptions_works() {
-    let accounts = default_accounts::<DefaultEnvironment>().unwrap();
+    let accounts = get_accounts();
     let mut contract = make_contract();
 
     let alice = accounts.alice;
@@ -3421,7 +3429,7 @@ fn actualize_subscriptions_works() {
 
 #[ink::test]
 fn get_subscription_details_of() {
-    let accounts = default_accounts::<DefaultEnvironment>().unwrap();
+    let accounts = get_accounts();
     let mut contract = make_contract();
 
     let alice = accounts.alice;
