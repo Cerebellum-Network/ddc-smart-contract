@@ -772,6 +772,9 @@ mod ddc {
         p2p_id: String,
         p2p_addr: String,
         url: String,
+        /// There is only one known permission for trusted nodes:
+        ///
+        ///     is_trusted = (permissions & 1) != 0
         permissions: u64,
     }
 
@@ -798,7 +801,11 @@ mod ddc {
             self.ddc_nodes.values().cloned().collect()
         }
 
-        /// Add DDC node to the list
+        /// Add DDC node to the list.
+        ///
+        /// If the node already exists based on p2p_id, update all fields.
+        ///
+        /// Use permissions 1 for a trusted node, otherwise 0.
         #[ink(message)]
         pub fn add_ddc_node(
             &mut self,
