@@ -762,6 +762,8 @@ mod ddc {
     }
 
     // ---- DDC nodes ----
+    const DDC_NODE_PERMISSION_TRUSTED: u64 = 1;
+
     #[derive(
         Default, Clone, PartialEq, Eq, PartialOrd, Ord, Encode, Decode, SpreadLayout, PackedLayout,
     )]
@@ -770,6 +772,7 @@ mod ddc {
         p2p_id: String,
         p2p_addr: String,
         url: String,
+        permissions: u64,
     }
 
     #[ink(event)]
@@ -778,6 +781,7 @@ mod ddc {
         p2p_id: String,
         p2p_addr: String,
         url: String,
+        permissions: u64,
     }
 
     #[ink(event)]
@@ -801,6 +805,7 @@ mod ddc {
             p2p_id: String,
             p2p_addr: String,
             url: String,
+            permissions: u64,
         ) -> Result<()> {
             self.only_ddn_manager()?;
 
@@ -810,12 +815,14 @@ mod ddc {
                     p2p_id: p2p_id.clone(),
                     p2p_addr: p2p_addr.clone(),
                     url: url.clone(),
+                    permissions,
                 },
             );
             Self::env().emit_event(DDCNodeAdded {
                 p2p_id,
                 p2p_addr,
                 url,
+                permissions,
             });
 
             Ok(())
