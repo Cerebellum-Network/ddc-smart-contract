@@ -33,6 +33,9 @@ mod ddc {
         inspectors: StorageHashMap<AccountId, ()>,
         current_period_ms: StorageHashMap<AccountId, u64>,
 
+        // -- DDC Node managers --
+        ddn_managers: StorageHashMap<AccountId, ()>,
+
         // -- DDC Nodes --
         ddc_nodes: StorageHashMap<String, DDCNode>,
 
@@ -57,6 +60,7 @@ mod ddc {
                 service_tiers: StorageHashMap::new(),
                 subscriptions: StorageHashMap::new(),
                 inspectors: StorageHashMap::new(),
+                ddn_managers: StorageHashMap::new(),
                 current_period_ms: StorageHashMap::new(),
                 ddc_nodes: StorageHashMap::new(),
                 ddn_statuses: StorageHashMap::new(),
@@ -71,7 +75,9 @@ mod ddc {
     // ---- Admin ----
     impl Ddc {
         /// Check if account is the owner of this contract
-        fn only_owner(&self, caller: AccountId) -> Result<()> {
+        fn only_owner(&self) -> Result<()> {
+            let caller = self.env().caller();
+
             if *self.owner == caller {
                 Ok(())
             } else {
@@ -83,7 +89,7 @@ mod ddc {
         #[ink(message)]
         pub fn transfer_ownership(&mut self, to: AccountId) -> Result<()> {
             self.only_active()?;
-            self.only_owner(self.env().caller())?;
+            self.only_owner()?;
 
             *self.owner = to;
             Ok(())
@@ -104,8 +110,7 @@ mod ddc {
         /// as the contract owner. Some balance must be left in the contract as subsistence deposit.
         #[ink(message)]
         pub fn withdraw(&mut self, destination: AccountId, amount: Balance) -> Result<()> {
-            let caller = self.env().caller();
-            self.only_owner(caller)?;
+            self.only_owner()?;
 
             if destination == AccountId::default() {
                 return Err(Error::InvalidAccount);
@@ -147,8 +152,7 @@ mod ddc {
         /// only contract owner can call this function
         #[ink(message)]
         pub fn flip_contract_status(&mut self) -> Result<()> {
-            let caller = self.env().caller();
-            self.only_owner(caller)?;
+            self.only_owner()?;
 
             self.pause = !self.pause;
             Ok(())
@@ -224,8 +228,7 @@ mod ddc {
             wcu_per_minute: u64,
             rcu_per_minute: u64,
         ) -> Result<u64> {
-            let caller = self.env().caller();
-            self.only_owner(caller)?;
+            self.only_owner()?;
 
             let tier_id = self.calculate_new_tier_id();
             let tier = ServiceTier {
@@ -279,8 +282,7 @@ mod ddc {
         pub fn change_tier_fee(&mut self, tier_id: u64, new_fee: Balance) -> Result<()> {
             self.tid_in_bound(tier_id)?;
             self.only_active()?;
-            let caller = self.env().caller();
-            self.only_owner(caller)?;
+            self.only_owner()?;
 
             self.diff_deposit(tier_id, new_fee)?;
 
@@ -303,8 +305,7 @@ mod ddc {
         ) -> Result<()> {
             self.tid_in_bound(tier_id)?;
             self.only_active()?;
-            let caller = self.env().caller();
-            self.only_owner(caller)?;
+            self.only_owner()?;
 
             let mut tier = self.service_tiers.get_mut(&tier_id).unwrap();
             tier.storage_bytes = new_storage_bytes_limit;
@@ -493,8 +494,7 @@ mod ddc {
 
         #[ink(message)]
         pub fn actualize_subscriptions(&mut self) -> Result<()> {
-            let caller = self.env().caller();
-            self.only_owner(caller)?;
+            self.only_owner()?;
 
             for (_, subscription) in self.subscriptions.iter_mut() {
                 let subscription_tier = match self.service_tiers.get(&subscription.tier_id) {
@@ -672,8 +672,10 @@ mod ddc {
 
     impl Ddc {
         /// Check if account is an approved inspector.
-        fn only_inspector(&self, caller: &AccountId) -> Result<()> {
-            if self.is_inspector(*caller) {
+        fn only_inspector(&self) -> Result<()> {
+            let caller = self.env().caller();
+
+            if self.is_inspector(caller) {
                 Ok(())
             } else {
                 self.env().emit_event(ErrorOnlyInspector {});
@@ -688,8 +690,7 @@ mod ddc {
 
         #[ink(message)]
         pub fn add_inspector(&mut self, inspector: AccountId) -> Result<()> {
-            let caller = self.env().caller();
-            self.only_owner(caller)?;
+            self.only_owner()?;
 
             self.inspectors.insert(inspector, ());
             Self::env().emit_event(InspectorAdded { inspector });
@@ -698,11 +699,64 @@ mod ddc {
 
         #[ink(message)]
         pub fn remove_inspector(&mut self, inspector: AccountId) -> Result<()> {
-            let caller = self.env().caller();
-            self.only_owner(caller)?;
+            self.only_owner()?;
 
             self.inspectors.take(&inspector);
             Self::env().emit_event(InspectorRemoved { inspector });
+            Ok(())
+        }
+    }
+
+    // ---- DDC Node managers ----
+
+    #[ink(event)]
+    pub struct DDNManagerAdded {
+        #[ink(topic)]
+        ddn_manager: AccountId,
+    }
+
+    #[ink(event)]
+    pub struct DDNManagerRemoved {
+        #[ink(topic)]
+        ddn_manager: AccountId,
+    }
+
+    #[ink(event)]
+    pub struct ErrorOnlyDDNManager {}
+
+    impl Ddc {
+        /// Check if account is an approved DDC node manager
+        fn only_ddn_manager(&self) -> Result<()> {
+            let caller = self.env().caller();
+
+            if self.is_ddn_manager(caller) || *self.owner == caller {
+                Ok(())
+            } else {
+                self.env().emit_event(ErrorOnlyDDNManager {});
+                Err(Error::OnlyDDNManager)
+            }
+        }
+
+        #[ink(message)]
+        pub fn is_ddn_manager(&self, ddn_manager: AccountId) -> bool {
+            self.ddn_managers.contains_key(&ddn_manager)
+        }
+
+        #[ink(message)]
+        pub fn add_ddn_manager(&mut self, ddn_manager: AccountId) -> Result<()> {
+            self.only_owner()?;
+
+            self.ddn_managers.insert(ddn_manager, ());
+            Self::env().emit_event(DDNManagerAdded { ddn_manager });
+            Ok(())
+        }
+
+        #[ink(message)]
+        pub fn remove_ddn_manager(&mut self, ddn_manager: AccountId) -> Result<()> {
+            self.only_owner()?;
+
+            self.ddn_managers.take(&ddn_manager);
+            Self::env().emit_event(DDNManagerRemoved { ddn_manager });
             Ok(())
         }
     }
@@ -748,8 +802,7 @@ mod ddc {
             p2p_addr: String,
             url: String,
         ) -> Result<()> {
-            let caller = self.env().caller();
-            self.only_owner(caller)?;
+            self.only_ddn_manager()?;
 
             self.ddc_nodes.insert(
                 p2p_id.clone(),
@@ -777,8 +830,7 @@ mod ddc {
         /// Removes DDC node from the list
         #[ink(message)]
         pub fn remove_ddc_node(&mut self, p2p_id: String) -> Result<()> {
-            let caller = self.env().caller();
-            self.only_owner(caller)?;
+            self.only_ddn_manager()?;
 
             // Remove DDN if exists
             let removed_node = self.ddc_nodes.take(&p2p_id).ok_or(Error::DDNNotFound)?;
@@ -826,7 +878,7 @@ mod ddc {
         #[ink(message)]
         pub fn report_ddn_status(&mut self, p2p_id: String, is_online: bool) -> Result<()> {
             let inspector = self.env().caller();
-            self.only_inspector(&inspector)?;
+            self.only_inspector()?;
 
             if !self.ddc_nodes.contains_key(&p2p_id) {
                 return Err(Error::DDNNotFound);
@@ -1141,7 +1193,7 @@ mod ddc {
             rcu_used: u64,
         ) -> Result<()> {
             let inspector = self.env().caller();
-            self.only_inspector(&inspector)?;
+            self.only_inspector()?;
 
             enforce_time_is_start_of_day(day_start_ms)?;
             let day = day_start_ms / MS_PER_DAY;
@@ -1183,7 +1235,7 @@ mod ddc {
             rcu_used: u64,
         ) -> Result<()> {
             let inspector = self.env().caller();
-            self.only_inspector(&inspector)?;
+            self.only_inspector()?;
 
             enforce_time_is_start_of_day(day_start_ms)?;
             let day = day_start_ms / MS_PER_DAY;
@@ -1217,7 +1269,7 @@ mod ddc {
         #[ink(message)]
         pub fn finalize_metric_period(&mut self, start_ms: u64) -> Result<()> {
             let inspector = self.env().caller();
-            self.only_inspector(&inspector)?;
+            self.only_inspector()?;
 
             enforce_time_is_start_of_day(start_ms)?;
             let next_period_ms = start_ms + MS_PER_DAY;
@@ -1257,6 +1309,7 @@ mod ddc {
     pub enum Error {
         OnlyOwner,
         OnlyInspector,
+        OnlyDDNManager,
         SameDepositValue,
         NoPermission,
         InsufficientDeposit,
