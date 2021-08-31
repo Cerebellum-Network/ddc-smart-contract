@@ -56,9 +56,7 @@ fn transfer_ownership_works() {
     let accounts = get_accounts();
 
     // Should transfer ownership to another account
-    contract
-        .transfer_ownership(accounts.charlie)
-        .unwrap();
+    contract.transfer_ownership(accounts.charlie).unwrap();
 
     // Should work for the new owner
     set_exec_context(accounts.charlie, 2);
@@ -1508,7 +1506,9 @@ fn add_and_remove_ddn_manager_works() {
         panic!("Wrong event type");
     }
 
-    if let Event::DDNManagerRemoved(DDNManagerRemoved { ddn_manager }) = decode_event(&raw_events[4]) {
+    if let Event::DDNManagerRemoved(DDNManagerRemoved { ddn_manager }) =
+        decode_event(&raw_events[4])
+    {
         assert_eq!(ddn_manager, account);
     } else {
         panic!("Wrong event type");
@@ -1535,13 +1535,13 @@ fn add_ddc_node_only_ddn_manager_works() {
     // Should be an owner or DDN manager
     set_exec_context(accounts.charlie, 2);
     assert_eq!(
-        contract.add_ddc_node(p2p_id, p2p_addr, url),
+        contract.add_ddc_node(p2p_id, p2p_addr, url, DDC_NODE_PERMISSION_TRUSTED),
         Err(Error::OnlyDDNManager)
     );
 
     // Should emit ErrorOnlyDDNManager event
     let raw_events = recorded_events().collect::<Vec<_>>();
-    if let Event::ErrorOnlyDDNManager(ErrorOnlyDDNManager {..}) = decode_event(&raw_events[3]) {
+    if let Event::ErrorOnlyDDNManager(ErrorOnlyDDNManager { .. }) = decode_event(&raw_events[3]) {
         assert_eq!(4, raw_events.len()); // 3 x tier added + error event
     } else {
         panic!("Wrong event type");
@@ -1562,7 +1562,7 @@ fn add_ddc_node_ddn_manager_works() {
     // Should work for DDN manager
     set_exec_context(accounts.charlie, 2);
     assert_eq!(
-        contract.add_ddc_node(p2p_id, p2p_addr, url),
+        contract.add_ddc_node(p2p_id, p2p_addr, url, DDC_NODE_PERMISSION_TRUSTED),
         Ok(())
     );
 }
@@ -1576,7 +1576,12 @@ fn add_ddc_node_works() {
 
     // Add DDC node to the list
     contract
-        .add_ddc_node(p2p_id.clone(), p2p_addr.clone(), url.clone())
+        .add_ddc_node(
+            p2p_id.clone(),
+            p2p_addr.clone(),
+            url.clone(),
+            DDC_NODE_PERMISSION_TRUSTED,
+        )
         .unwrap();
 
     // Should be in the list
@@ -1585,7 +1590,8 @@ fn add_ddc_node_works() {
         vec![DDCNode {
             p2p_id: p2p_id.clone(),
             p2p_addr: p2p_addr.clone(),
-            url: url.clone()
+            url: url.clone(),
+            permissions: DDC_NODE_PERMISSION_TRUSTED,
         },]
     );
 
@@ -1596,11 +1602,13 @@ fn add_ddc_node_works() {
         p2p_id: event_p2p_id,
         p2p_addr: event_p2p_addr,
         url: event_url,
+        permissions: event_permissions,
     }) = decode_event(&raw_events[3])
     {
         assert_eq!(event_p2p_id, p2p_id);
         assert_eq!(event_p2p_addr, p2p_addr);
         assert_eq!(event_url, url);
+        assert_eq!(event_permissions, DDC_NODE_PERMISSION_TRUSTED);
     } else {
         panic!("Wrong event type")
     }
@@ -1616,12 +1624,17 @@ fn add_ddn_node_update_url_works() {
 
     // Add DDC node to the list
     contract
-        .add_ddc_node(p2p_id.clone(), p2p_addr.clone(), url.clone())
+        .add_ddc_node(
+            p2p_id.clone(),
+            p2p_addr.clone(),
+            url.clone(),
+            DDC_NODE_PERMISSION_TRUSTED,
+        )
         .unwrap();
 
-    // Update DDC node url
+    // Update DDC node url and permissions.
     contract
-        .add_ddc_node(p2p_id.clone(), p2p_addr.clone(), new_url.clone())
+        .add_ddc_node(p2p_id.clone(), p2p_addr.clone(), new_url.clone(), 0)
         .unwrap();
 
     // Get the list of DDC nodes
@@ -1630,7 +1643,8 @@ fn add_ddn_node_update_url_works() {
         vec![DDCNode {
             p2p_id,
             p2p_addr,
-            url: new_url
+            url: new_url,
+            permissions: 0,
         }]
     );
 }
@@ -1647,7 +1661,12 @@ fn is_ddc_node_works() {
 
     // Add DDC node to the list
     contract
-        .add_ddc_node(p2p_id.clone(), p2p_addr.clone(), url.clone())
+        .add_ddc_node(
+            p2p_id.clone(),
+            p2p_addr.clone(),
+            url.clone(),
+            DDC_NODE_PERMISSION_TRUSTED,
+        )
         .unwrap();
 
     // Should be in the list
@@ -1666,7 +1685,7 @@ fn remove_ddc_node_only_ddn_manager_works() {
 
     // Should emit ErrorOnlyDDNManager event
     let raw_events = recorded_events().collect::<Vec<_>>();
-    if let Event::ErrorOnlyDDNManager(ErrorOnlyDDNManager {..}) = decode_event(&raw_events[3]) {
+    if let Event::ErrorOnlyDDNManager(ErrorOnlyDDNManager { .. }) = decode_event(&raw_events[3]) {
         assert_eq!(4, raw_events.len()); // 3 x tier added + error event
     } else {
         panic!("Wrong event type");
@@ -1683,7 +1702,7 @@ fn remove_ddc_node_ddn_manager_works() {
 
     // Add DDC node to the list
     contract
-        .add_ddc_node(p2p_id.clone(), p2p_addr, url)
+        .add_ddc_node(p2p_id.clone(), p2p_addr, url, DDC_NODE_PERMISSION_TRUSTED)
         .unwrap();
 
     // Add DDN manager
@@ -1712,7 +1731,12 @@ fn remove_ddc_node_works() {
 
     // Add DDC node to the list
     contract
-        .add_ddc_node(p2p_id.clone(), p2p_addr.clone(), url.clone())
+        .add_ddc_node(
+            p2p_id.clone(),
+            p2p_addr.clone(),
+            url.clone(),
+            DDC_NODE_PERMISSION_TRUSTED,
+        )
         .unwrap();
 
     // Remove DDC node
@@ -1757,7 +1781,12 @@ fn get_ddn_status_no_status_works() {
 
     // Add DDC node to the list
     contract
-        .add_ddc_node(p2p_id.clone(), p2p_addr.clone(), url)
+        .add_ddc_node(
+            p2p_id.clone(),
+            p2p_addr.clone(),
+            url,
+            DDC_NODE_PERMISSION_TRUSTED,
+        )
         .unwrap();
 
     // Should return an error if no inspectors
@@ -1786,7 +1815,12 @@ fn get_ddn_status_works() {
 
     // Add DDC node to the list
     contract
-        .add_ddc_node(p2p_id.clone(), p2p_addr.clone(), url)
+        .add_ddc_node(
+            p2p_id.clone(),
+            p2p_addr.clone(),
+            url,
+            DDC_NODE_PERMISSION_TRUSTED,
+        )
         .unwrap();
 
     // Set new status
@@ -1817,7 +1851,7 @@ fn report_ddn_status_only_inspector_works() {
 
     // Should emit ErrorOnlyInspector event
     let raw_events = recorded_events().collect::<Vec<_>>();
-    if let Event::ErrorOnlyInspector(ErrorOnlyInspector {..}) = decode_event(&raw_events[3]) {
+    if let Event::ErrorOnlyInspector(ErrorOnlyInspector { .. }) = decode_event(&raw_events[3]) {
         assert_eq!(4, raw_events.len()); // 3 x tier added + error event
     } else {
         panic!("Wrong event type");
@@ -1853,7 +1887,12 @@ fn report_ddn_status_unexpected_timestamp_works() {
 
     // Add DDC node to the list
     contract
-        .add_ddc_node(p2p_id.clone(), p2p_addr.clone(), url)
+        .add_ddc_node(
+            p2p_id.clone(),
+            p2p_addr.clone(),
+            url,
+            DDC_NODE_PERMISSION_TRUSTED,
+        )
         .unwrap();
 
     // Increase block time by 5
@@ -1885,7 +1924,12 @@ fn report_ddn_status_works() {
 
     // Add DDC node
     contract
-        .add_ddc_node(p2p_id.clone(), p2p_addr.clone(), url)
+        .add_ddc_node(
+            p2p_id.clone(),
+            p2p_addr.clone(),
+            url,
+            DDC_NODE_PERMISSION_TRUSTED,
+        )
         .unwrap();
 
     // Update block time from 0 to 5
@@ -2009,7 +2053,7 @@ fn report_ddn_status_median_works() {
 
     // Add DDC node
     contract
-        .add_ddc_node(p2p_id.clone(), p2p_addr, url)
+        .add_ddc_node(p2p_id.clone(), p2p_addr, url, DDC_NODE_PERMISSION_TRUSTED)
         .unwrap();
 
     // No status yet
@@ -2296,7 +2340,7 @@ fn report_metrics_updates_ddn_status_works() {
 
     // Add DDC node to the list
     contract
-        .add_ddc_node(p2p_id.clone(), p2p_addr, url)
+        .add_ddc_node(p2p_id.clone(), p2p_addr, url, DDC_NODE_PERMISSION_TRUSTED)
         .unwrap();
 
     // Set new DDC node status
@@ -2335,7 +2379,12 @@ fn remove_ddc_node_removes_statuses_works() {
 
     // Add DDC node
     contract
-        .add_ddc_node(p2p_id.clone(), p2p_addr.clone(), url.clone())
+        .add_ddc_node(
+            p2p_id.clone(),
+            p2p_addr.clone(),
+            url.clone(),
+            DDC_NODE_PERMISSION_TRUSTED,
+        )
         .unwrap();
 
     // Set new status
@@ -2346,7 +2395,12 @@ fn remove_ddc_node_removes_statuses_works() {
 
     // Add the same DDC node again to check for statuses
     contract
-        .add_ddc_node(p2p_id.clone(), p2p_addr.clone(), url.clone())
+        .add_ddc_node(
+            p2p_id.clone(),
+            p2p_addr.clone(),
+            url.clone(),
+            DDC_NODE_PERMISSION_TRUSTED,
+        )
         .unwrap();
 
     // Should remove DDN statuses
@@ -2372,7 +2426,12 @@ fn report_metrics_ddn_works() {
     let url = String::from("test_url");
 
     contract
-        .add_ddc_node(p2p_id.clone(), p2p_addr.clone(), url)
+        .add_ddc_node(
+            p2p_id.clone(),
+            p2p_addr.clone(),
+            url,
+            DDC_NODE_PERMISSION_TRUSTED,
+        )
         .unwrap();
 
     contract.add_inspector(accounts.alice).unwrap();
@@ -2447,22 +2506,52 @@ fn report_metrics_ddn_median_works() {
 
     // Add DDC nodes
     contract
-        .add_ddc_node(alice_p2p_id.clone(), alice_p2p_id.clone(), url.clone())
+        .add_ddc_node(
+            alice_p2p_id.clone(),
+            alice_p2p_id.clone(),
+            url.clone(),
+            DDC_NODE_PERMISSION_TRUSTED,
+        )
         .unwrap();
     contract
-        .add_ddc_node(bob_p2p_id.clone(), bob_p2p_id.clone(), url.clone())
+        .add_ddc_node(
+            bob_p2p_id.clone(),
+            bob_p2p_id.clone(),
+            url.clone(),
+            DDC_NODE_PERMISSION_TRUSTED,
+        )
         .unwrap();
     contract
-        .add_ddc_node(charlie_p2p_id.clone(), charlie_p2p_id.clone(), url.clone())
+        .add_ddc_node(
+            charlie_p2p_id.clone(),
+            charlie_p2p_id.clone(),
+            url.clone(),
+            DDC_NODE_PERMISSION_TRUSTED,
+        )
         .unwrap();
     contract
-        .add_ddc_node(django_p2p_id.clone(), django_p2p_id.clone(), url.clone())
+        .add_ddc_node(
+            django_p2p_id.clone(),
+            django_p2p_id.clone(),
+            url.clone(),
+            DDC_NODE_PERMISSION_TRUSTED,
+        )
         .unwrap();
     contract
-        .add_ddc_node(eve_p2p_id.clone(), eve_p2p_id.clone(), url.clone())
+        .add_ddc_node(
+            eve_p2p_id.clone(),
+            eve_p2p_id.clone(),
+            url.clone(),
+            DDC_NODE_PERMISSION_TRUSTED,
+        )
         .unwrap();
     contract
-        .add_ddc_node(frank_p2p_id.clone(), frank_p2p_id.clone(), url.clone())
+        .add_ddc_node(
+            frank_p2p_id.clone(),
+            frank_p2p_id.clone(),
+            url.clone(),
+            DDC_NODE_PERMISSION_TRUSTED,
+        )
         .unwrap();
 
     // Expected median values
@@ -3167,7 +3256,12 @@ fn metrics_for_ddn_works() {
 
     // Add DDC node to the list
     contract
-        .add_ddc_node(p2p_id.clone(), p2p_addr.clone(), url.clone())
+        .add_ddc_node(
+            p2p_id.clone(),
+            p2p_addr.clone(),
+            url.clone(),
+            DDC_NODE_PERMISSION_TRUSTED,
+        )
         .unwrap();
 
     // Zero metrics yet
@@ -3212,7 +3306,12 @@ fn metrics_for_ddn_at_time_works() {
 
     // Add DDC node to the list
     contract
-        .add_ddc_node(p2p_id.clone(), p2p_addr.clone(), url.clone())
+        .add_ddc_node(
+            p2p_id.clone(),
+            p2p_addr.clone(),
+            url.clone(),
+            DDC_NODE_PERMISSION_TRUSTED,
+        )
         .unwrap();
 
     let some_day = 1;
@@ -3458,19 +3557,25 @@ fn get_subscription_details_of() {
 
     let alice = accounts.alice;
 
-    assert_eq!(contract.get_subscription_details_of(alice), Err(Error::NoSubscription));
+    assert_eq!(
+        contract.get_subscription_details_of(alice),
+        Err(Error::NoSubscription)
+    );
 
     set_exec_context(alice, 2);
     contract.subscribe(1).unwrap();
 
-    assert_eq!(contract.get_subscription_details_of(alice).unwrap(), AppSubscriptionDetails {
-        subscription: AppSubscription {
-            start_date_ms: 0,
-            tier_id: 1,
+    assert_eq!(
+        contract.get_subscription_details_of(alice).unwrap(),
+        AppSubscriptionDetails {
+            subscription: AppSubscription {
+                start_date_ms: 0,
+                tier_id: 1,
 
-            balance: 2,
-            last_update_ms: 0,
-        },
-        end_date_ms: 2678400000
-    });
+                balance: 2,
+                last_update_ms: 0,
+            },
+            end_date_ms: 2678400000
+        }
+    );
 }

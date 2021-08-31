@@ -762,6 +762,8 @@ mod ddc {
     }
 
     // ---- DDC nodes ----
+    const DDC_NODE_PERMISSION_TRUSTED: u64 = 1;
+
     #[derive(
         Default, Clone, PartialEq, Eq, PartialOrd, Ord, Encode, Decode, SpreadLayout, PackedLayout,
     )]
@@ -770,6 +772,10 @@ mod ddc {
         p2p_id: String,
         p2p_addr: String,
         url: String,
+        /// There is only one known permission for trusted nodes:
+        ///
+        ///     is_trusted = (permissions & 1) != 0
+        permissions: u64,
     }
 
     #[ink(event)]
@@ -778,6 +784,7 @@ mod ddc {
         p2p_id: String,
         p2p_addr: String,
         url: String,
+        permissions: u64,
     }
 
     #[ink(event)]
@@ -794,13 +801,18 @@ mod ddc {
             self.ddc_nodes.values().cloned().collect()
         }
 
-        /// Add DDC node to the list
+        /// Add DDC node to the list.
+        ///
+        /// If the node already exists based on p2p_id, update all fields.
+        ///
+        /// Use permissions 1 for a trusted node, otherwise 0.
         #[ink(message)]
         pub fn add_ddc_node(
             &mut self,
             p2p_id: String,
             p2p_addr: String,
             url: String,
+            permissions: u64,
         ) -> Result<()> {
             self.only_ddn_manager()?;
 
@@ -810,12 +822,14 @@ mod ddc {
                     p2p_id: p2p_id.clone(),
                     p2p_addr: p2p_addr.clone(),
                     url: url.clone(),
+                    permissions,
                 },
             );
             Self::env().emit_event(DDCNodeAdded {
                 p2p_id,
                 p2p_addr,
                 url,
+                permissions,
             });
 
             Ok(())

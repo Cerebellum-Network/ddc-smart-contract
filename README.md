@@ -9,6 +9,8 @@ This doc will explain:
 ## Release Notes
 #### vNext
 * ...
+#### v2.2.0
+* Added DDN permissions.
 #### v2.1.0
 * Added DDN manager role and methods for its management
 * Allow DDN manager to add/remove DDC nodes
