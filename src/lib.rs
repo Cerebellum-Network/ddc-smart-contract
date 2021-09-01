@@ -761,9 +761,6 @@ mod ddc {
         }
     }
 
-    // ---- DDC nodes ----
-    const DDC_NODE_PERMISSION_TRUSTED: u64 = 1;
-
     #[derive(
         Default, Clone, PartialEq, Eq, PartialOrd, Ord, Encode, Decode, SpreadLayout, PackedLayout,
     )]
