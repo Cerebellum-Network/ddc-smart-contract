@@ -761,6 +761,8 @@ mod ddc {
         }
     }
 
+    // ---- DDC nodes ----
+
     #[derive(
         Default, Clone, PartialEq, Eq, PartialOrd, Ord, Encode, Decode, SpreadLayout, PackedLayout,
     )]

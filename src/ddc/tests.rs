@@ -27,6 +27,8 @@ fn get_accounts() -> DefaultAccounts<DefaultEnvironment> {
     default_accounts::<DefaultEnvironment>().unwrap()
 }
 
+const DDC_NODE_PERMISSION_TRUSTED: u64 = 1;
+
 #[ink::test]
 fn new_works() {
     // Default constructor should do its job
