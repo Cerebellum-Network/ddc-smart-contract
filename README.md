@@ -73,6 +73,11 @@ In order to deploy and test Smart Contract use [Quick Start Guide](https://githu
 - check pos-node repository workflow results with new version of artifacts [here](https://github.com/Cerebellum-Network/pos-network-node/actions/workflows/run-tests-on-new-version-of-ddc-sc.yml)
 - check ddc-e2e-tests repository workflow results with new version of artifacts [here](https://github.com/Cerebellum-Network/ddc-e2e-tests/actions/workflows/run-tests-on-new-version-of-ddc-sc.yml)
 
+## How to copy artifacts from latest DDC SC image
+- To copy the latest artifacts use \
+  `sudo . ./copy-ddc-sc.sh dir_path_to (copy to your directory)`\
+  `sudo . ./copy-ddc-sc.sh (copy to default ./ directory)`
+
 ## Specification
 See [Specification](./SPECIFICATION.md)
 
