@@ -13,9 +13,9 @@ COPY . /ddc-smart-contract
 ARG CARGO_CONTRACT_VERSION=0.12.1
 RUN rustup default stable && \
 	rustup update && \
-	rustup update nightly && \
+	rustup update nightly-2021-05-07 && \
 	rustup component add rust-src --toolchain nightly-2021-05-07 && \
-	rustup target add wasm32-unknown-unknown --toolchain stable && \
+	rustup target add wasm32-unknown-unknown --toolchain nightly-2021-05-07 && \
 	cargo install cargo-contract --vers ^$CARGO_CONTRACT_VERSION --force --locked
 RUN	wget http://ftp.us.debian.org/debian/pool/main/libx/libxcrypt/libcrypt1_4.4.18-4_amd64.deb && \
 	dpkg -i libcrypt1_4.4.18-4_amd64.deb && \
