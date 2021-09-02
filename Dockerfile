@@ -24,7 +24,7 @@ RUN	wget http://ftp.us.debian.org/debian/pool/main/libx/libxcrypt/libcrypt1_4.4.
 	wget http://ftp.us.debian.org/debian/pool/main/g/gcc-10/libgcc-s1_10.2.1-6_amd64.deb && \
 	dpkg -i libgcc-s1_10.2.1-6_amd64.deb && \
 	wget http://ftp.us.debian.org/debian/pool/main/g/glibc/libc6_2.31-13_amd64.deb && \
-	dpkg -i libc6_2.31-12_amd64.deb && \
+	dpkg -i libc6_2.31-13_amd64.deb && \
 	wget http://ftp.us.debian.org/debian/pool/main/g/gcc-10/libstdc++6_10.2.1-6_amd64.deb && \
     dpkg -i libstdc++6_10.2.1-6_amd64.deb && \
 	wget http://de.archive.ubuntu.com/ubuntu/pool/universe/b/binaryen/binaryen_99-3_amd64.deb && \
