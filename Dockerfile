@@ -1,41 +1,35 @@
 # ===== FIRST STAGE ======
-ARG RUST_VERSION=1.52.1
-FROM rust:$RUST_VERSION as builder
+FROM rust:1.54 as builder
 
-RUN apt-get -y update && \
-    apt-get -y upgrade && \
-    apt-get install -y binaryen wget
+RUN apt-get update && \
+    apt-get -y upgrade
 
 WORKDIR /ddc-smart-contract
 COPY . /ddc-smart-contract
 
-# Install all dependencies
-ARG CARGO_CONTRACT_VERSION=0.12.1
-RUN rustup default stable && \
-	rustup update && \
-	rustup update nightly && \
-	rustup component add rust-src --toolchain nightly && \
-	rustup target add wasm32-unknown-unknown --toolchain stable && \
-	cargo install cargo-contract --vers ^$CARGO_CONTRACT_VERSION --force --locked
-RUN	wget http://ftp.us.debian.org/debian/pool/main/libx/libxcrypt/libcrypt1_4.4.18-4_amd64.deb && \
-	dpkg -i libcrypt1_4.4.18-4_amd64.deb && \
-	wget http://ftp.us.debian.org/debian/pool/main/g/gcc-10/gcc-10-base_10.2.1-6_amd64.deb && \
-	dpkg -i gcc-10-base_10.2.1-6_amd64.deb && \
-	wget http://ftp.us.debian.org/debian/pool/main/g/gcc-10/libgcc-s1_10.2.1-6_amd64.deb && \
-	dpkg -i libgcc-s1_10.2.1-6_amd64.deb && \
-	wget http://ftp.us.debian.org/debian/pool/main/g/glibc/libc6_2.31-12_amd64.deb && \
-	dpkg -i libc6_2.31-12_amd64.deb && \
-	wget http://ftp.us.debian.org/debian/pool/main/g/gcc-10/libstdc++6_10.2.1-6_amd64.deb && \
-    dpkg -i libstdc++6_10.2.1-6_amd64.deb && \
-	wget http://de.archive.ubuntu.com/ubuntu/pool/universe/b/binaryen/binaryen_99-3_amd64.deb && \
-	dpkg -i binaryen_99-3_amd64.deb
+# Install binaryen
+RUN curl --silent https://api.github.com/repos/WebAssembly/binaryen/releases/latest | \
+		egrep --only-matching 'https://github.com/WebAssembly/binaryen/releases/download/version_[0-9]+/binaryen-version_[0-9]+-x86_64-linux.tar.gz' | \
+		head -n1 | \
+		xargs curl -L -O && \
+	tar -xvzf binaryen-version_*-x86_64-linux.tar.gz  && \
+	rm binaryen-version_*-x86_64-linux.tar.gz && \
+	chmod +x binaryen-version_*/bin/wasm-opt && \
+	mv binaryen-version_*/bin/wasm-opt /usr/local/bin/ && \
+	rm -rf binaryen-version_*/
+
+# Install cargo-contract
+RUN rustup toolchain install nightly-2021-09-06 && \
+	rustup default nightly-2021-09-06 && \
+	rustup component add rust-src --toolchain nightly-2021-09-06 && \
+	rustup target add wasm32-unknown-unknown --toolchain nightly-2021-09-06 && \
+	cargo install cargo-contract --version 0.14.0 --force --locked
 
 # Run tests
-WORKDIR /ddc-smart-contract/src
-RUN cargo +nightly test
-# Run build
-WORKDIR /ddc-smart-contract
-RUN cargo +nightly contract build
+RUN cargo test
+
+# Build contract
+RUN cargo contract build
 
 # ===== SECOND STAGE ======
 FROM phusion/baseimage:0.11
