@@ -3,7 +3,6 @@ on:
   push:
     branches:
       - dev
-      - feature/fixForDockerFile
 
 env:
   ECR_REPOSITORY: ddc-smart-contract
