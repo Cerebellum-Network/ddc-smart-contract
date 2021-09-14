@@ -41,9 +41,9 @@ This doc will explain:
 1. Clone this repository
 1. Install build tools ([ink setup](https://substrate.dev/substrate-contracts-workshop/#/0/setup)):
     ```bash
-    rustup component add rust-src --toolchain nightly
-    rustup target add wasm32-unknown-unknown --toolchain stable
-    cargo install cargo-contract --vers ^0.12 --force --locked
+	rustup component add rust-src --toolchain nightly-2021-09-06 && \
+	rustup target add wasm32-unknown-unknown --toolchain nightly-2021-09-06 && \
+	cargo install cargo-contract --version 0.14.0 --force --locked
     
     # Wasm tools (https://github.com/WebAssembly/binaryen/releases)
     # Ubuntu. Install default then upgrade to version >= 99.
