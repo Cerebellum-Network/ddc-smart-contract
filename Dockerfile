@@ -8,7 +8,7 @@ WORKDIR /ddc-smart-contract
 COPY . /ddc-smart-contract
 
 # Install binaryen
-RUN curl --silent https://api.github.com/repos/WebAssembly/binaryen/releases/latest | \
+RUN curl --silent https://api.github.com/repos/WebAssembly/binaryen/releases/41561408 | \
 		egrep --only-matching 'https://github.com/WebAssembly/binaryen/releases/download/version_[0-9]+/binaryen-version_[0-9]+-x86_64-linux.tar.gz' | \
 		head -n1 | \
 		xargs curl -L -O && \
