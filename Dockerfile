@@ -22,7 +22,7 @@ RUN curl --silent https://api.github.com/repos/WebAssembly/binaryen/releases/415
 RUN rustup toolchain install nightly && \
 	rustup default nightly && \
 	rustup component add rust-src --toolchain nightly && \
-	rustup target add wasm32-unknown-unknown --toolchain stable && \
+	rustup target add wasm32-unknown-unknown --toolchain nightly && \
 	cargo install cargo-contract --vers ^0.12 --force --locked
 
 # Run tests
