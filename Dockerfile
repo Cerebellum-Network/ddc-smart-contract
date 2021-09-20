@@ -23,7 +23,7 @@ RUN rustup toolchain install nightly-2021-09-06 && \
 	rustup default nightly-2021-09-06 && \
 	rustup component add rust-src --toolchain nightly-2021-09-06 && \
 	rustup target add wasm32-unknown-unknown --toolchain nightly-2021-09-06 && \
-	cargo install cargo-contract --vers 0.14.0 --force --locked
+	cargo install cargo-contract --vers ^0.12 --force --locked
 
 # Run tests
 RUN cargo test
