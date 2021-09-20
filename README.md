@@ -8,7 +8,14 @@ This doc will explain:
 
 ## Release Notes
 #### vNext
-* ...
+*
+#### v2.2.3
+* Downgraded `cargo-contract` to `^0.12`
+#### v2.2.2
+* Fixed binaryen version
+#### v2.2.1
+* Updated Dockerfile
+* Added script to extract artifacts from the docker image
 #### v2.2.0
 * Added DDN permissions.
 #### v2.1.0
