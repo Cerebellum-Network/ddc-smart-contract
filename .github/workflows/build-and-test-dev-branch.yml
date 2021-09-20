@@ -3,7 +3,6 @@ on:
   push:
     branches:
       - dev
-      - feature/fix-sc-deploy
 
 env:
   ECR_REPOSITORY: ddc-smart-contract
