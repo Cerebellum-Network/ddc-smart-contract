@@ -1,8 +1,8 @@
 version: "3.8"
 
 services:
-  validation_node_custom:
-    container_name: validation_node_custom
+  validator_node:
+    container_name: validator_node
     image: "338287888375.dkr.ecr.us-west-2.amazonaws.com/pos-network-node:${POS_NODE_VERSION}"
     restart: always
     logging:

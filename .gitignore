@@ -13,6 +13,4 @@
 
 # Temporary files for pos-node
 pos-node/chain-data1/*
-!pos-node/chain-data1/.gitkeep
 pos-node/chain-data2/*
-!pos-node/chain-data2/.gitkeep
