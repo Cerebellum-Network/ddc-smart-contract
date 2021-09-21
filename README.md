@@ -85,6 +85,10 @@ In order to deploy and test Smart Contract use [Quick Start Guide](https://githu
   `sudo . ./copy-ddc-sc.sh dir_path_to image_tag` \
   `sudo . ./copy-ddc-sc.sh (default:  dir_path_to --> ./ directory, image_tag --> latest)`
 
+## How to run integration test locally (integration tests run on every pull request)
+- To copy the latest artifacts use (If you any other version )\
+  `. ./run-integration-tests.sh POS_NODE_VERSION DDC_E2E_TEST_VERSION` \
+
 ## Specification
 See [Specification](./SPECIFICATION.md)
 

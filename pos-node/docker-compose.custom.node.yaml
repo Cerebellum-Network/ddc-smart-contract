@@ -1,0 +1,27 @@
+version: "3.8"
+
+services:
+  validation_node_custom:
+    container_name: validation_node_custom
+    image: "338287888375.dkr.ecr.us-west-2.amazonaws.com/pos-network-node:${POS_NODE_VERSION}"
+    restart: always
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "20m"
+    ports:
+      - "9945:9945"
+      - "9934:9934"
+      - "30334:30334"
+    volumes:
+      - ./chain-data2:/data
+    command: bash -c "/usr/local/bin/cere --validator --ws-port 9945 --rpc-methods=Unsafe --port 30334 --ws-external --unsafe-ws-external --rpc-cors all --rpc-external --bootnodes /ip4/${BOOT_NODE_1}/tcp/30333/p2p/${NETWORK_IDENTIFIER} --chain local --bob"
+    networks:
+        - default
+        - test-net
+networks:
+  default:
+    driver: bridge
+  test-net:
+    external: true
+
