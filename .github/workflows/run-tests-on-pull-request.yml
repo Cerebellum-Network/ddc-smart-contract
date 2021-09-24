@@ -1,0 +1,53 @@
+name: Run tests
+on:
+  pull_request:
+    branches:
+      - dev
+    types:
+      - opened
+      - synchronize
+      - edited
+
+env:
+  ECR_REPOSITORY: ddc-smart-contract
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-18.04
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-west-2
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v1
+      - name: Cargo Cache
+        uses: actions/cache@v1
+        with:
+          path: ~/.cargo
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.toml') }}-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.toml') }}
+            ${{ runner.os }}-cargo
+      - name: Checkout repository
+        uses: actions/checkout@v1
+      - name: Build image and push test image
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        run: |
+          docker build . -t $ECR_REGISTRY/$ECR_REPOSITORY:test
+          echo "::set-output name=image::$ECR_REGISTRY/$ECR_REPOSITORY:test"
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:test
+      - name: Run tests
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        run: |
+          echo "Installing helper packaging curl wget findutils jq"
+          sudo apt-get install curl wget findutils jq
+          echo "Docker pulling $ECR_REGISTRY/$ECR_REPOSITORY:test"
+          docker pull $ECR_REGISTRY/$ECR_REPOSITORY:test
+          echo "Start full flow, infrustrucuture + tests, DDC_SMART_CONTRACT_VERSION=latest, DDC_E2E_TEST_VERSION=latest, DDC_SMART_CONTRACT_VERSION=test"
+          . ./scripts/run-integration-tests.sh latest latest test
