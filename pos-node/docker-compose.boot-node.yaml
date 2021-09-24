@@ -1,0 +1,27 @@
+version: "3.8"
+
+services:
+   boot_node:
+    container_name: boot_node
+    image: "338287888375.dkr.ecr.us-west-2.amazonaws.com/pos-network-node:${POS_NODE_VERSION}"
+    restart: always
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "20m"
+    ports:
+      - "9944:9944"
+      - "9933:9933"
+      - "30333:30333"
+    volumes:
+      - ./chain-data1:/data
+    command: bash -c "/usr/local/bin/cere --validator --ws-port 9944 --rpc-methods=Unsafe  --ws-external --unsafe-ws-external --rpc-cors all --rpc-external --alice --chain local"
+    networks:
+        - default
+        - test-net
+networks:
+  default:
+    driver: bridge
+  test-net:
+    external: false
+    name: test-net
