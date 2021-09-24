@@ -1,4 +1,4 @@
-name: Build and Test dev branch
+name: Run tests
 on:
   pull_request:
     branches:

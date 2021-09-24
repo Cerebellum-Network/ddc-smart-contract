@@ -6,7 +6,7 @@ export DDC_E2E_TEST_VERSION="${2:-latest}"
 export DDC_SMART_CONTRACT_VERSION="${3:-latest}"
 
 # Copy artifacts of DDC SC
-. ./scripts/copy-ddc-sc.sh
+. ./scripts/copy-ddc-sc.sh "./" "$DDC_SMART_CONTRACT_VERSION"
 
 # Start infrastructure
 . ./scripts/start-infrastructure.sh
