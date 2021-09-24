@@ -10,7 +10,3 @@
 
 *.iml
 .idea
-
-# Temporary files for pos-node
-pos-node/chain-data1/*
-pos-node/chain-data2/*
