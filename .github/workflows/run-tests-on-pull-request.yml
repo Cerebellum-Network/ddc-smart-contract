@@ -49,5 +49,18 @@ jobs:
           sudo apt-get install curl wget findutils jq
           echo "Docker pulling $ECR_REGISTRY/$ECR_REPOSITORY:test"
           docker pull $ECR_REGISTRY/$ECR_REPOSITORY:test
-          echo "Start full flow, infrustrucuture + tests, DDC_SMART_CONTRACT_VERSION=latest, DDC_E2E_TEST_VERSION=latest, DDC_SMART_CONTRACT_VERSION=test"
+          echo "Start full flow, infrustrucuture + tests, POS_NODE_VERSION=latest, DDC_E2E_TEST_VERSION=latest, DDC_SMART_CONTRACT_VERSION=test"
           . ./scripts/run-integration-tests.sh latest latest test
+      - name: Slack Notification
+        if: ${{ always() }}
+        uses: rtCamp/action-slack-notify@v2
+        env:
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+          SLACK_CHANNEL: e2e-test-results
+          SLACK_COLOR: ${{ job.status }}
+          SLACK_MESSAGE: 'Run integration tests on branch "${{ github.sha }}" with params:
+          POS_NODE_VERSION=latest,
+          DDC_E2E_TEST_VERSION=latest,
+          DDC_SMART_CONTRACT_VERSION=test'
+          SLACK_TITLE: Test Results
+          SLACK_USERNAME: ddc-smart-contract-integration-tests-bot
