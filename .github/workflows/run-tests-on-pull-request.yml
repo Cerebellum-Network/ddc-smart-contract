@@ -51,8 +51,8 @@ jobs:
           docker pull $ECR_REGISTRY/$ECR_REPOSITORY:test
           echo "Start full flow, infrustrucuture + tests, POS_NODE_VERSION=latest, DDC_E2E_TEST_VERSION=latest, DDC_SMART_CONTRACT_VERSION=test"
           . ./scripts/run-integration-tests.sh latest latest test
-      - name: Slack Notification
-        if: ${{ always() }}
+      - name: Slack Notification Success
+        if: ${{ success() }}
         uses: rtCamp/action-slack-notify@v2
         env:
           SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
@@ -62,5 +62,19 @@ jobs:
           POS_NODE_VERSION=latest,
           DDC_E2E_TEST_VERSION=latest,
           DDC_SMART_CONTRACT_VERSION=test'
-          SLACK_TITLE: Test Results
-          SLACK_USERNAME: ddc-smart-contract-integration-tests-bot
+          SLACK_TITLE: 'Test Results for "${{github.repository}}"'
+          SLACK_USERNAME: ddc-smart-contract-tests-bot
+      - name: Slack Notification Failure
+        if: ${{ failure() }}
+        uses: rtCamp/action-slack-notify@v2
+        env:
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+          SLACK_CHANNEL: e2e-test-results
+          SLACK_LINK_NAMES: true
+          SLACK_COLOR: ${{ job.status }}
+          SLACK_MESSAGE: 'Run integration tests on branch "${{ github.sha }}" with params:
+          POS_NODE_VERSION=latest,
+          DDC_E2E_TEST_VERSION=latest,
+          DDC_SMART_CONTRACT_VERSION=test. Responsible persons: <@UM0FVG0CD>, <@U01UG95HTM1>, <@U011DQ8QZD4>'
+          SLACK_TITLE: 'Test Results for "${{github.repository}}"'
+          SLACK_USERNAME: ddc-smart-contract-tests-bot
