@@ -31,9 +31,10 @@ jobs:
 
   trigger:
     needs: build-and-push
+    if: ${{ success() }}
     strategy:
       matrix:
-        repo: ['Cerebellum-Network/pos-network-node','Cerebellum-Network/ddc-e2e-tests']
+        repo: [ 'Cerebellum-Network/pos-network-node' ]
     runs-on: ubuntu-latest
     steps:
       - name: Get the current short branch name (VERSION)
