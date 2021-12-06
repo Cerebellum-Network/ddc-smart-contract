@@ -44,10 +44,10 @@ jobs:
     needs: build-and-push
     strategy:
       matrix:
-        repo: ['Cerebellum-Network/pos-network-node','Cerebellum-Network/ddc-e2e-tests']
+        repo: [ 'Cerebellum-Network/pos-network-node' ]
     runs-on: ubuntu-latest
     steps:
-      - name: Trigger Cerebellum-Network/pos-network-node and Cerebellum-Network/ddc-e2e-tests repositories
+      - name: Trigger Cerebellum-Network/pos-network-node
         uses: peter-evans/repository-dispatch@v1
         with:
           token: ${{ secrets.TRIGGER_GITHUB_TOKEN }}
