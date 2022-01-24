@@ -2,7 +2,7 @@ name: Build and Test dev branch
 on:
   push:
     branches:
-      - dev
+      - feature/newAwsCreds
 
 env:
   ECR_REPOSITORY: ddc-smart-contract
