@@ -20,37 +20,20 @@ jobs:
       - name: Login to Amazon ECR
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v1
-      - name: Cargo Cache
-        uses: actions/cache@v1
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
         with:
-          path: ~/.cargo
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.toml') }}-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.toml') }}
-            ${{ runner.os }}-cargo
-      - name: Checkout repository
-        uses: actions/checkout@v1
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-west-2
+      - name: Login to Amazon ECR
+        id: login-ecr-another
+        uses: aws-actions/amazon-ecr-login@v1
       - name: Build image and push image
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          ECR_REGISTRY_SECOND: ${{ steps.login-ecr-another.outputs.registry }}
         run: |
-          docker build . -t $ECR_REGISTRY/$ECR_REPOSITORY:$GITHUB_SHA
-          echo "::set-output name=image::$ECR_REGISTRY/$ECR_REPOSITORY:$GITHUB_SHA"
-          docker image tag $ECR_REGISTRY/$ECR_REPOSITORY:$GITHUB_SHA $ECR_REGISTRY/$ECR_REPOSITORY:latest
-          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$GITHUB_SHA
-          docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
-
-  trigger:
-    needs: build-and-push
-    strategy:
-      matrix:
-        repo: ['Cerebellum-Network/pos-network-node','Cerebellum-Network/ddc-e2e-tests']
-    runs-on: ubuntu-latest
-    steps:
-      - name: Trigger Cerebellum-Network/pos-network-node and Cerebellum-Network/ddc-e2e-tests repositories
-        uses: peter-evans/repository-dispatch@v1
-        with:
-          token: ${{ secrets.TRIGGER_GITHUB_TOKEN }}
-          repository: ${{ matrix.repo }}
-          event-type: DDC_SMART_CONTRACT_VERSION_TRIGGER
-          client-payload: '{"DDC_SMART_CONTRACT_VERSION": "${{ github.sha }}"}'
+          docker pull $ECR_REGISTRY/$ECR_REPOSITORY:latest
+          docker image tag $ECR_REGISTRY/$ECR_REPOSITORY:latest $ECR_REGISTRY_SECOND/$ECR_REPOSITORY:latest
+          docker push $ECR_REGISTRY_SECOND/$ECR_REPOSITORY:latest
